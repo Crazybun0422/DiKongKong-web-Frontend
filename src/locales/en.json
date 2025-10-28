@@ -1,0 +1,79 @@
+{
+  "app": {
+    "brand": "DiKongKong Admin"
+  },
+  "navigation": {
+    "home": "Home",
+    "airspace": "Airspace Map",
+    "user": "User Management",
+    "settings": "Settings"
+  },
+  "profile": {
+    "menu": "Admin",
+    "viewProfile": "View / Edit Profile",
+    "logout": "Sign Out",
+    "title": "Profile",
+    "email": "Email",
+    "avatar": "Avatar",
+    "uploadHint": "Accepts JPG/PNG up to 2MB",
+    "uploading": "Uploading...",
+    "uploadSuccess": "Avatar uploaded",
+    "update": "Save Changes",
+    "cancel": "Cancel",
+    "updateSuccess": "Profile updated",
+    "fetchError": "Unable to load profile, please retry",
+    "uploadError": "Avatar upload failed, try again",
+    "changeAvatar": "Change avatar",
+    "dragTitle": "Drag & drop or click to upload",
+    "dragSubtitle": "JPG or PNG, max 2 MB",
+    "cropTitle": "Adjust avatar",
+    "cropSubTitle": "Drag to reposition, scroll to zoom, then crop",
+    "confirmCrop": "Apply crop",
+    "reset": "Remove current avatar",
+    "selectFile": "Choose image",
+    "previewTitle": "Preview",
+    "previewSubtitle": "Final appearance in the console",
+    "zoomLabel": "Zoom"
+  },
+  "auth": {
+    "loginTab": "Sign In",
+    "registerTab": "Register",
+    "adminAccount": "Admin Account",
+    "adminAccountPlaceholder": "Enter admin account",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "submitLogin": "Access Console",
+    "tokenTitle": "Session Token",
+    "createAdminAccountPlaceholder": "Create admin account",
+    "setPasswordPlaceholder": "Set sign-in password",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter password",
+    "email": "Email",
+    "emailPlaceholder": "Notification email address",
+    "submitRegister": "Register Account",
+    "loginSuccess": "Signed in successfully",
+    "registerSuccess": "Registration complete, please sign in",
+    "completeCaptcha": "Complete the captcha before signing in",
+    "missingCredentials": "Missing admin credentials, please try again",
+    "retryCaptcha": "Please redo the captcha",
+    "requestFailed": "Request failed, please retry",
+    "passwordMismatch": "Passwords do not match",
+    "enterPasswordAgain": "Please re-enter the password",
+    "enterEmail": "Enter an email address",
+    "invalidEmail": "Enter a valid email address",
+    "enterAdminAccount": "Enter admin account",
+    "enterPassword": "Enter password"
+  },
+  "captcha": {
+    "title": "Complete the slider verification",
+    "verifying": "Verifying...",
+    "close": "Close",
+    "failed": "Verification failed, try again"
+  },
+  "dashboard": {
+    "pending": "Pending"
+  },
+  "messages": {
+    "requestFailed": "Request failed, please retry"
+  }
+}
