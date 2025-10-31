@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import { fetchAdminUsers } from '../../services/adminUsers'
 import { fetchFlpLogs } from '../../services/flp'
+import detailIcon from '../../assets/img/detail.png'
 
 const { t } = useI18n()
 
@@ -30,12 +31,18 @@ const detailPagination = reactive({
   total: 0,
 })
 
+const sortOrder = ref('DESC')
+const sortIndicator = computed(() => (sortOrder.value === 'ASC' ? '↑' : '↓'))
+const sortLabel = computed(() =>
+  sortOrder.value === 'ASC' ? t('users.sort.ascend') : t('users.sort.descend'),
+)
+
 const columns = computed(() => [
   { title: t('users.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 160 },
   { title: t('users.columns.username'), dataIndex: 'username', key: 'username' },
   { title: t('users.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 120 },
   { title: t('users.columns.token'), dataIndex: 'flpBalance', key: 'token', width: 120 },
-  { title: t('users.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+  { title: t('users.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 220 },
   { title: t('users.columns.actions'), key: 'actions', width: 160 },
 ])
 
@@ -72,13 +79,21 @@ const formatDateTime = (value) => {
   }
 }
 
-const loadUsers = async () => {
+const loadUsers = async ({ sortOverride, pageOverride } = {}) => {
+  if (typeof pageOverride === 'number') {
+    pagination.current = pageOverride
+  }
+
   loading.value = true
   try {
+    const effectiveSort = sortOverride ?? sortOrder.value ?? 'DESC'
+    sortOrder.value = effectiveSort
+
     const { content, totalElements, page, size } = await fetchAdminUsers({
       page: pagination.current,
       size: pagination.pageSize,
       keyword: searchForm.keyword,
+      sortOrder: effectiveSort,
     })
     tableData.value = content
     pagination.total = totalElements
@@ -94,13 +109,19 @@ const loadUsers = async () => {
 
 const handleSearch = () => {
   pagination.current = 1
-  loadUsers()
+  loadUsers({ sortOverride: 'DESC', pageOverride: 1 })
 }
 
 const handleTableChange = (pager) => {
   pagination.current = pager?.current ?? 1
   pagination.pageSize = pager?.pageSize ?? pagination.pageSize
-  loadUsers()
+
+  loadUsers({})
+}
+
+const toggleCreatedAtSort = () => {
+  const next = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
+  loadUsers({ sortOverride: next, pageOverride: 1 })
 }
 
 const loadUserLogs = async () => {
@@ -180,6 +201,15 @@ onMounted(() => {
         class="users-table"
         @change="handleTableChange"
       >
+        <template #headerCell="{ column }">
+          <template v-if="column.key === 'createdAt'">
+            <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
+              <span>{{ t('users.columns.createdAt') }}</span>
+              <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
+              <span class="sr-only">{{ sortLabel }}</span>
+            </button>
+          </template>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'avatar'">
             <a-avatar :src="record.avatarUrl" :alt="record.username" />
@@ -191,8 +221,15 @@ onMounted(() => {
             {{ formatDateTime(record.createdAt) }}
           </template>
           <template v-else-if="column.key === 'actions'">
-            <a-button type="link" size="small" @click="openDetail(record)">
-              {{ t('users.table.actions.viewDetail') }}
+            <a-button
+              size="small"
+              type="text"
+              class="detail-button"
+              :title="t('users.table.actions.viewDetail')"
+              :aria-label="t('users.table.actions.viewDetail')"
+              @click="openDetail(record)"
+            >
+              <img :src="detailIcon" :alt="t('users.table.actions.viewDetail')" class="detail-icon" />
             </a-button>
           </template>
         </template>
@@ -301,6 +338,53 @@ onMounted(() => {
 
 .users-table :deep(.ant-table-tbody > tr > td) {
   vertical-align: middle;
+}
+
+.sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #111827;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sort-toggle:hover {
+  color: #1d4ed8;
+}
+
+.sort-indicator {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.detail-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .token {

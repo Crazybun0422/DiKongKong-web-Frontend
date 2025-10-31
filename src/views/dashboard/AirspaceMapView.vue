@@ -1,10 +1,14 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { Modal, message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS } from '../../services/markers'
+import detailIcon from '../../assets/img/detail.png'
 
 const { t } = useI18n()
+const router = useRouter()
+const route = useRoute()
 
 const loading = ref(false)
 const tableData = ref([])
@@ -17,6 +21,28 @@ const pagination = reactive({
 
 const detailVisible = ref(false)
 const detailRecord = ref(null)
+
+const normalizeStatus = (value) => {
+  if (Array.isArray(value)) {
+    return normalizeStatus(value[0])
+  }
+  if (!value) return MARKER_REVIEW_STATUS.ALL
+  const formatted = String(value).toUpperCase()
+  return Object.values(MARKER_REVIEW_STATUS).includes(formatted) ? formatted : MARKER_REVIEW_STATUS.ALL
+}
+
+const updateRouteStatus = (status) => {
+  const nextQuery = { ...route.query }
+  if (status === MARKER_REVIEW_STATUS.ALL) {
+    if (nextQuery.status === undefined) return
+    delete nextQuery.status
+  } else if (nextQuery.status === status) {
+    return
+  } else {
+    nextQuery.status = status
+  }
+  router.replace({ query: nextQuery }).catch(() => { })
+}
 
 const statusTabs = computed(() => [
   { key: MARKER_REVIEW_STATUS.ALL, label: t('airspace.tabs.all') },
@@ -105,9 +131,13 @@ const loadData = async () => {
 }
 
 const handleTabChange = (key) => {
-  activeStatus.value = key
-  pagination.current = 1
-  loadData()
+  const nextStatus = normalizeStatus(key)
+  if (activeStatus.value !== nextStatus) {
+    activeStatus.value = nextStatus
+    pagination.current = 1
+    loadData()
+  }
+  updateRouteStatus(nextStatus)
 }
 
 const handleTableChange = (pager) => {
@@ -161,8 +191,22 @@ const handleReview = (record, status) => {
 }
 
 onMounted(() => {
+  const initialStatus = normalizeStatus(route.query.status)
+  activeStatus.value = initialStatus
+  updateRouteStatus(initialStatus)
   loadData()
 })
+
+watch(
+  () => route.query.status,
+  (status) => {
+    const normalized = normalizeStatus(status)
+    if (normalized === activeStatus.value) return
+    activeStatus.value = normalized
+    pagination.current = 1
+    loadData()
+  },
+)
 </script>
 
 <template>
@@ -177,15 +221,8 @@ onMounted(() => {
       <a-tabs :active-key="activeStatus" @change="handleTabChange" class="status-tabs">
         <a-tab-pane v-for="tab in statusTabs" :key="tab.key" :tab="tab.label" />
       </a-tabs>
-      <a-table
-        :columns="columns"
-        :data-source="tableData"
-        :loading="loading"
-        :pagination="paginationConfig"
-        row-key="id"
-        class="markers-table"
-        @change="handleTableChange"
-      >
+      <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
+        row-key="id" class="markers-table" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'name'">
             <div class="name-cell">
@@ -213,26 +250,16 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'actions'">
             <div class="table-actions">
-              <a-button type="link" size="small" @click="openDetail(record)">
-                {{ t('airspace.table.actions.viewDetail') }}
+              <a-button size="small" type="text" class="detail-button" :title="t('airspace.table.actions.viewDetail')"
+                :aria-label="t('airspace.table.actions.viewDetail')" @click="openDetail(record)">
+                <img :src="detailIcon" :alt="t('airspace.table.actions.viewDetail')" class="detail-icon" />
               </a-button>
-              <a-button
-                v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING"
-                type="link"
-                size="small"
-                :disabled="!record.paid"
-                @click="handleReview(record, MARKER_REVIEW_STATUS.APPROVED)"
-              >
+              <a-button v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING" type="link" size="small"
+                :disabled="!record.paid" @click="handleReview(record, MARKER_REVIEW_STATUS.APPROVED)">
                 {{ t('airspace.table.actions.approve') }}
               </a-button>
-              <a-button
-                v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING"
-                type="link"
-                size="small"
-                danger
-                :disabled="!record.paid"
-                @click="handleReview(record, MARKER_REVIEW_STATUS.REJECTED)"
-              >
+              <a-button v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING" type="link" size="small" danger
+                :disabled="!record.paid" @click="handleReview(record, MARKER_REVIEW_STATUS.REJECTED)">
                 {{ t('airspace.table.actions.reject') }}
               </a-button>
             </div>
@@ -241,30 +268,18 @@ onMounted(() => {
       </a-table>
     </a-card>
 
-    <a-modal
-      :open="detailVisible"
-      :title="detailRecord?.name || t('airspace.modal.title')"
-      width="960px"
-      :destroy-on-close="true"
-      @cancel="closeDetail"
-    >
+    <a-modal :open="detailVisible" :title="detailRecord?.name || t('airspace.modal.title')" width="960px"
+      :destroy-on-close="true" @cancel="closeDetail">
       <template #footer>
         <div class="modal-footer">
           <a-button @click="closeDetail">{{ t('airspace.modal.actions.close') }}</a-button>
           <template v-if="detailRecord?.reviewStatus === MARKER_REVIEW_STATUS.PENDING">
-            <a-button
-              type="primary"
-              ghost
-              :disabled="!detailRecord?.paid"
-              @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.REJECTED)"
-            >
+            <a-button type="primary" ghost :disabled="!detailRecord?.paid"
+              @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.REJECTED)">
               {{ t('airspace.modal.actions.reject') }}
             </a-button>
-            <a-button
-              type="primary"
-              :disabled="!detailRecord?.paid"
-              @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.APPROVED)"
-            >
+            <a-button type="primary" :disabled="!detailRecord?.paid"
+              @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.APPROVED)">
               {{ t('airspace.modal.actions.approve') }}
             </a-button>
           </template>
@@ -319,14 +334,8 @@ onMounted(() => {
           <h3>{{ t('airspace.modal.sections.images') }}</h3>
           <a-image-preview-group>
             <div class="image-grid">
-              <a-image
-                v-for="url in detailRecord.images"
-                :key="url"
-                :src="url"
-                width="120"
-                height="120"
-                :preview="{ src: url }"
-              />
+              <a-image v-for="url in detailRecord.images" :key="url" :src="url" width="120" height="120"
+                :preview="{ src: url }" />
             </div>
           </a-image-preview-group>
         </section>
@@ -350,14 +359,8 @@ onMounted(() => {
         <section class="detail-section" v-if="detailRecord.qrCodeUrls?.length">
           <h3>{{ t('airspace.modal.sections.qrCodes') }}</h3>
           <div class="image-grid">
-            <a-image
-              v-for="url in detailRecord.qrCodeUrls"
-              :key="url"
-              :src="url"
-              width="120"
-              height="120"
-              :preview="{ src: url }"
-            />
+            <a-image v-for="url in detailRecord.qrCodeUrls" :key="url" :src="url" width="120" height="120"
+              :preview="{ src: url }" />
           </div>
         </section>
 
@@ -475,6 +478,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.detail-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .modal-footer {

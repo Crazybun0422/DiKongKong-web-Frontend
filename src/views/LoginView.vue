@@ -43,7 +43,7 @@ const backgroundStyle = computed(() => ({
   z-index: 5;
   color: #f4f8ff;
   letter-spacing: 0.08em;
-  font-size: 1.25rem;
+  font-size: 2.25rem;
   font-weight: 600;
 }
 
@@ -62,10 +62,10 @@ const backgroundStyle = computed(() => ({
 .auth-main::before {
   content: '';
   position: absolute;
-  inset: -26px;
+  inset: -5px;
   border-radius: 32px;
   background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 18px 48px rgba(14, 42, 102, 0.18);
@@ -80,8 +80,8 @@ const backgroundStyle = computed(() => ({
   }
 
   .brand {
-    left: 1.5rem;
-    top: 2rem;
+    left: 2.5rem;
+    top: 3rem;
   }
 
   .auth-main {

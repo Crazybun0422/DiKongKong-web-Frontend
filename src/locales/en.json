@@ -284,6 +284,10 @@
     "pagination": {
       "total": "Total {total} users · Showing {start}-{end}"
     },
+    "sort": {
+      "ascend": "Sort ascending",
+      "descend": "Sort descending"
+    },
     "messages": {
       "loadFailed": "Failed to load users",
       "logLoadFailed": "Failed to load token logs"
