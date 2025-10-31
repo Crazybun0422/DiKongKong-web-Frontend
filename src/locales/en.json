@@ -73,26 +73,181 @@
   "dashboard": {
     "pending": "Pending"
   },
+  "airspace": {
+    "title": "Airspace Markers",
+    "subtitle": "Manage and review submitted markers with quick filters.",
+    "tabs": {
+      "all": "All",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "table": {
+      "columns": {
+        "name": "Marker",
+        "createdAt": "Submitted At",
+        "status": "Status",
+        "paid": "Payment",
+        "actions": "Actions"
+      },
+      "actions": {
+        "viewDetail": "View",
+        "approve": "Approve",
+        "reject": "Reject"
+      },
+      "placeholders": {
+        "unnamed": "Untitled marker",
+        "unknownLocation": "Location unavailable",
+        "notProvided": "Not provided"
+      }
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "unknown": "Unknown"
+    },
+    "paidStatus": {
+      "paid": "Paid",
+      "unpaid": "Unpaid"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items · Showing {start}-{end}"
+    },
+    "messages": {
+      "loadFailed": "Failed to load markers, please try again later.",
+      "reviewSuccess": "Review result submitted.",
+      "reviewFailed": "Failed to submit review result.",
+      "unpaidWarning": "Only paid markers can be reviewed."
+    },
+    "confirm": {
+      "approve": {
+        "title": "Approve marker",
+        "content": "Confirm approving “{name}”?",
+        "ok": "Approve"
+      },
+      "reject": {
+        "title": "Reject marker",
+        "content": "Confirm rejecting “{name}”?",
+        "ok": "Reject"
+      },
+      "cancel": "Cancel"
+    },
+    "modal": {
+      "title": "Marker detail",
+      "sections": {
+        "basic": "Basic information",
+        "description": "Description",
+        "images": "Gallery",
+        "businessLicense": "Business license",
+        "attachments": "Attachments",
+        "qrCodes": "QR codes",
+        "videoChannels": "Video channels",
+        "honors": "Industry honors",
+        "adminInfo": "Administrator contact"
+      },
+      "fields": {
+        "name": "Name",
+        "featureCode": "Feature code",
+        "location": "Location",
+        "phone": "Phone",
+        "status": "Status",
+        "paid": "Payment",
+        "createdAt": "Created at",
+        "updatedAt": "Updated at",
+        "exposure": "Exposure",
+        "phoneCall": "Phone calls",
+        "adminName": "Name",
+        "adminTitle": "Title",
+        "adminPhone": "Phone"
+      },
+      "actions": {
+        "close": "Close",
+        "approve": "Approve",
+        "reject": "Reject"
+      }
+    }
+  },
   "settings": {
     "weapp": {
-      "title": "Mini Program Credentials",
-      "appId": "AppID",
-      "secret": "App Secret",
-      "jwtSecret": "JWT Secret",
-      "placeholders": {
-        "appId": "Enter the mini program AppID",
-        "secret": "Enter the app secret",
-        "jwtSecret": "Enter the JWT secret"
+      "tabTitle": "Mini program"
+    },
+    "tabs": {
+      "invite": "Referral rewards",
+      "mapSettlement": "Merchant onboarding",
+      "openPlatform": "Open platform",
+      "weapp": "Mini program"
+    },
+    "invite": {
+      "logs": {
+        "title": "Referral token logs",
+        "subtitle": "Monitor referral payouts triggered by user actions.",
+        "searchPlaceholder": "Filter by feature code",
+        "search": "Search",
+        "columns": {
+          "featureCode": "Feature code",
+          "username": "Username",
+          "avatar": "Avatar",
+          "amount": "Token change",
+          "operation": "Operation",
+          "createdAt": "Created at"
+        },
+        "pagination": {
+          "total": "Total {total} records · Showing {start}-{end}"
+        },
+        "operation": {
+          "increase": "Increase",
+          "decrease": "Decrease"
+        }
+      },
+      "form": {
+        "title": "Reward configuration",
+        "friendRegisterRewardFlp": "Friend registration reward",
+        "friendFirstMarkerFlp": "Friend first marker reward",
+        "placeholder": "Enter FLP tokens"
       },
       "validation": {
-        "appId": "Please enter the AppID",
-        "secret": "Please enter the app secret",
-        "jwtSecret": "Please enter the JWT secret"
+        "friendRegisterRewardFlp": "Enter the registration reward amount",
+        "friendFirstMarkerFlp": "Enter the first marker reward amount"
       },
       "messages": {
-        "loadFailed": "Failed to load mini program settings",
-        "saveSuccess": "Mini program settings saved",
-        "saveFailed": "Failed to save mini program settings"
+        "loadFailed": "Failed to load reward configuration",
+        "logLoadFailed": "Failed to load referral logs",
+        "saveSuccess": "Referral configuration saved",
+        "saveFailed": "Failed to save referral configuration"
+      }
+    },
+    "mapSettlement": {
+      "form": {
+        "wechatListPrice": "WeChat list price",
+        "wechatNetPrice": "WeChat net price",
+        "flpListPrice": "FLP list price",
+        "flpNetPrice": "FLP net price"
+      },
+      "validation": {
+        "wechatListPrice": "Enter the WeChat list price",
+        "wechatNetPrice": "Enter the WeChat net price",
+        "flpListPrice": "Enter the FLP list price",
+        "flpNetPrice": "Enter the FLP net price"
+      },
+      "messages": {
+        "loadFailed": "Failed to load merchant onboarding prices",
+        "saveSuccess": "Merchant onboarding prices saved",
+        "saveFailed": "Failed to save merchant onboarding prices"
+      }
+    },
+    "openPlatform": {
+      "form": {
+        "content": "Open platform content",
+        "placeholder": "Enter rich text content for the open platform"
+      },
+      "actions": {
+        "save": "Save content"
+      },
+      "messages": {
+        "loadFailed": "Failed to load open platform content",
+        "saveSuccess": "Open platform content saved",
+        "saveFailed": "Failed to save open platform content"
       }
     }
   },
@@ -103,6 +258,57 @@
     "actions": {
       "save": "Save",
       "reset": "Reset"
+    }
+  },
+  "users": {
+    "title": "User management",
+    "subtitle": "Review user registrations and token activity.",
+    "search": {
+      "placeholder": "Search by username or feature code",
+      "submit": "Search"
+    },
+    "columns": {
+      "featureCode": "Feature code",
+      "username": "Username",
+      "avatar": "Avatar",
+      "token": "TOKEN",
+      "createdAt": "Registered at",
+      "actions": "Actions"
+    },
+    "table": {
+      "actions": {
+        "viewDetail": "View detail"
+      },
+      "noToken": "Not available"
+    },
+    "pagination": {
+      "total": "Total {total} users · Showing {start}-{end}"
+    },
+    "messages": {
+      "loadFailed": "Failed to load users",
+      "logLoadFailed": "Failed to load token logs"
+    },
+    "detail": {
+      "title": "User detail",
+      "fields": {
+        "featureCode": "Feature code",
+        "token": "TOKEN",
+        "createdAt": "Registered at"
+      },
+      "logs": {
+        "title": "Token activity",
+        "subtitle": "History of FLP adjustments for this user.",
+        "operation": {
+          "increase": "Increase",
+          "decrease": "Decrease"
+        }
+      },
+      "columns": {
+        "operation": "Operation",
+        "amount": "Amount",
+        "reason": "Reason",
+        "createdAt": "Created at"
+      }
     }
   }
 }

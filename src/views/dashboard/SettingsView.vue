@@ -2,96 +2,504 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
+import {
+  fetchInviteConfig,
+  saveInviteConfig,
+  fetchMapSettlementConfig,
+  saveMapSettlementConfig,
+  fetchOpenPlatformCopy,
+  saveOpenPlatformCopy,
+} from '../../services/config'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
+import { fetchFlpLogs } from '../../services/flp'
 
 const { t } = useI18n()
 
-const formRef = ref(null)
-const loading = ref(false)
-const saving = ref(false)
+const activeTab = ref('invite')
 
-const form = reactive({
+const inviteForm = reactive({
+  friendRegisterRewardFlp: 0,
+  friendFirstMarkerFlp: 0,
+})
+const inviteRules = computed(() => ({
+  friendRegisterRewardFlp: [
+    { required: true, message: t('settings.invite.validation.friendRegisterRewardFlp') },
+  ],
+  friendFirstMarkerFlp: [
+    { required: true, message: t('settings.invite.validation.friendFirstMarkerFlp') },
+  ],
+}))
+const inviteLoading = ref(false)
+const inviteSaving = ref(false)
+
+const inviteLogs = ref([])
+const inviteLogsLoading = ref(false)
+const inviteLogPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
+const inviteLogFilters = reactive({
+  featureCode: '',
+})
+
+const mapForm = reactive({
+  wechatListPrice: 0,
+  wechatNetPrice: 0,
+  flpListPrice: 0,
+  flpNetPrice: 0,
+})
+const mapRules = computed(() => ({
+  wechatListPrice: [{ required: true, message: t('settings.mapSettlement.validation.wechatListPrice') }],
+  wechatNetPrice: [{ required: true, message: t('settings.mapSettlement.validation.wechatNetPrice') }],
+  flpListPrice: [{ required: true, message: t('settings.mapSettlement.validation.flpListPrice') }],
+  flpNetPrice: [{ required: true, message: t('settings.mapSettlement.validation.flpNetPrice') }],
+}))
+const mapLoading = ref(false)
+const mapSaving = ref(false)
+
+const openPlatformForm = reactive({
+  content: '',
+})
+const openPlatformLoading = ref(false)
+const openPlatformSaving = ref(false)
+
+const weappForm = reactive({
   appId: '',
   secret: '',
   jwtSecret: '',
 })
-
-const formRules = computed(() => ({
+const weappRules = computed(() => ({
   appId: [{ required: true, message: t('settings.weapp.validation.appId') }],
   secret: [{ required: true, message: t('settings.weapp.validation.secret') }],
   jwtSecret: [{ required: true, message: t('settings.weapp.validation.jwtSecret') }],
 }))
+const weappLoading = ref(false)
+const weappSaving = ref(false)
 
-const loadConfig = async () => {
-  loading.value = true
+const inviteColumns = computed(() => [
+  { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
+  { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
+  { title: t('settings.invite.logs.columns.avatar'), dataIndex: ['user', 'avatarUrl'], key: 'avatar', width: 120 },
+  { title: t('settings.invite.logs.columns.amount'), dataIndex: 'amount', key: 'amount', width: 140 },
+  { title: t('settings.invite.logs.columns.operation'), dataIndex: 'operation', key: 'operation', width: 140 },
+  { title: t('settings.invite.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const loadInviteConfig = async () => {
+  inviteLoading.value = true
   try {
-    const data = await fetchWeappConfig()
-    form.appId = data?.appId || ''
-    form.secret = data?.secret || ''
-    form.jwtSecret = data?.jwtSecret || ''
+    const data = await fetchInviteConfig()
+    inviteForm.friendRegisterRewardFlp = data?.friendRegisterRewardFlp ?? 0
+    inviteForm.friendFirstMarkerFlp = data?.friendFirstMarkerFlp ?? 0
   } catch (error) {
-    message.error(t('settings.weapp.messages.loadFailed'))
+    console.error('Failed to load invite config', error)
+    message.error(t('settings.invite.messages.loadFailed'))
   } finally {
-    loading.value = false
+    inviteLoading.value = false
   }
 }
 
-const handleSubmit = async () => {
-  saving.value = true
+const loadInviteLogs = async () => {
+  inviteLogsLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchFlpLogs({
+      page: inviteLogPagination.current,
+      size: inviteLogPagination.pageSize,
+      featureCode: inviteLogFilters.featureCode.trim() || undefined,
+    })
+    inviteLogs.value = content
+    inviteLogPagination.total = totalElements
+    inviteLogPagination.current = page
+    inviteLogPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load FLP logs', error)
+    message.error(t('settings.invite.messages.logLoadFailed'))
+  } finally {
+    inviteLogsLoading.value = false
+  }
+}
+
+const handleInviteLogSearch = () => {
+  inviteLogPagination.current = 1
+  loadInviteLogs()
+}
+
+const handleInviteLogTableChange = (pager) => {
+  inviteLogPagination.current = pager?.current ?? 1
+  inviteLogPagination.pageSize = pager?.pageSize ?? inviteLogPagination.pageSize
+  loadInviteLogs()
+}
+
+const submitInviteForm = async () => {
+  inviteSaving.value = true
+  try {
+    await saveInviteConfig({
+      friendRegisterRewardFlp: Number(inviteForm.friendRegisterRewardFlp) || 0,
+      friendFirstMarkerFlp: Number(inviteForm.friendFirstMarkerFlp) || 0,
+    })
+    message.success(t('settings.invite.messages.saveSuccess'))
+    loadInviteConfig()
+  } catch (error) {
+    console.error('Failed to save invite config', error)
+    message.error(t('settings.invite.messages.saveFailed'))
+  } finally {
+    inviteSaving.value = false
+  }
+}
+
+const loadMapConfig = async () => {
+  mapLoading.value = true
+  try {
+    const data = await fetchMapSettlementConfig()
+    mapForm.wechatListPrice = data?.wechatListPrice ?? 0
+    mapForm.wechatNetPrice = data?.wechatNetPrice ?? 0
+    mapForm.flpListPrice = data?.flpListPrice ?? 0
+    mapForm.flpNetPrice = data?.flpNetPrice ?? 0
+  } catch (error) {
+    console.error('Failed to load map settlement config', error)
+    message.error(t('settings.mapSettlement.messages.loadFailed'))
+  } finally {
+    mapLoading.value = false
+  }
+}
+
+const submitMapForm = async () => {
+  mapSaving.value = true
+  try {
+    await saveMapSettlementConfig({
+      wechatListPrice: Number(mapForm.wechatListPrice) || 0,
+      wechatNetPrice: Number(mapForm.wechatNetPrice) || 0,
+      flpListPrice: Number(mapForm.flpListPrice) || 0,
+      flpNetPrice: Number(mapForm.flpNetPrice) || 0,
+    })
+    message.success(t('settings.mapSettlement.messages.saveSuccess'))
+    loadMapConfig()
+  } catch (error) {
+    console.error('Failed to save map settlement config', error)
+    message.error(t('settings.mapSettlement.messages.saveFailed'))
+  } finally {
+    mapSaving.value = false
+  }
+}
+
+const loadOpenPlatform = async () => {
+  openPlatformLoading.value = true
+  try {
+    const data = await fetchOpenPlatformCopy()
+    openPlatformForm.content = data?.content ?? ''
+  } catch (error) {
+    console.error('Failed to load open platform copy', error)
+    message.error(t('settings.openPlatform.messages.loadFailed'))
+  } finally {
+    openPlatformLoading.value = false
+  }
+}
+
+const submitOpenPlatform = async () => {
+  openPlatformSaving.value = true
+  try {
+    await saveOpenPlatformCopy({ content: openPlatformForm.content || '' })
+    message.success(t('settings.openPlatform.messages.saveSuccess'))
+    loadOpenPlatform()
+  } catch (error) {
+    console.error('Failed to save open platform copy', error)
+    message.error(t('settings.openPlatform.messages.saveFailed'))
+  } finally {
+    openPlatformSaving.value = false
+  }
+}
+
+const loadWeappConfig = async () => {
+  weappLoading.value = true
+  try {
+    const data = await fetchWeappConfig()
+    weappForm.appId = data?.appId || ''
+    weappForm.secret = data?.secret || ''
+    weappForm.jwtSecret = data?.jwtSecret || ''
+  } catch (error) {
+    console.error('Failed to load weapp config', error)
+    message.error(t('settings.weapp.messages.loadFailed'))
+  } finally {
+    weappLoading.value = false
+  }
+}
+
+const submitWeappForm = async () => {
+  weappSaving.value = true
   try {
     await saveWeappConfig({
-      appId: form.appId,
-      secret: form.secret,
-      jwtSecret: form.jwtSecret,
+      appId: weappForm.appId,
+      secret: weappForm.secret,
+      jwtSecret: weappForm.jwtSecret,
     })
     message.success(t('settings.weapp.messages.saveSuccess'))
   } catch (error) {
+    console.error('Failed to save weapp config', error)
     message.error(t('settings.weapp.messages.saveFailed'))
   } finally {
-    saving.value = false
+    weappSaving.value = false
   }
 }
 
+const invitePaginationConfig = computed(() => ({
+  current: inviteLogPagination.current,
+  pageSize: inviteLogPagination.pageSize,
+  total: inviteLogPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.invite.logs.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 onMounted(() => {
-  loadConfig()
+  loadInviteConfig()
+  loadInviteLogs()
+  loadMapConfig()
+  loadOpenPlatform()
+  loadWeappConfig()
 })
 </script>
 
 <template>
   <div class="settings-wrapper">
-    <a-card :title="t('settings.weapp.title')" class="section-card" :bordered="false">
-      <a-spin :spinning="loading">
-        <a-form ref="formRef" :model="form" :rules="formRules" layout="vertical" autocomplete="off"
-          @finish="handleSubmit">
-          <a-row :gutter="[24, 12]">
-            <a-col :xs="24" :md="12">
-              <a-form-item name="appId" :label="t('settings.weapp.appId')">
-                <a-input v-model:value="form.appId" :placeholder="t('settings.weapp.placeholders.appId')" allow-clear />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item name="secret" :label="t('settings.weapp.secret')">
-                <a-input-password v-model:value="form.secret" :placeholder="t('settings.weapp.placeholders.secret')"
-                  allow-clear />
-              </a-form-item>
-            </a-col>
-            <a-col :xs="24" :md="12">
-              <a-form-item name="jwtSecret" :label="t('settings.weapp.jwtSecret')">
-                <a-input-password v-model:value="form.jwtSecret"
-                  :placeholder="t('settings.weapp.placeholders.jwtSecret')" allow-clear />
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <div class="actions">
-            <a-button type="primary" html-type="submit" :loading="saving">
-              {{ t('common.actions.save') }}
-            </a-button>
-            <a-button type="default" @click="loadConfig" :disabled="loading || saving">
-              {{ t('common.actions.reset') }}
-            </a-button>
+    <a-card :bordered="false" class="settings-card">
+      <a-tabs v-model:activeKey="activeTab">
+        <a-tab-pane key="invite" :tab="t('settings.tabs.invite')">
+          <div class="tab-section">
+            <section class="invite-table">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.invite.logs.title') }}</h3>
+                  <p>{{ t('settings.invite.logs.subtitle') }}</p>
+                </div>
+                <div class="filters">
+                  <a-input
+                    v-model:value="inviteLogFilters.featureCode"
+                    :placeholder="t('settings.invite.logs.searchPlaceholder')"
+                    allow-clear
+                    class="filter-input"
+                  />
+                  <a-button type="primary" @click="handleInviteLogSearch">
+                    {{ t('settings.invite.logs.search') }}
+                  </a-button>
+                </div>
+              </header>
+              <a-table
+                :columns="inviteColumns"
+                :data-source="inviteLogs"
+                :loading="inviteLogsLoading"
+                :pagination="invitePaginationConfig"
+                row-key="id"
+                @change="handleInviteLogTableChange"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'avatar'">
+                    <a-avatar :src="record?.user?.avatarUrl" :alt="record?.user?.username" />
+                  </template>
+                  <template v-else-if="column.key === 'amount'">
+                    <span :class="['amount', record.operation === 'DECREASE' ? 'negative' : 'positive']">
+                      {{ record.operation === 'DECREASE' ? '-' : '+' }}{{ record.amount ?? 0 }}
+                    </span>
+                  </template>
+                  <template v-else-if="column.key === 'operation'">
+                    <a-tag :color="record.operation === 'DECREASE' ? 'red' : 'green'">
+                      {{ t(`settings.invite.logs.operation.${record.operation?.toLowerCase() || 'increase'}`) }}
+                    </a-tag>
+                  </template>
+                  <template v-else-if="column.key === 'createdAt'">
+                    {{ new Date(record.createdAt).toLocaleString() }}
+                  </template>
+                </template>
+              </a-table>
+            </section>
+
+            <section class="invite-form">
+              <h3>{{ t('settings.invite.form.title') }}</h3>
+              <a-spin :spinning="inviteLoading">
+                <a-form :model="inviteForm" :rules="inviteRules" layout="vertical" @finish="submitInviteForm">
+                  <a-row :gutter="[24, 12]">
+                    <a-col :xs="24" :md="12">
+                      <a-form-item name="friendRegisterRewardFlp" :label="t('settings.invite.form.friendRegisterRewardFlp')">
+                        <a-input-number
+                          v-model:value="inviteForm.friendRegisterRewardFlp"
+                          :min="0"
+                          :step="0.1"
+                          :precision="2"
+                          :placeholder="t('settings.invite.form.placeholder')"
+                          style="width: 100%"
+                        />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item name="friendFirstMarkerFlp" :label="t('settings.invite.form.friendFirstMarkerFlp')">
+                        <a-input-number
+                          v-model:value="inviteForm.friendFirstMarkerFlp"
+                          :min="0"
+                          :step="0.1"
+                          :precision="2"
+                          :placeholder="t('settings.invite.form.placeholder')"
+                          style="width: 100%"
+                        />
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="inviteSaving">
+                      {{ t('common.actions.save') }}
+                    </a-button>
+                    <a-button type="default" @click="loadInviteConfig" :disabled="inviteLoading || inviteSaving">
+                      {{ t('common.actions.reset') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
           </div>
-        </a-form>
-      </a-spin>
+        </a-tab-pane>
+
+        <a-tab-pane key="map" :tab="t('settings.tabs.mapSettlement')">
+          <div class="tab-section">
+            <a-spin :spinning="mapLoading">
+              <a-form :model="mapForm" :rules="mapRules" layout="vertical" @finish="submitMapForm">
+                <a-row :gutter="[24, 12]">
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="wechatListPrice" :label="t('settings.mapSettlement.form.wechatListPrice')">
+                      <a-input-number
+                        v-model:value="mapForm.wechatListPrice"
+                        :min="0"
+                        :precision="2"
+                        :step="0.1"
+                        style="width: 100%"
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="wechatNetPrice" :label="t('settings.mapSettlement.form.wechatNetPrice')">
+                      <a-input-number
+                        v-model:value="mapForm.wechatNetPrice"
+                        :min="0"
+                        :precision="2"
+                        :step="0.1"
+                        style="width: 100%"
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="flpListPrice" :label="t('settings.mapSettlement.form.flpListPrice')">
+                      <a-input-number
+                        v-model:value="mapForm.flpListPrice"
+                        :min="0"
+                        :precision="2"
+                        :step="0.1"
+                        style="width: 100%"
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="flpNetPrice" :label="t('settings.mapSettlement.form.flpNetPrice')">
+                      <a-input-number
+                        v-model:value="mapForm.flpNetPrice"
+                        :min="0"
+                        :precision="2"
+                        :step="0.1"
+                        style="width: 100%"
+                      />
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="mapSaving">
+                    {{ t('common.actions.save') }}
+                  </a-button>
+                  <a-button type="default" @click="loadMapConfig" :disabled="mapLoading || mapSaving">
+                    {{ t('common.actions.reset') }}
+                  </a-button>
+                </div>
+              </a-form>
+            </a-spin>
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="open-platform" :tab="t('settings.tabs.openPlatform')">
+          <div class="tab-section">
+            <a-spin :spinning="openPlatformLoading">
+              <a-form :model="openPlatformForm" layout="vertical" @finish="submitOpenPlatform">
+                <a-form-item name="content" :label="t('settings.openPlatform.form.content')">
+                  <a-textarea
+                    v-model:value="openPlatformForm.content"
+                    :rows="10"
+                    :auto-size="{ minRows: 10, maxRows: 20 }"
+                    :placeholder="t('settings.openPlatform.form.placeholder')"
+                  />
+                </a-form-item>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="openPlatformSaving">
+                    {{ t('settings.openPlatform.actions.save') }}
+                  </a-button>
+                  <a-button
+                    type="default"
+                    @click="loadOpenPlatform"
+                    :disabled="openPlatformLoading || openPlatformSaving"
+                  >
+                    {{ t('common.actions.reset') }}
+                  </a-button>
+                </div>
+              </a-form>
+            </a-spin>
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="weapp" :tab="t('settings.tabs.weapp')">
+          <div class="tab-section">
+            <a-spin :spinning="weappLoading">
+              <a-form :model="weappForm" :rules="weappRules" layout="vertical" @finish="submitWeappForm">
+                <a-row :gutter="[24, 12]">
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="appId" :label="t('settings.weapp.appId')">
+                      <a-input
+                        v-model:value="weappForm.appId"
+                        :placeholder="t('settings.weapp.placeholders.appId')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="secret" :label="t('settings.weapp.secret')">
+                      <a-input-password
+                        v-model:value="weappForm.secret"
+                        :placeholder="t('settings.weapp.placeholders.secret')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="jwtSecret" :label="t('settings.weapp.jwtSecret')">
+                      <a-input-password
+                        v-model:value="weappForm.jwtSecret"
+                        :placeholder="t('settings.weapp.placeholders.jwtSecret')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="weappSaving">
+                    {{ t('common.actions.save') }}
+                  </a-button>
+                  <a-button type="default" @click="loadWeappConfig" :disabled="weappLoading || weappSaving">
+                    {{ t('common.actions.reset') }}
+                  </a-button>
+                </div>
+              </a-form>
+            </a-spin>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
     </a-card>
   </div>
 </template>
@@ -103,23 +511,104 @@ onMounted(() => {
   gap: 24px;
 }
 
-.section-card {
+.settings-card {
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
-  padding: 24px 24px 32px;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+  padding: 24px;
+}
+
+.tab-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.invite-table {
+  background: #f9fafb;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.invite-form {
+  background: #f9fafb;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #111827;
+}
+
+.section-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-input {
+  width: 220px;
 }
 
 .actions {
   margin-top: 12px;
   display: flex;
   gap: 12px;
-  justify-content: flex-start;
 }
 
-@media (max-width: 640px) {
-  .section-card {
-    padding: 20px;
+.amount {
+  font-weight: 600;
+}
+
+.amount.positive {
+  color: #059669;
+}
+
+.amount.negative {
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .settings-card {
+    padding: 16px;
+  }
+
+  .invite-table,
+  .invite-form {
+    padding: 16px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filters {
+    width: 100%;
+  }
+
+  .filter-input {
+    flex: 1;
   }
 
   .actions {
