@@ -1,0 +1,45 @@
+import http from './http'
+
+const normalizePagePayload = (response, fallback = {}) => {
+  const data = response?.data?.data ?? response?.data ?? fallback
+  return data
+}
+
+export const fetchInviteConfig = async () => {
+  const response = await http.get('/config/invite')
+  return normalizePagePayload(response, {})
+}
+
+export const saveInviteConfig = async (payload) => {
+  const response = await http.put('/config/invite', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchMapSettlementConfig = async () => {
+  const response = await http.get('/config/map-settlement')
+  return normalizePagePayload(response, {})
+}
+
+export const saveMapSettlementConfig = async (payload) => {
+  const response = await http.put('/config/map-settlement', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchOpenPlatformCopy = async () => {
+  const response = await http.get('/config/open-platform-copy')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveOpenPlatformCopy = async (payload) => {
+  const response = await http.put('/config/open-platform-copy', payload)
+  return normalizePagePayload(response, {})
+}
+
+export default {
+  fetchInviteConfig,
+  saveInviteConfig,
+  fetchMapSettlementConfig,
+  saveMapSettlementConfig,
+  fetchOpenPlatformCopy,
+  saveOpenPlatformCopy,
+}
