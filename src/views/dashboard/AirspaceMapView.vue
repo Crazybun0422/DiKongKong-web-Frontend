@@ -21,6 +21,11 @@ const pagination = reactive({
 
 const detailVisible = ref(false)
 const detailRecord = ref(null)
+const sortOrder = ref('DESC')
+const sortIndicator = computed(() => (sortOrder.value === 'ASC' ? '↑' : '↓'))
+const sortLabel = computed(() =>
+  sortOrder.value === 'ASC' ? t('airspace.sort.ascend') : t('airspace.sort.descend'),
+)
 
 const normalizeStatus = (value) => {
   if (Array.isArray(value)) {
@@ -84,7 +89,7 @@ const columns = computed(() => [
   { title: t('airspace.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: t('airspace.table.columns.status'), dataIndex: 'reviewStatus', key: 'status', width: 140 },
   { title: t('airspace.table.columns.paid'), dataIndex: 'paid', key: 'paid', width: 140 },
-  { title: t('airspace.table.columns.actions'), key: 'actions', width: 220 },
+  { title: t('airspace.table.columns.actions'), key: 'actions', width: 140 },
 ])
 
 const paginationConfig = computed(() => ({
@@ -116,6 +121,7 @@ const loadData = async () => {
       page: pagination.current,
       size: pagination.pageSize,
       status: activeStatus.value,
+      sortOrder: sortOrder.value,
     })
     tableData.value = content
     pagination.total = totalElements
@@ -143,6 +149,12 @@ const handleTabChange = (key) => {
 const handleTableChange = (pager) => {
   pagination.current = pager?.current ?? 1
   pagination.pageSize = pager?.pageSize ?? pagination.pageSize
+  loadData()
+}
+
+const toggleCreatedAtSort = () => {
+  sortOrder.value = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
+  pagination.current = 1
   loadData()
 }
 
@@ -223,6 +235,15 @@ watch(
       </a-tabs>
       <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
         row-key="id" class="markers-table" @change="handleTableChange">
+        <template #headerCell="{ column }">
+          <template v-if="column.key === 'createdAt'">
+            <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
+              <span>{{ t('airspace.table.columns.createdAt') }}</span>
+              <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
+              <span class="sr-only">{{ sortLabel }}</span>
+            </button>
+          </template>
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'name'">
             <div class="name-cell">
@@ -253,14 +274,6 @@ watch(
               <a-button size="small" type="text" class="detail-button" :title="t('airspace.table.actions.viewDetail')"
                 :aria-label="t('airspace.table.actions.viewDetail')" @click="openDetail(record)">
                 <img :src="detailIcon" :alt="t('airspace.table.actions.viewDetail')" class="detail-icon" />
-              </a-button>
-              <a-button v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING" type="link" size="small"
-                :disabled="!record.paid" @click="handleReview(record, MARKER_REVIEW_STATUS.APPROVED)">
-                {{ t('airspace.table.actions.approve') }}
-              </a-button>
-              <a-button v-if="record.reviewStatus === MARKER_REVIEW_STATUS.PENDING" type="link" size="small" danger
-                :disabled="!record.paid" @click="handleReview(record, MARKER_REVIEW_STATUS.REJECTED)">
-                {{ t('airspace.table.actions.reject') }}
               </a-button>
             </div>
           </template>
@@ -345,12 +358,13 @@ watch(
           <a-image :src="detailRecord.businessLicense" width="240" :preview="{ src: detailRecord.businessLicense }" />
         </section>
 
-        <section class="detail-section" v-if="detailRecord.attachmentUrls?.length">
+        <section class="detail-section" v-if="detailRecord.attachments?.length">
           <h3>{{ t('airspace.modal.sections.attachments') }}</h3>
           <ul class="link-list">
-            <li v-for="url in detailRecord.attachmentUrls" :key="url">
-              <a-typography-link :href="url" target="_blank" rel="noopener noreferrer">
-                {{ url }}
+            <li v-for="file in detailRecord.attachments" :key="file.objectName || file.url || file.name">
+              <a-typography-link :href="file.url" target="_blank" rel="noopener noreferrer"
+                :download="file.name || undefined">
+                {{ file.name || file.url }}
               </a-typography-link>
             </li>
           </ul>
@@ -442,6 +456,45 @@ watch(
 
 .markers-table :deep(.ant-table-tbody > tr > td) {
   vertical-align: middle;
+}
+
+.sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #111827;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sort-toggle:hover {
+  color: #1d4ed8;
+}
+
+.sort-toggle:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.4);
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.sort-indicator {
+  font-size: 0.9rem;
+  line-height: 1;
+  color: #6b7280;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .name-cell {
