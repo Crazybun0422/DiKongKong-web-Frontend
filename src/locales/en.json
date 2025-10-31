@@ -73,7 +73,36 @@
   "dashboard": {
     "pending": "Pending"
   },
+  "settings": {
+    "weapp": {
+      "title": "Mini Program Credentials",
+      "appId": "AppID",
+      "secret": "App Secret",
+      "jwtSecret": "JWT Secret",
+      "placeholders": {
+        "appId": "Enter the mini program AppID",
+        "secret": "Enter the app secret",
+        "jwtSecret": "Enter the JWT secret"
+      },
+      "validation": {
+        "appId": "Please enter the AppID",
+        "secret": "Please enter the app secret",
+        "jwtSecret": "Please enter the JWT secret"
+      },
+      "messages": {
+        "loadFailed": "Failed to load mini program settings",
+        "saveSuccess": "Mini program settings saved",
+        "saveFailed": "Failed to save mini program settings"
+      }
+    }
+  },
   "messages": {
     "requestFailed": "Request failed, please retry"
+  },
+  "common": {
+    "actions": {
+      "save": "Save",
+      "reset": "Reset"
+    }
   }
 }

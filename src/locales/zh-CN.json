@@ -73,7 +73,36 @@
   "dashboard": {
     "pending": "\u5f85\u5ba1\u6838"
   },
+  "settings": {
+    "weapp": {
+      "title": "\u5c0f\u7a0b\u5e8f\u5bc6\u94a5\u914d\u7f6e",
+      "appId": "AppID",
+      "secret": "App Secret",
+      "jwtSecret": "JWT Secret",
+      "placeholders": {
+        "appId": "\u8bf7\u8f93\u5165\u5c0f\u7a0b\u5e8f AppID",
+        "secret": "\u8bf7\u8f93\u5165 App Secret",
+        "jwtSecret": "\u8bf7\u8f93\u5165 JWT Secret"
+      },
+      "validation": {
+        "appId": "\u8bf7\u586b\u5199 AppID",
+        "secret": "\u8bf7\u586b\u5199 App Secret",
+        "jwtSecret": "\u8bf7\u586b\u5199 JWT Secret"
+      },
+      "messages": {
+        "loadFailed": "\u5c0f\u7a0b\u5e8f\u914d\u7f6e\u52a0\u8f7d\u5931\u8d25",
+        "saveSuccess": "\u5c0f\u7a0b\u5e8f\u914d\u7f6e\u4fdd\u5b58\u6210\u529f",
+        "saveFailed": "\u5c0f\u7a0b\u5e8f\u914d\u7f6e\u4fdd\u5b58\u5931\u8d25"
+      }
+    }
+  },
   "messages": {
     "requestFailed": "\u8bf7\u6c42\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5"
+  },
+  "common": {
+    "actions": {
+      "save": "\u4fdd\u5b58",
+      "reset": "\u91cd\u65b0\u52a0\u8f7d"
+    }
   }
 }

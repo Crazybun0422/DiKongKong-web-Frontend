@@ -18,7 +18,8 @@ const { t } = useI18n()
   min-height: 320px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: clamp(24px, 10vw, 72px);
 }
 
 .summary-card {

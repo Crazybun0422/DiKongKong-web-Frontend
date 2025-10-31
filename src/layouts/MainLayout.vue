@@ -260,17 +260,19 @@ onMounted(() => {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 2.5rem 2rem 3rem;
+  padding: 2.5rem clamp(16px, 5vw, 50px) 3rem;
 }
 
 .content-card {
-  width: min(1100px, 100%);
+  width: 100%;
+  max-width: 100%;
   min-height: calc(100vh - 72px - 5rem);
   background: #f5f5f5;
   border-radius: 16px;
   border: 1px solid #d9d9d9;
   padding: 2.5rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  margin: 0 auto;
 }
 
 @keyframes spin {
@@ -304,6 +306,7 @@ onMounted(() => {
   }
 
   .content-card {
+    width: 100%;
     padding: 1.5rem;
   }
 }
