@@ -111,6 +111,10 @@
       "paid": "Paid",
       "unpaid": "Unpaid"
     },
+    "sort": {
+      "ascend": "Oldest first",
+      "descend": "Newest first"
+    },
     "pagination": {
       "showTotal": "Total {total} items · Showing {start}-{end}"
     },

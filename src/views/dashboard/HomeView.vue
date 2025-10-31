@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { fetchMarkers, MARKER_REVIEW_STATUS } from '../../services/markers'
+import { fetchPendingMarkersCount, MARKER_REVIEW_STATUS } from '../../services/markers'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -13,12 +13,8 @@ const loading = ref(false)
 const loadPendingCount = async () => {
   loading.value = true
   try {
-    const { totalElements } = await fetchMarkers({
-      page: 1,
-      size: 1,
-      status: MARKER_REVIEW_STATUS.PENDING,
-    })
-    pendingCount.value = totalElements ?? 0
+    const count = await fetchPendingMarkersCount()
+    pendingCount.value = count ?? 0
   } catch (error) {
     console.error('Failed to load pending markers count', error)
   } finally {

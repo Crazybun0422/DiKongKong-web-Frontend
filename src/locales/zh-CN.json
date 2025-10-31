@@ -111,6 +111,10 @@
       "paid": "已付款",
       "unpaid": "未付款"
     },
+    "sort": {
+      "ascend": "提交时间从早到晚",
+      "descend": "提交时间从晚到早"
+    },
     "pagination": {
       "showTotal": "共 {total} 条记录 · 当前 {start}-{end}"
     },
