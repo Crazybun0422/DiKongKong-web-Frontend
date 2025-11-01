@@ -87,6 +87,8 @@
         "name": "Marker",
         "createdAt": "Submitted At",
         "status": "Status",
+        "exposure": "Exposure",
+        "phoneCall": "Phone calls",
         "paid": "Payment",
         "actions": "Actions"
       },
@@ -146,7 +148,7 @@
         "businessLicense": "Business license",
         "attachments": "Attachments",
         "qrCodes": "QR codes",
-        "videoChannels": "Video channels",
+        "videoInfo": "Video info",
         "honors": "Industry honors",
         "adminInfo": "Administrator contact"
       },
@@ -161,6 +163,8 @@
         "updatedAt": "Updated at",
         "exposure": "Exposure",
         "phoneCall": "Phone calls",
+        "videoChannelId": "Video account ID",
+        "videoId": "Video ID",
         "adminName": "Name",
         "adminTitle": "Title",
         "adminPhone": "Phone"

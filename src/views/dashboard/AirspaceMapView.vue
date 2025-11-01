@@ -88,6 +88,8 @@ const columns = computed(() => [
   { title: t('airspace.table.columns.name'), dataIndex: 'name', key: 'name' },
   { title: t('airspace.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: t('airspace.table.columns.status'), dataIndex: 'reviewStatus', key: 'status', width: 140 },
+  { title: t('airspace.table.columns.exposure'), dataIndex: 'exposureCount', key: 'exposureCount', width: 120 },
+  { title: t('airspace.table.columns.phoneCall'), dataIndex: 'phoneCallCount', key: 'phoneCallCount', width: 140 },
   { title: t('airspace.table.columns.paid'), dataIndex: 'paid', key: 'paid', width: 140 },
   { title: t('airspace.table.columns.actions'), key: 'actions', width: 140 },
 ])
@@ -264,6 +266,12 @@ watch(
               {{ statusText(record.reviewStatus) }}
             </a-tag>
           </template>
+          <template v-else-if="column.key === 'exposureCount'">
+            {{ record.exposureCount ?? 0 }}
+          </template>
+          <template v-else-if="column.key === 'phoneCallCount'">
+            {{ record.phoneCallCount ?? 0 }}
+          </template>
           <template v-else-if="column.key === 'paid'">
             <a-tag :color="record.paid ? 'green' : 'orange'">
               {{ record.paid ? t('airspace.paidStatus.paid') : t('airspace.paidStatus.unpaid') }}
@@ -378,15 +386,16 @@ watch(
           </div>
         </section>
 
-        <section class="detail-section" v-if="detailRecord.videoChannelUrls?.length">
-          <h3>{{ t('airspace.modal.sections.videoChannels') }}</h3>
-          <ul class="link-list">
-            <li v-for="url in detailRecord.videoChannelUrls" :key="url">
-              <a-typography-link :href="url" target="_blank" rel="noopener noreferrer">
-                {{ url }}
-              </a-typography-link>
-            </li>
-          </ul>
+        <section class="detail-section" v-if="detailRecord.videoChannelId || detailRecord.videoId">
+          <h3>{{ t('airspace.modal.sections.videoInfo') }}</h3>
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item :label="t('airspace.modal.fields.videoChannelId')">
+              {{ detailRecord.videoChannelId || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.modal.fields.videoId')">
+              {{ detailRecord.videoId || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+          </a-descriptions>
         </section>
 
         <section class="detail-section" v-if="detailRecord.industryHonorTags?.length">

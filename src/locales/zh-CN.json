@@ -87,6 +87,8 @@
         "name": "标记信息",
         "createdAt": "提交时间",
         "status": "审核状态",
+        "exposure": "曝光量",
+        "phoneCall": "拨打电话数",
         "paid": "付款状态",
         "actions": "操作"
       },
@@ -146,7 +148,7 @@
         "businessLicense": "营业执照",
         "attachments": "附件链接",
         "qrCodes": "二维码",
-        "videoChannels": "视频号",
+        "videoInfo": "视频信息",
         "honors": "行业荣誉",
         "adminInfo": "管理员联系人"
       },
@@ -159,8 +161,10 @@
         "paid": "付款状态",
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
-        "exposure": "曝光次数",
-        "phoneCall": "电话拨打次数",
+        "exposure": "曝光量",
+        "phoneCall": "拨打电话数",
+        "videoChannelId": "视频号ID",
+        "videoId": "视频ID",
         "adminName": "联系人",
         "adminTitle": "职务",
         "adminPhone": "联系电话"

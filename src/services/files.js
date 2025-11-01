@@ -1,4 +1,6 @@
-import { API_BASE_URL } from './http'
+import http, { API_BASE_URL } from './http'
+
+const PUBLIC_FILE_UPLOAD = '/files/upload'
 
 const apiRoot = API_BASE_URL.replace(/\/$/, '')
 
@@ -89,9 +91,29 @@ export const normalizeFileList = (entries) => {
     .filter((item) => item && item.url)
 }
 
+export const uploadPublicFile = async (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await http.post(PUBLIC_FILE_UPLOAD, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+
+  const data = response.data?.data ?? response.data ?? ''
+  const raw = typeof data === 'string' ? data : data?.objectName || data?.url || ''
+  const objectName = extractObjectName(raw) || raw.replace(/^\/+/, '')
+
+  return {
+    objectName,
+    url: objectName ? buildDownloadUrl(objectName) : '',
+    original: raw,
+  }
+}
+
 export default {
   buildDownloadUrl,
   extractObjectName,
   normalizeFileEntry,
   normalizeFileList,
+  uploadPublicFile,
 }

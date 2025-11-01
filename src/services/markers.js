@@ -12,8 +12,8 @@ const normalizeMarker = (marker = {}) => {
   const imageResources = normalizeFileList(marker.images)
   const attachmentResources = normalizeFileList(marker.attachments || marker.attachmentUrls)
   const qrCodeResources = normalizeFileList(marker.qrCodeUrls)
-  const videoChannelResources = normalizeFileList(marker.videoChannelUrls)
   const businessLicenseResource = normalizeFileEntry(marker.businessLicense)
+  const legacyVideoChannelResources = normalizeFileList(marker.videoChannelUrls)
 
   return {
     ...marker,
@@ -23,8 +23,10 @@ const normalizeMarker = (marker = {}) => {
     attachmentUrls: attachmentResources.map((item) => item.url),
     qrCodeResources,
     qrCodeUrls: qrCodeResources.map((item) => item.url),
-    videoChannelResources,
-    videoChannelUrls: videoChannelResources.map((item) => item.url),
+    videoChannelResources: legacyVideoChannelResources,
+    videoChannelUrls: legacyVideoChannelResources.map((item) => item.url),
+    videoChannelId: marker.videoChannelId || '',
+    videoId: marker.videoId || '',
     businessLicense: businessLicenseResource?.url || marker.businessLicense || '',
     businessLicenseResource,
   }

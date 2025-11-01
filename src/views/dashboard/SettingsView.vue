@@ -12,6 +12,7 @@ import {
 } from '../../services/config'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
+import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 
 const { t } = useI18n()
 
@@ -430,11 +431,10 @@ onMounted(() => {
             <a-spin :spinning="openPlatformLoading">
               <a-form :model="openPlatformForm" layout="vertical" @finish="submitOpenPlatform">
                 <a-form-item name="content" :label="t('settings.openPlatform.form.content')">
-                  <a-textarea
-                    v-model:value="openPlatformForm.content"
-                    :rows="10"
-                    :auto-size="{ minRows: 10, maxRows: 20 }"
+                  <open-platform-editor
+                    v-model="openPlatformForm.content"
                     :placeholder="t('settings.openPlatform.form.placeholder')"
+                    :disabled="openPlatformLoading || openPlatformSaving"
                   />
                 </a-form-item>
                 <div class="actions">
