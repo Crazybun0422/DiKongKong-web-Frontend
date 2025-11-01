@@ -249,15 +249,21 @@
         "content": "Open platform content",
         "placeholder": "Enter rich text content for the open platform"
       },
-      "actions": {
-        "save": "Save content"
-      },
-      "messages": {
-        "loadFailed": "Failed to load open platform content",
-        "saveSuccess": "Open platform content saved",
-        "saveFailed": "Failed to save open platform content"
-      }
-    }
+  "actions": {
+    "save": "Save content",
+    "preview": "Preview content"
+  },
+  "messages": {
+    "loadFailed": "Failed to load open platform content",
+    "saveSuccess": "Open platform content saved",
+    "saveFailed": "Failed to save open platform content"
+  },
+  "preview": {
+    "title": "Open platform content preview",
+    "empty": "No content to preview yet. Please add copy in the editor.",
+    "close": "Close preview"
+  }
+}
   },
   "messages": {
     "requestFailed": "Request failed, please retry"
