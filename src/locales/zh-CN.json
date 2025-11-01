@@ -249,15 +249,21 @@
         "content": "开放平台文案",
         "placeholder": "请输入开放平台的展示内容"
       },
-      "actions": {
-        "save": "保存文案"
-      },
-      "messages": {
-        "loadFailed": "开放平台文案加载失败",
-        "saveSuccess": "开放平台文案已保存",
-        "saveFailed": "开放平台文案保存失败"
-      }
-    }
+  "actions": {
+    "save": "保存文案",
+    "preview": "预览文案"
+  },
+  "messages": {
+    "loadFailed": "开放平台文案加载失败",
+    "saveSuccess": "开放平台文案已保存",
+    "saveFailed": "开放平台文案保存失败"
+  },
+  "preview": {
+    "title": "开放平台文案预览",
+    "empty": "暂无文案内容，请先在编辑器中输入文案。",
+    "close": "关闭预览"
+  }
+}
   },
   "messages": {
     "requestFailed": "请求失败，请稍后重试"

@@ -64,6 +64,20 @@ const openPlatformForm = reactive({
 })
 const openPlatformLoading = ref(false)
 const openPlatformSaving = ref(false)
+const openPlatformPreviewVisible = ref(false)
+const openPlatformHasContent = computed(() => {
+  const rawContent = openPlatformForm.content || ''
+  if (!rawContent.trim()) {
+    return false
+  }
+
+  const textContent = rawContent.replace(/<[^>]*>/g, '').trim()
+  if (textContent) {
+    return true
+  }
+
+  return /<img\s|<video\s|<iframe\s/i.test(rawContent)
+})
 
 const weappForm = reactive({
   appId: '',
@@ -209,6 +223,14 @@ const submitOpenPlatform = async () => {
   } finally {
     openPlatformSaving.value = false
   }
+}
+
+const showOpenPlatformPreview = () => {
+  openPlatformPreviewVisible.value = true
+}
+
+const closeOpenPlatformPreview = () => {
+  openPlatformPreviewVisible.value = false
 }
 
 const loadWeappConfig = async () => {
@@ -443,6 +465,13 @@ onMounted(() => {
                   </a-button>
                   <a-button
                     type="default"
+                    @click="showOpenPlatformPreview"
+                    :disabled="openPlatformLoading"
+                  >
+                    {{ t('settings.openPlatform.actions.preview') }}
+                  </a-button>
+                  <a-button
+                    type="default"
                     @click="loadOpenPlatform"
                     :disabled="openPlatformLoading || openPlatformSaving"
                   >
@@ -451,6 +480,27 @@ onMounted(() => {
                 </div>
               </a-form>
             </a-spin>
+            <a-modal
+              :open="openPlatformPreviewVisible"
+              :title="t('settings.openPlatform.preview.title')"
+              width="720px"
+              :footer="null"
+              @cancel="closeOpenPlatformPreview"
+            >
+              <div class="open-platform-preview">
+                <div
+                  v-if="openPlatformHasContent"
+                  class="open-platform-preview__content"
+                  v-html="openPlatformForm.content"
+                ></div>
+                <a-empty v-else :description="t('settings.openPlatform.preview.empty')" />
+              </div>
+              <div class="open-platform-preview__footer">
+                <a-button type="primary" @click="closeOpenPlatformPreview">
+                  {{ t('settings.openPlatform.preview.close') }}
+                </a-button>
+              </div>
+            </a-modal>
           </div>
         </a-tab-pane>
 
@@ -586,6 +636,32 @@ onMounted(() => {
 
 .amount.negative {
   color: #dc2626;
+}
+
+.open-platform-preview {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 8px 0 0;
+}
+
+.open-platform-preview__content {
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  color: #1f2937;
+  line-height: 1.7;
+}
+
+.open-platform-preview__content :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.open-platform-preview__footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 @media (max-width: 768px) {
