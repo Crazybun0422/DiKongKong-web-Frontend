@@ -76,6 +76,10 @@
   "airspace": {
     "title": "Airspace Markers",
     "subtitle": "Manage and review submitted markers with quick filters.",
+    "mainTabs": {
+      "markers": "Merchant Markers",
+      "noFlyZones": "Temporary No-Fly Zones"
+    },
     "tabs": {
       "all": "All",
       "pending": "Pending",
@@ -174,6 +178,77 @@
         "approve": "Approve",
         "reject": "Reject"
       }
+    }
+  },
+  "noFlyZone": {
+    "types": {
+      "polygon": "Polygon",
+      "rectangle": "Rectangle",
+      "polyline": "Along Line",
+      "circle": "Circle"
+    },
+    "form": {
+      "name": "Zone Name",
+      "namePlaceholder": "Enter a temporary no-fly zone name",
+      "type": "Drawing Type",
+      "circleRadius": "Circle Radius",
+      "radiusUnit": "m",
+      "circleHint": "Click on the map to select the center before setting the radius.",
+      "coordinatesLabel": "Coordinates",
+      "coordinatesHint": "Click on the map to drop points. Longitude and latitude will appear here automatically.",
+      "coordinatesIndex": "Order",
+      "coordinatesValue": "Longitude, Latitude (decimal)",
+      "coordinatesCenter": "Center",
+      "coordinatesEmpty": "No coordinates yet. Start drawing on the map.",
+      "radiusDisplay": "Current radius: {radius} m",
+      "timeRange": "Effective Time",
+      "wechatLink": "Official Account Link",
+      "wechatPlaceholder": "Only mp.weixin.qq.com URLs are supported"
+    },
+    "actions": {
+      "startDrawing": "Start Drawing",
+      "drawing": "Drawing...",
+      "finishDrawing": "Finish Drawing",
+      "clearDrawing": "Clear Shape",
+      "applyCircle": "Apply Circle",
+      "create": "Create Zone",
+      "update": "Update Zone",
+      "reset": "Reset",
+      "focus": "Focus on Map",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Delete",
+      "cancel": "Cancel"
+    },
+    "table": {
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "effective": "Effective Period",
+        "actions": "Actions"
+      }
+    },
+    "messages": {
+      "polygonTooSmall": "Please add at least three points to form a polygon.",
+      "polylineTooShort": "Please add at least two points for an along-line zone.",
+      "rectangleInvalid": "Please draw an axis-aligned rectangle.",
+      "rectangleIncomplete": "Drag to adjust and confirm the rectangle area.",
+      "circleCenterMissing": "Please choose a circle center on the map first.",
+      "circleRadiusTooSmall": "Circle radius must be at least {radius} meters.",
+      "circleMissing": "Please draw a circle on the map.",
+      "geometryMissing": "Please finish drawing the zone on the map.",
+      "nameRequired": "Please enter a zone name.",
+      "invalidWechatLink": "Please enter a valid mp.weixin.qq.com link.",
+      "loadFailed": "Failed to load zones, please retry later.",
+      "submitFailed": "Submission failed, please retry later.",
+      "createSuccess": "Zone created successfully.",
+      "updateSuccess": "Zone updated successfully.",
+      "deleteConfirmTitle": "Delete No-Fly Zone",
+      "deleteConfirmContent": "Are you sure you want to delete \"{name}\"?",
+      "deleteSuccess": "Zone deleted successfully.",
+      "deleteFailed": "Failed to delete zone, please retry.",
+      "mapLoadFailed": "Failed to load map, please refresh and try again.",
+      "mapLoading": "Loading Tencent Map..."
     }
   },
   "settings": {
