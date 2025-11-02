@@ -212,6 +212,12 @@
       "confirmDelete": "确认删除",
       "cancel": "取消"
     },
+    "search": {
+      "placeholder": "搜地点",
+      "button": "搜索",
+      "noResult": "未找到相关地点，请尝试其他关键词。",
+      "error": "搜索地点失败，请稍后重试。"
+    },
     "table": {
       "columns": {
         "name": "名称",

@@ -212,6 +212,12 @@
       "confirmDelete": "Delete",
       "cancel": "Cancel"
     },
+    "search": {
+      "placeholder": "Search location",
+      "button": "Search",
+      "noResult": "No matching locations were found. Try another keyword.",
+      "error": "Failed to search for the address. Please try again later."
+    },
     "table": {
       "columns": {
         "name": "Name",
