@@ -76,6 +76,10 @@
   "airspace": {
     "title": "空域地图标记管理",
     "subtitle": "按审核状态快速筛选，完成标记的审核与维护。",
+    "mainTabs": {
+      "markers": "商户标点",
+      "noFlyZones": "临时禁飞区"
+    },
     "tabs": {
       "all": "全部",
       "pending": "待审核",
@@ -174,6 +178,68 @@
         "approve": "审核通过",
         "reject": "驳回"
       }
+    }
+  },
+  "noFlyZone": {
+    "types": {
+      "polygon": "多边形",
+      "rectangle": "矩形",
+      "circle": "圆形"
+    },
+    "form": {
+      "name": "区域名称",
+      "namePlaceholder": "请输入禁飞区域名称",
+      "type": "绘制类型",
+      "circleRadius": "圆形半径",
+      "radiusUnit": "米",
+      "circleHint": "请在地图上点击选择圆心后，再设置半径值。",
+      "timeRange": "生效时间",
+      "wechatLink": "公众号链接",
+      "wechatPlaceholder": "仅支持 mp.weixin.qq.com 域名链接"
+    },
+    "actions": {
+      "startDrawing": "开始绘制",
+      "drawing": "绘制中...",
+      "finishDrawing": "完成绘制",
+      "clearDrawing": "清除图形",
+      "applyCircle": "应用圆形",
+      "create": "创建禁飞区",
+      "update": "更新禁飞区",
+      "reset": "重置",
+      "focus": "定位到地图",
+      "edit": "编辑",
+      "delete": "删除",
+      "confirmDelete": "确认删除",
+      "cancel": "取消"
+    },
+    "table": {
+      "columns": {
+        "name": "名称",
+        "type": "类型",
+        "effective": "有效期",
+        "actions": "操作"
+      }
+    },
+    "messages": {
+      "polygonTooSmall": "请至少绘制三个点组成多边形。",
+      "rectangleInvalid": "请绘制标准矩形（仅支持正南北朝向）。",
+      "rectangleIncomplete": "请拖拽确认矩形范围。",
+      "circleCenterMissing": "请先在地图上选择圆心位置。",
+      "circleRadiusTooSmall": "圆形半径不得小于 {radius} 米。",
+      "circleMissing": "请在地图上绘制圆形区域。",
+      "geometryMissing": "请在地图上完成区域绘制。",
+      "nameRequired": "请输入禁飞区域名称。",
+      "invalidWechatLink": "请输入有效的公众号链接（mp.weixin.qq.com）。",
+      "loadFailed": "禁飞区列表加载失败，请稍后重试。",
+      "submitFailed": "提交失败，请稍后重试。",
+      "createSuccess": "禁飞区创建成功。",
+      "updateSuccess": "禁飞区更新成功。",
+      "deleteConfirmTitle": "确认删除禁飞区",
+      "deleteConfirmContent": "确认删除“{name}”禁飞区域吗？",
+      "deleteSuccess": "禁飞区已删除。",
+      "deleteFailed": "删除失败，请稍后重试。",
+      "mapLoadFailed": "地图加载失败，请刷新页面重试。",
+      "mapLoading": "正在加载腾讯地图..."
     }
   },
   "settings": {
