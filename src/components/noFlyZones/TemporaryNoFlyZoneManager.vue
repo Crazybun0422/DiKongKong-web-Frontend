@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
 import {
@@ -26,6 +26,7 @@ const mapInstance = ref(null)
 const drawingPolyline = ref(null)
 const drawingPolygon = ref(null)
 const drawingCircle = ref(null)
+const drawingMarkerLayer = ref(null)
 const merchantMarkerLayer = ref(null)
 const zonePolygonLayer = ref(null)
 const zoneCircleLayer = ref(null)
@@ -38,6 +39,10 @@ const drawingRadius = ref(500)
 const mapClickHandler = ref(null)
 const mapMouseMoveHandler = ref(null)
 const mapMouseUpHandler = ref(null)
+const mapDblClickHandler = ref(null)
+const searchMarkerLayer = ref(null)
+const searchQuery = ref('')
+const searchLoading = ref(false)
 
 const zoneList = ref([])
 const listLoading = ref(false)
@@ -87,6 +92,16 @@ const isCircleMode = computed(() => formState.type === 'CIRCLE')
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
+const disableFormDuringDrawing = computed(() => isDrawing.value)
+
+const canSearch = computed(
+  () =>
+    mapReady.value &&
+    !searchLoading.value &&
+    typeof searchQuery.value === 'string' &&
+    searchQuery.value.trim().length > 0,
+)
+
 const disableSubmit = computed(() => !hasDrawnGeometry.value || !formState.name.trim() || !formState.wechatLink.trim())
 
 const highlightStyle = {
@@ -100,12 +115,26 @@ const highlightStyle = {
     strokeColor: '#ff4d4f',
     strokeWidth: 2,
   },
+  polyline: {
+    color: '#ff4d4f',
+    width: 2,
+  },
   dashed: {
     color: '#ff4d4f',
     width: 2,
     dashArray: [10, 6],
   },
 }
+
+const createSvgDataUrl = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+
+const DRAW_VERTEX_ICON = createSvgDataUrl(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='8' cy='8' r='5' fill='%23ff4d4f' stroke='%23ffffff' stroke-width='2'/></svg>",
+)
+
+const SEARCH_MARKER_ICON = createSvgDataUrl(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='32' viewBox='0 0 24 32'><path d='M12 0C5.372 0 0 5.372 0 12c0 8.25 10.218 18.922 10.651 19.357a1.88 1.88 0 0 0 2.698 0C13.782 30.922 24 20.25 24 12 24 5.372 18.628 0 12 0zm0 17.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z' fill='%23256BEB'/></svg>",
+)
 
 const loadTencentMapScript = () => {
   if (window.TMap) return Promise.resolve(window.TMap)
@@ -176,6 +205,38 @@ const createPolylineLayer = (TMap) =>
         width: highlightStyle.dashed.width,
         dashArray: highlightStyle.dashed.dashArray,
       }),
+      solid: new TMap.PolylineStyle({
+        color: highlightStyle.polyline.color,
+        width: highlightStyle.polyline.width,
+      }),
+    },
+    geometries: [],
+  })
+
+const createDrawingMarkerLayer = (TMap) =>
+  new TMap.MultiMarker({
+    map: mapInstance.value,
+    styles: {
+      vertex: new TMap.MarkerStyle({
+        width: 16,
+        height: 16,
+        anchor: { x: 8, y: 8 },
+        src: DRAW_VERTEX_ICON,
+      }),
+    },
+    geometries: [],
+  })
+
+const createSearchMarkerLayer = (TMap) =>
+  new TMap.MultiMarker({
+    map: mapInstance.value,
+    styles: {
+      result: new TMap.MarkerStyle({
+        width: 24,
+        height: 32,
+        anchor: { x: 12, y: 32 },
+        src: SEARCH_MARKER_ICON,
+      }),
     },
     geometries: [],
   })
@@ -190,6 +251,9 @@ const ensureDrawingLayers = (TMap) => {
   if (!drawingCircle.value) {
     drawingCircle.value = createCircleLayer(TMap)
   }
+  if (!drawingMarkerLayer.value) {
+    drawingMarkerLayer.value = createDrawingMarkerLayer(TMap)
+  }
 }
 
 const ensureZoneLayers = (TMap) => {
@@ -198,6 +262,12 @@ const ensureZoneLayers = (TMap) => {
   }
   if (!zoneCircleLayer.value) {
     zoneCircleLayer.value = createCircleLayer(TMap)
+  }
+}
+
+const ensureSearchLayer = (TMap) => {
+  if (!searchMarkerLayer.value) {
+    searchMarkerLayer.value = createSearchMarkerLayer(TMap)
   }
 }
 
@@ -210,6 +280,9 @@ const clearDrawingOverlays = () => {
   }
   if (drawingCircle.value) {
     drawingCircle.value.setGeometries([])
+  }
+  if (drawingMarkerLayer.value) {
+    drawingMarkerLayer.value.setGeometries([])
   }
   drawingPoints.value = []
   drawingStartPoint.value = null
@@ -241,6 +314,44 @@ const detachMapListeners = () => {
     mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     mapMouseUpHandler.value = null
   }
+  if (mapDblClickHandler.value) {
+    mapInstance.value.off('dblclick', mapDblClickHandler.value)
+    mapDblClickHandler.value = null
+  }
+}
+
+const normalizeLatLngPoint = (point) => {
+  if (!point) return null
+  if (typeof point.getLat === 'function' && typeof point.getLng === 'function') {
+    return point
+  }
+  if (typeof window !== 'undefined' && window.TMap) {
+    const latitude = Number(point.latitude ?? point.lat)
+    const longitude = Number(point.longitude ?? point.lng)
+    if (!Number.isNaN(latitude) && !Number.isNaN(longitude)) {
+      return new window.TMap.LatLng(latitude, longitude)
+    }
+  }
+  return null
+}
+
+const updateVertexMarkers = (points = drawingPoints.value) => {
+  if (!drawingMarkerLayer.value || !Array.isArray(points)) return
+  const seen = new Set()
+  const geometries = []
+  points.forEach((point, index) => {
+    const latLng = normalizeLatLngPoint(point)
+    if (!latLng) return
+    const key = `${latLng.getLat()}_${latLng.getLng()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    geometries.push({
+      id: `vertex-${index}`,
+      styleId: 'vertex',
+      position: latLng,
+    })
+  })
+  drawingMarkerLayer.value.setGeometries(geometries)
 }
 
 const setupPolygonDrawing = (TMap) => {
@@ -257,6 +368,7 @@ const setupPolygonDrawing = (TMap) => {
       drawingStartPoint.value = point
       drawingPoints.value.push(point)
       drawingPolyline.value.setGeometries([])
+      updateVertexMarkers()
       return
     }
     if (drawingPoints.value.length >= POLYGON_MIN_POINTS) {
@@ -269,6 +381,7 @@ const setupPolygonDrawing = (TMap) => {
     }
     drawingPoints.value.push(point)
     updatePathPreview()
+    updateVertexMarkers()
   }
 
   mapInstance.value.on('click', mapClickHandler.value)
@@ -295,6 +408,7 @@ const setupPolylineDrawing = (TMap) => {
     if (!event?.latLng) return
     drawingPoints.value.push(event.latLng)
     updatePathPreview()
+    updateVertexMarkers()
   }
 
   mapMouseMoveHandler.value = (event) => {
@@ -334,6 +448,7 @@ const finalizePolygonDrawing = (TMap) => {
     },
   ])
   drawingPolyline.value.setGeometries([])
+  updateVertexMarkers()
   stopDrawing()
 }
 
@@ -353,6 +468,7 @@ const finalizePolylineDrawing = (TMap) => {
       paths: drawingPoints.value,
     },
   ])
+  updateVertexMarkers()
   stopDrawing()
 }
 
@@ -373,6 +489,7 @@ const updatePathPreview = (cursorPoint = null) => {
       paths: points,
     },
   ])
+  updateVertexMarkers()
 }
 
 const setupRectangleDrawing = (TMap) => {
@@ -394,6 +511,7 @@ const setupRectangleDrawing = (TMap) => {
         paths: bounds,
       },
     ])
+    updateVertexMarkers(bounds)
   }
 
   mapClickHandler.value = (event) => {
@@ -401,6 +519,7 @@ const setupRectangleDrawing = (TMap) => {
     if (!drawingStartPoint.value) {
       drawingStartPoint.value = event.latLng
       isMouseDown = true
+      updateVertexMarkers([event.latLng])
       return
     }
     if (drawingPoints.value.length >= 4) {
@@ -423,6 +542,7 @@ const setupRectangleDrawing = (TMap) => {
       latitude: point.getLat(),
       longitude: point.getLng(),
     }))
+    updateVertexMarkers(drawingPoints.value)
     stopDrawing()
     isMouseDown = false
   }
@@ -448,8 +568,8 @@ const setupCircleDrawing = (TMap) => {
   mapInstance.value.on('click', mapClickHandler.value)
 }
 
-const updateCirclePreview = (TMap) => {
-  if (!drawingCenter.value) return
+const updateCirclePreview = (TMap = window.TMap) => {
+  if (!drawingCenter.value || !TMap) return
   ensureDrawingLayers(TMap)
   drawingCircle.value.setGeometries([
     {
@@ -459,6 +579,7 @@ const updateCirclePreview = (TMap) => {
       radius: drawingRadius.value,
     },
   ])
+  updateVertexMarkers([drawingCenter.value])
 }
 
 const applyCircleDrawing = () => {
@@ -475,6 +596,7 @@ const applyCircleDrawing = () => {
     longitude: drawingCenter.value.getLng(),
     radiusMeters: drawingRadius.value,
   }
+  updateVertexMarkers([drawingCenter.value])
   stopDrawing()
 }
 
@@ -505,6 +627,7 @@ const finishDrawingManually = () => {
       latitude: point.getLat(),
       longitude: point.getLng(),
     }))
+    updateVertexMarkers(drawingPoints.value)
     stopDrawing()
     return
   }
@@ -656,10 +779,15 @@ const editZone = (zone) => {
         radius: drawingRadius.value,
       },
     ])
+    drawingPoints.value = []
+    updateVertexMarkers([drawingCenter.value])
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
     formState.coordinates = zone.coordinates.map((coord) => ({ ...coord }))
     ensureDrawingLayers(window.TMap)
-    const paths = zone.coordinates.map((coord) => new window.TMap.LatLng(coord.latitude, coord.longitude))
+    const paths = zone.coordinates
+      .map((coord) => normalizeLatLngPoint(coord))
+      .filter((point) => point)
+    drawingPoints.value = paths
     if (zone.type === 'POLYLINE') {
       drawingPolyline.value.setGeometries([
         {
@@ -677,6 +805,7 @@ const editZone = (zone) => {
         },
       ])
     }
+    updateVertexMarkers(paths)
   }
   focusZoneOnMap(zone)
 }
@@ -918,6 +1047,7 @@ const initializeMap = async () => {
     })
     ensureDrawingLayers(TMap)
     ensureZoneLayers(TMap)
+    ensureSearchLayer(TMap)
     await loadMerchantMarkers()
     await loadZoneList()
   } catch (error) {
@@ -957,6 +1087,53 @@ onBeforeUnmount(() => {
     mapInstance.value = null
   }
 })
+
+watch(drawingRadius, () => {
+  if (!mapReady.value || formState.type !== 'CIRCLE') return
+  updateCirclePreview()
+})
+
+const handleSearch = async () => {
+  if (!canSearch.value || !mapInstance.value || !window.TMap) return
+  const query = searchQuery.value.trim()
+  if (!query) return
+  searchLoading.value = true
+  try {
+    const response = await fetch(
+      `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(query)}&key=${TENCENT_MAP_KEY}`,
+    )
+    if (!response.ok) {
+      throw new Error(`Unexpected response status: ${response.status}`)
+    }
+    const data = await response.json()
+    const location = data?.result?.location
+    const lat = Number(location?.lat)
+    const lng = Number(location?.lng)
+    if (data?.status !== 0 || Number.isNaN(lat) || Number.isNaN(lng)) {
+      message.warning(t('noFlyZone.search.noResult'))
+      return
+    }
+    const TMap = window.TMap
+    const position = new TMap.LatLng(lat, lng)
+    ensureSearchLayer(TMap)
+    searchMarkerLayer.value.setGeometries([
+      {
+        id: 'search-result',
+        styleId: 'result',
+        position,
+      },
+    ])
+    mapInstance.value.setCenter(position)
+    if (mapInstance.value.getZoom() < 14) {
+      mapInstance.value.setZoom(14)
+    }
+  } catch (error) {
+    console.error('Failed to search address', error)
+    message.error(t('noFlyZone.search.error'))
+  } finally {
+    searchLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -977,7 +1154,7 @@ onBeforeUnmount(() => {
           </a-form-item>
           <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
-              :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing" />
+              :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing && !isCircleMode" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
           </a-form-item>
           <div class="drawing-actions">
@@ -1026,6 +1203,16 @@ onBeforeUnmount(() => {
       </a-card>
       <a-card class="map-panel" :bordered="false">
         <div ref="mapContainer" class="map-container">
+          <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
+            <a-input-search v-model:value="searchQuery" :placeholder="t('noFlyZone.search.placeholder')" allow-clear
+              :loading="searchLoading" :disabled="!mapReady" @search="handleSearch">
+              <template #enterButton>
+                <a-button type="primary" :loading="searchLoading" :disabled="!canSearch" @click="handleSearch">
+                  <SearchOutlined />
+                </a-button>
+              </template>
+            </a-input-search>
+          </div>
           <div v-if="!mapReady" class="map-placeholder">
             <a-spin :spinning="true" />
             <span>{{ t('noFlyZone.messages.mapLoading') }}</span>
@@ -1124,6 +1311,19 @@ onBeforeUnmount(() => {
   height: 460px;
   border-radius: 12px;
   overflow: hidden;
+}
+
+.map-search-bar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 32px));
+  z-index: 2;
+}
+
+.map-search-bar--disabled {
+  opacity: 0.85;
 }
 
 .map-placeholder {
