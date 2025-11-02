@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS } from '../../services/markers'
 import detailIcon from '../../assets/img/detail.png'
+import TemporaryNoFlyZoneManager from '../../components/noFlyZones/TemporaryNoFlyZoneManager.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -12,6 +13,7 @@ const route = useRoute()
 
 const loading = ref(false)
 const tableData = ref([])
+const activeMainTab = ref('markers')
 const activeStatus = ref(MARKER_REVIEW_STATUS.ALL)
 const pagination = reactive({
   current: 1,
@@ -48,6 +50,11 @@ const updateRouteStatus = (status) => {
   }
   router.replace({ query: nextQuery }).catch(() => { })
 }
+
+const mainTabs = computed(() => [
+  { key: 'markers', label: t('airspace.mainTabs.markers') },
+  { key: 'noFlyZones', label: t('airspace.mainTabs.noFlyZones') },
+])
 
 const statusTabs = computed(() => [
   { key: MARKER_REVIEW_STATUS.ALL, label: t('airspace.tabs.all') },
@@ -148,6 +155,13 @@ const handleTabChange = (key) => {
   updateRouteStatus(nextStatus)
 }
 
+const handleMainTabChange = (key) => {
+  activeMainTab.value = key
+  if (key === 'markers') {
+    loadData()
+  }
+}
+
 const handleTableChange = (pager) => {
   pagination.current = pager?.current ?? 1
   pagination.pageSize = pager?.pageSize ?? pagination.pageSize
@@ -232,11 +246,16 @@ watch(
           <p class="card-subtitle">{{ t('airspace.subtitle') }}</p>
         </div>
       </header>
-      <a-tabs :active-key="activeStatus" @change="handleTabChange" class="status-tabs">
-        <a-tab-pane v-for="tab in statusTabs" :key="tab.key" :tab="tab.label" />
+      <a-tabs :active-key="activeMainTab" @change="handleMainTabChange" class="main-tabs">
+        <a-tab-pane v-for="tab in mainTabs" :key="tab.key" :tab="tab.label" />
       </a-tabs>
-      <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
-        row-key="id" class="markers-table" @change="handleTableChange">
+
+      <template v-if="activeMainTab === 'markers'">
+        <a-tabs :active-key="activeStatus" @change="handleTabChange" class="status-tabs">
+          <a-tab-pane v-for="tab in statusTabs" :key="tab.key" :tab="tab.label" />
+        </a-tabs>
+        <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
+          row-key="id" class="markers-table" @change="handleTableChange">
         <template #headerCell="{ column }">
           <template v-if="column.key === 'createdAt'">
             <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
@@ -286,7 +305,11 @@ watch(
             </div>
           </template>
         </template>
-      </a-table>
+        </a-table>
+      </template>
+      <template v-else>
+        <TemporaryNoFlyZoneManager />
+      </template>
     </a-card>
 
     <a-modal :open="detailVisible" :title="detailRecord?.name || t('airspace.modal.title')" width="960px"
@@ -459,6 +482,7 @@ watch(
   font-size: 0.95rem;
 }
 
+.main-tabs,
 .status-tabs {
   margin-bottom: 16px;
 }
