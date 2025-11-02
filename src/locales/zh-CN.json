@@ -184,6 +184,7 @@
     "types": {
       "polygon": "多边形",
       "rectangle": "矩形",
+      "polyline": "沿线",
       "circle": "圆形"
     },
     "form": {
@@ -193,6 +194,13 @@
       "circleRadius": "圆形半径",
       "radiusUnit": "米",
       "circleHint": "请在地图上点击选择圆心后，再设置半径值。",
+      "coordinatesLabel": "经纬度列表",
+      "coordinatesHint": "在地图上依次点击标点，系统会自动记录经纬度。",
+      "coordinatesIndex": "序号",
+      "coordinatesValue": "经纬度（经度,纬度）",
+      "coordinatesCenter": "圆心",
+      "coordinatesEmpty": "暂未生成经纬度，请在地图上开始绘制。",
+      "radiusDisplay": "当前半径：{radius} 米",
       "timeRange": "生效时间",
       "wechatLink": "公众号链接",
       "wechatPlaceholder": "仅支持 mp.weixin.qq.com 域名链接"
@@ -222,6 +230,7 @@
     },
     "messages": {
       "polygonTooSmall": "请至少绘制三个点组成多边形。",
+      "polylineTooShort": "沿线至少需要两个点。",
       "rectangleInvalid": "请绘制标准矩形（仅支持正南北朝向）。",
       "rectangleIncomplete": "请拖拽确认矩形范围。",
       "circleCenterMissing": "请先在地图上选择圆心位置。",
