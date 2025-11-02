@@ -71,12 +71,19 @@ const hasDrawnGeometry = computed(() => {
   if (formState.type === 'CIRCLE') {
     return !!formState.circle
   }
-  return Array.isArray(formState.coordinates) && formState.coordinates.length > 0
+  if (!Array.isArray(formState.coordinates)) {
+    return false
+  }
+  if (formState.type === 'POLYLINE') {
+    return formState.coordinates.length >= 2
+  }
+  if (formState.type === 'RECTANGLE') {
+    return formState.coordinates.length >= 4
+  }
+  return formState.coordinates.length >= POLYGON_MIN_POINTS
 })
 
 const isCircleMode = computed(() => formState.type === 'CIRCLE')
-
-const isPolygonMode = computed(() => formState.type === 'POLYGON' || formState.type === 'RECTANGLE')
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
@@ -261,10 +268,48 @@ const setupPolygonDrawing = (TMap) => {
       }
     }
     drawingPoints.value.push(point)
-    updatePolygonPreview()
+    updatePathPreview()
   }
 
   mapInstance.value.on('click', mapClickHandler.value)
+  mapMouseMoveHandler.value = (event) => {
+    if (!event?.latLng || !drawingPoints.value.length) return
+    updatePathPreview(event.latLng)
+  }
+  mapDblClickHandler.value = (event) => {
+    event?.originalEvent?.preventDefault?.()
+    finalizePolygonDrawing(TMap)
+  }
+  mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
+  mapInstance.value.on('dblclick', mapDblClickHandler.value)
+}
+
+const setupPolylineDrawing = (TMap) => {
+  clearDrawingOverlays()
+  resetFormGeometry()
+  isDrawing.value = true
+  drawingPoints.value = []
+  currentDrawingMode.value = 'POLYLINE'
+
+  mapClickHandler.value = (event) => {
+    if (!event?.latLng) return
+    drawingPoints.value.push(event.latLng)
+    updatePathPreview()
+  }
+
+  mapMouseMoveHandler.value = (event) => {
+    if (!event?.latLng || !drawingPoints.value.length) return
+    updatePathPreview(event.latLng)
+  }
+
+  mapDblClickHandler.value = (event) => {
+    event?.originalEvent?.preventDefault?.()
+    finalizePolylineDrawing(TMap)
+  }
+
+  mapInstance.value.on('click', mapClickHandler.value)
+  mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
+  mapInstance.value.on('dblclick', mapDblClickHandler.value)
 }
 
 const finalizePolygonDrawing = (TMap) => {
@@ -292,9 +337,32 @@ const finalizePolygonDrawing = (TMap) => {
   stopDrawing()
 }
 
-const updatePolygonPreview = () => {
-  if (!drawingPolyline.value) return
+const finalizePolylineDrawing = (TMap) => {
   if (drawingPoints.value.length < 2) {
+    message.warning(t('noFlyZone.messages.polylineTooShort'))
+    return
+  }
+  formState.coordinates = drawingPoints.value.map((point) => ({
+    latitude: point.getLat(),
+    longitude: point.getLng(),
+  }))
+  drawingPolyline.value.setGeometries([
+    {
+      id: 'drawing',
+      styleId: 'solid',
+      paths: drawingPoints.value,
+    },
+  ])
+  stopDrawing()
+}
+
+const updatePathPreview = (cursorPoint = null) => {
+  if (!drawingPolyline.value) return
+  const points = [...drawingPoints.value]
+  if (cursorPoint) {
+    points.push(cursorPoint)
+  }
+  if (points.length < 2) {
     drawingPolyline.value.setGeometries([])
     return
   }
@@ -302,7 +370,7 @@ const updatePolygonPreview = () => {
     {
       id: 'preview',
       styleId: 'dashed',
-      paths: drawingPoints.value,
+      paths: points,
     },
   ])
 }
@@ -427,7 +495,7 @@ const startDrawing = async () => {
   }
 }
 
-const finishPolygonManually = () => {
+const finishDrawingManually = () => {
   if (currentDrawingMode.value === 'RECTANGLE') {
     if (!drawingPoints.value.length) {
       message.warning(t('noFlyZone.messages.rectangleIncomplete'))
@@ -591,13 +659,24 @@ const editZone = (zone) => {
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
     formState.coordinates = zone.coordinates.map((coord) => ({ ...coord }))
     ensureDrawingLayers(window.TMap)
-    drawingPolygon.value.setGeometries([
-      {
-        id: 'drawing',
-        styleId: 'zone',
-        paths: zone.coordinates.map((coord) => new window.TMap.LatLng(coord.latitude, coord.longitude)),
-      },
-    ])
+    const paths = zone.coordinates.map((coord) => new window.TMap.LatLng(coord.latitude, coord.longitude))
+    if (zone.type === 'POLYLINE') {
+      drawingPolyline.value.setGeometries([
+        {
+          id: 'drawing',
+          styleId: 'solid',
+          paths,
+        },
+      ])
+    } else {
+      drawingPolygon.value.setGeometries([
+        {
+          id: 'drawing',
+          styleId: 'zone',
+          paths,
+        },
+      ])
+    }
   }
   focusZoneOnMap(zone)
 }
@@ -740,9 +819,9 @@ const calculateDistanceMeters = (pointA, pointB) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
@@ -886,10 +965,11 @@ onBeforeUnmount(() => {
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
           <a-form-item :label="t('noFlyZone.form.name')">
-            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')" />
+            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.type')">
-            <a-radio-group v-model:value="formState.type">
+            <a-radio-group v-model:value="formState.type" :disabled="disableFormDuringDrawing">
               <a-radio-button v-for="option in typeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </a-radio-button>
@@ -897,7 +977,7 @@ onBeforeUnmount(() => {
           </a-form-item>
           <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
-              :addon-after="t('noFlyZone.form.radiusUnit')" />
+              :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
           </a-form-item>
           <div class="drawing-actions">
@@ -905,7 +985,7 @@ onBeforeUnmount(() => {
               <a-button type="primary" :disabled="drawButtonDisabled" @click="startDrawing">
                 {{ isDrawing ? t('noFlyZone.actions.drawing') : t('noFlyZone.actions.startDrawing') }}
               </a-button>
-              <a-button :disabled="!isDrawing" @click="finishPolygonManually">
+              <a-button :disabled="!isDrawing" @click="finishDrawingManually">
                 {{ t('noFlyZone.actions.finishDrawing') }}
               </a-button>
               <a-button danger :disabled="!isDrawing && !hasDrawnGeometry" @click="clearDrawing">
@@ -916,18 +996,29 @@ onBeforeUnmount(() => {
               </a-button>
             </a-space>
           </div>
+          <a-form-item :label="t('noFlyZone.form.coordinatesLabel')">
+            <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
+            <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
+              :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
+              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }" />
+            <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
+              {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
+            </div>
+          </a-form-item>
           <a-form-item :label="t('noFlyZone.form.timeRange')">
             <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear />
+              value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.wechatLink')">
-            <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')" />
+            <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')"
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-space class="form-actions">
-            <a-button type="primary" :loading="formSubmitting" :disabled="disableSubmit" @click="handleSubmit">
+            <a-button type="primary" :loading="formSubmitting" :disabled="disableFormDuringDrawing || disableSubmit"
+              @click="handleSubmit">
               {{ formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create') }}
             </a-button>
-            <a-button :disabled="formSubmitting" @click="resetToCreateMode">
+            <a-button :disabled="formSubmitting || disableFormDuringDrawing" @click="resetToCreateMode">
               {{ t('noFlyZone.actions.reset') }}
             </a-button>
           </a-space>
@@ -944,8 +1035,8 @@ onBeforeUnmount(() => {
     </div>
 
     <a-card class="zone-table-card" :bordered="false">
-      <a-table :columns="tableColumns" :data-source="zoneList" :row-key="(record) => record.id"
-        :loading="listLoading" :pagination="{
+      <a-table :columns="tableColumns" :data-source="zoneList" :row-key="(record) => record.id" :loading="listLoading"
+        :pagination="{
           current: pagination.current,
           pageSize: pagination.pageSize,
           total: pagination.total,
@@ -961,17 +1052,17 @@ onBeforeUnmount(() => {
           <template v-else-if="column.key === 'actions'">
             <a-space>
               <a-tooltip :title="t('noFlyZone.actions.focus')">
-                <a-button shape="circle" type="text" @click="highlightZone(record)">
+                <a-button shape="circle" type="text" :disabled="isDrawing" @click="highlightZone(record)">
                   <EnvironmentOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.edit')">
-                <a-button shape="circle" type="text" @click="editZone(record)">
+                <a-button shape="circle" type="text" :disabled="isDrawing" @click="editZone(record)">
                   <EditOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.delete')">
-                <a-button shape="circle" danger type="text" @click="deleteZone(record)">
+                <a-button shape="circle" danger type="text" :disabled="isDrawing" @click="deleteZone(record)">
                   <DeleteOutlined />
                 </a-button>
               </a-tooltip>
