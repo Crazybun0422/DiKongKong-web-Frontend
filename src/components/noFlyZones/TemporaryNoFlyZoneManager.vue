@@ -84,12 +84,9 @@ const hasDrawnGeometry = computed(() => {
     return formState.coordinates.length >= 4
   }
   return formState.coordinates.length >= POLYGON_MIN_POINTS
-  return Array.isArray(formState.coordinates) && formState.coordinates.length > 0
 })
 
 const isCircleMode = computed(() => formState.type === 'CIRCLE')
-
-const isPolygonMode = computed(() => formState.type === 'POLYGON' || formState.type === 'RECTANGLE')
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
@@ -434,10 +431,6 @@ const setupPolylineDrawing = (TMap) => {
   mapInstance.value.on('click', mapClickHandler.value)
   mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
   mapInstance.value.on('dblclick', mapDblClickHandler.value)
-    updatePolygonPreview()
-  }
-
-  mapInstance.value.on('click', mapClickHandler.value)
 }
 
 const finalizePolygonDrawing = (TMap) => {
@@ -491,9 +484,6 @@ const updatePathPreview = (cursorPoint = null) => {
     points.push(cursorPoint)
   }
   if (points.length < 2) {
-const updatePolygonPreview = () => {
-  if (!drawingPolyline.value) return
-  if (drawingPoints.value.length < 2) {
     drawingPolyline.value.setGeometries([])
     return
   }
@@ -502,7 +492,6 @@ const updatePolygonPreview = () => {
       id: 'preview',
       styleId: 'dashed',
       paths: points,
-      paths: drawingPoints.value,
     },
   ])
 }
@@ -630,7 +619,6 @@ const startDrawing = async () => {
 }
 
 const finishDrawingManually = () => {
-const finishPolygonManually = () => {
   if (currentDrawingMode.value === 'RECTANGLE') {
     if (!drawingPoints.value.length) {
       message.warning(t('noFlyZone.messages.rectangleIncomplete'))
@@ -816,13 +804,6 @@ const editZone = (zone) => {
         },
       ])
     }
-    drawingPolygon.value.setGeometries([
-      {
-        id: 'drawing',
-        styleId: 'zone',
-        paths: zone.coordinates.map((coord) => new window.TMap.LatLng(coord.latitude, coord.longitude)),
-      },
-    ])
   }
   focusZoneOnMap(zone)
 }
@@ -977,9 +958,9 @@ const calculateDistanceMeters = (pointA, pointB) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
@@ -1132,34 +1113,19 @@ onBeforeUnmount(() => {
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
           <a-form-item :label="t('noFlyZone.form.name')">
-            <a-input
-              v-model:value="formState.name"
-              :placeholder="t('noFlyZone.form.namePlaceholder')"
-              :disabled="disableFormDuringDrawing"
-            />
+            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.type')">
             <a-radio-group v-model:value="formState.type" :disabled="disableFormDuringDrawing">
-            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')" />
-          </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.type')">
-            <a-radio-group v-model:value="formState.type">
               <a-radio-button v-for="option in typeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </a-radio-button>
             </a-radio-group>
           </a-form-item>
           <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
-            <a-input-number
-              v-model:value="drawingRadius"
-              :min="CIRCLE_MIN_RADIUS"
-              :step="50"
-              class="radius-input"
-              :addon-after="t('noFlyZone.form.radiusUnit')"
-              :disabled="disableFormDuringDrawing"
-            />
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
-              :addon-after="t('noFlyZone.form.radiusUnit')" />
+              :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
           </a-form-item>
           <div class="drawing-actions">
@@ -1168,7 +1134,6 @@ onBeforeUnmount(() => {
                 {{ isDrawing ? t('noFlyZone.actions.drawing') : t('noFlyZone.actions.startDrawing') }}
               </a-button>
               <a-button :disabled="!isDrawing" @click="finishDrawingManually">
-              <a-button :disabled="!isDrawing" @click="finishPolygonManually">
                 {{ t('noFlyZone.actions.finishDrawing') }}
               </a-button>
               <a-button danger :disabled="!isDrawing && !hasDrawnGeometry" @click="clearDrawing">
@@ -1181,58 +1146,27 @@ onBeforeUnmount(() => {
           </div>
           <a-form-item :label="t('noFlyZone.form.coordinatesLabel')">
             <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
-            <a-table
-              class="coordinate-table"
-              size="small"
-              :columns="coordinateColumns"
-              :data-source="displayedCoordinates"
-              :pagination="false"
-              :row-key="(record) => record.key"
-              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }"
-            />
+            <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
+              :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
+              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }" />
             <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
               {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
             </div>
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.timeRange')">
-            <a-range-picker
-              v-model:value="formState.timeRange"
-              format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              show-time
-              allow-clear
-              :disabled="disableFormDuringDrawing"
-            />
+            <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
+              value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.wechatLink')">
-            <a-input
-              v-model:value="formState.wechatLink"
-              :placeholder="t('noFlyZone.form.wechatPlaceholder')"
-              :disabled="disableFormDuringDrawing"
-            />
+            <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')"
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-space class="form-actions">
-            <a-button
-              type="primary"
-              :loading="formSubmitting"
-              :disabled="disableFormDuringDrawing || disableSubmit"
-              @click="handleSubmit"
-            >
+            <a-button type="primary" :loading="formSubmitting" :disabled="disableFormDuringDrawing || disableSubmit"
+              @click="handleSubmit">
               {{ formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create') }}
             </a-button>
             <a-button :disabled="formSubmitting || disableFormDuringDrawing" @click="resetToCreateMode">
-          <a-form-item :label="t('noFlyZone.form.timeRange')">
-            <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear />
-          </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.wechatLink')">
-            <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')" />
-          </a-form-item>
-          <a-space class="form-actions">
-            <a-button type="primary" :loading="formSubmitting" :disabled="disableSubmit" @click="handleSubmit">
-              {{ formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create') }}
-            </a-button>
-            <a-button :disabled="formSubmitting" @click="resetToCreateMode">
               {{ t('noFlyZone.actions.reset') }}
             </a-button>
           </a-space>
@@ -1249,8 +1183,8 @@ onBeforeUnmount(() => {
     </div>
 
     <a-card class="zone-table-card" :bordered="false">
-      <a-table :columns="tableColumns" :data-source="zoneList" :row-key="(record) => record.id"
-        :loading="listLoading" :pagination="{
+      <a-table :columns="tableColumns" :data-source="zoneList" :row-key="(record) => record.id" :loading="listLoading"
+        :pagination="{
           current: pagination.current,
           pageSize: pagination.pageSize,
           total: pagination.total,
@@ -1267,19 +1201,16 @@ onBeforeUnmount(() => {
             <a-space>
               <a-tooltip :title="t('noFlyZone.actions.focus')">
                 <a-button shape="circle" type="text" :disabled="isDrawing" @click="highlightZone(record)">
-                <a-button shape="circle" type="text" @click="highlightZone(record)">
                   <EnvironmentOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.edit')">
                 <a-button shape="circle" type="text" :disabled="isDrawing" @click="editZone(record)">
-                <a-button shape="circle" type="text" @click="editZone(record)">
                   <EditOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.delete')">
                 <a-button shape="circle" danger type="text" :disabled="isDrawing" @click="deleteZone(record)">
-                <a-button shape="circle" danger type="text" @click="deleteZone(record)">
                   <DeleteOutlined />
                 </a-button>
               </a-tooltip>
