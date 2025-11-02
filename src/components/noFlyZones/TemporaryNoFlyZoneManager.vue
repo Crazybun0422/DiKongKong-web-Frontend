@@ -29,7 +29,6 @@ const drawingCircle = ref(null)
 const merchantMarkerLayer = ref(null)
 const zonePolygonLayer = ref(null)
 const zoneCircleLayer = ref(null)
-const zonePolylineLayer = ref(null)
 const currentDrawingMode = ref('POLYGON')
 const isDrawing = ref(false)
 const drawingPoints = ref([])
@@ -39,7 +38,6 @@ const drawingRadius = ref(500)
 const mapClickHandler = ref(null)
 const mapMouseMoveHandler = ref(null)
 const mapMouseUpHandler = ref(null)
-const mapDblClickHandler = ref(null)
 
 const zoneList = ref([])
 const listLoading = ref(false)
@@ -64,7 +62,6 @@ const formSubmitting = ref(false)
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
   { label: t('noFlyZone.types.rectangle'), value: 'RECTANGLE' },
-  { label: t('noFlyZone.types.polyline'), value: 'POLYLINE' },
   { label: t('noFlyZone.types.circle'), value: 'CIRCLE' },
 ])
 
@@ -92,8 +89,6 @@ const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
 const disableSubmit = computed(() => !hasDrawnGeometry.value || !formState.name.trim() || !formState.wechatLink.trim())
 
-const disableFormDuringDrawing = computed(() => isDrawing.value)
-
 const highlightStyle = {
   polygon: {
     fillColor: 'rgba(255, 77, 79, 0.25)',
@@ -105,105 +100,12 @@ const highlightStyle = {
     strokeColor: '#ff4d4f',
     strokeWidth: 2,
   },
-  polyline: {
-    color: '#ff4d4f',
-    width: 3,
-  },
   dashed: {
     color: '#ff4d4f',
     width: 2,
     dashArray: [10, 6],
   },
 }
-
-const formatDecimalCoordinate = (value) => {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return ''
-  return num.toFixed(6)
-}
-
-const normalizePoint = (point) => {
-  if (!point) return null
-  if (typeof point.getLat === 'function' && typeof point.getLng === 'function') {
-    return {
-      latitude: point.getLat(),
-      longitude: point.getLng(),
-    }
-  }
-  const latitude = point.latitude ?? point.lat
-  const longitude = point.longitude ?? point.lng
-  if (latitude == null || longitude == null) {
-    return null
-  }
-  return {
-    latitude: Number(latitude),
-    longitude: Number(longitude),
-  }
-}
-
-const coordinateColumns = computed(() => [
-  {
-    title: t('noFlyZone.form.coordinatesIndex'),
-    dataIndex: 'label',
-    key: 'label',
-    width: 100,
-  },
-  {
-    title: t('noFlyZone.form.coordinatesValue'),
-    dataIndex: 'value',
-    key: 'value',
-  },
-])
-
-const displayedCoordinates = computed(() => {
-  if (isCircleMode.value) {
-    const centerPoint = isDrawing.value && currentDrawingMode.value === 'CIRCLE'
-      ? normalizePoint(drawingCenter.value)
-      : normalizePoint(formState.circle)
-    if (!centerPoint) return []
-    return [
-      {
-        key: 'center',
-        label: t('noFlyZone.form.coordinatesCenter'),
-        value: `${formatDecimalCoordinate(centerPoint.longitude)}, ${formatDecimalCoordinate(centerPoint.latitude)}`,
-      },
-    ]
-  }
-
-  const sourcePoints = []
-  if (isDrawing.value && drawingPoints.value.length) {
-    drawingPoints.value.forEach((point, index) => {
-      const normalized = normalizePoint(point)
-      if (normalized) {
-        sourcePoints.push({ ...normalized, index })
-      }
-    })
-  } else if (Array.isArray(formState.coordinates) && formState.coordinates.length) {
-    formState.coordinates.forEach((coord, index) => {
-      const normalized = normalizePoint(coord)
-      if (normalized) {
-        sourcePoints.push({ ...normalized, index })
-      }
-    })
-  }
-
-  return sourcePoints.map((point, index) => ({
-    key: `${index}`,
-    label: `${index + 1}`,
-    value: `${formatDecimalCoordinate(point.longitude)}, ${formatDecimalCoordinate(point.latitude)}`,
-  }))
-})
-
-const displayedCircleRadius = computed(() => {
-  if (!isCircleMode.value) return null
-  if (isDrawing.value && currentDrawingMode.value === 'CIRCLE') {
-    return drawingRadius.value
-  }
-  if (formState.circle?.radiusMeters != null) {
-    return Number(formState.circle.radiusMeters)
-  }
-  return null
-})
 
 const loadTencentMapScript = () => {
   if (window.TMap) return Promise.resolve(window.TMap)
@@ -274,22 +176,6 @@ const createPolylineLayer = (TMap) =>
         width: highlightStyle.dashed.width,
         dashArray: highlightStyle.dashed.dashArray,
       }),
-      solid: new TMap.PolylineStyle({
-        color: highlightStyle.polyline.color,
-        width: highlightStyle.polyline.width,
-      }),
-    },
-    geometries: [],
-  })
-
-const createZonePolylineLayer = (TMap) =>
-  new TMap.MultiPolyline({
-    map: mapInstance.value,
-    styles: {
-      zone: new TMap.PolylineStyle({
-        color: highlightStyle.polyline.color,
-        width: highlightStyle.polyline.width,
-      }),
     },
     geometries: [],
   })
@@ -312,9 +198,6 @@ const ensureZoneLayers = (TMap) => {
   }
   if (!zoneCircleLayer.value) {
     zoneCircleLayer.value = createCircleLayer(TMap)
-  }
-  if (!zonePolylineLayer.value) {
-    zonePolylineLayer.value = createZonePolylineLayer(TMap)
   }
 }
 
@@ -357,10 +240,6 @@ const detachMapListeners = () => {
   if (mapMouseUpHandler.value) {
     mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     mapMouseUpHandler.value = null
-  }
-  if (mapDblClickHandler.value) {
-    mapInstance.value.off('dblclick', mapDblClickHandler.value)
-    mapDblClickHandler.value = null
   }
 }
 
@@ -611,8 +490,6 @@ const startDrawing = async () => {
     setupCircleDrawing(TMap)
   } else if (formState.type === 'RECTANGLE') {
     setupRectangleDrawing(TMap)
-  } else if (formState.type === 'POLYLINE') {
-    setupPolylineDrawing(TMap)
   } else {
     setupPolygonDrawing(TMap)
   }
@@ -629,10 +506,6 @@ const finishDrawingManually = () => {
       longitude: point.getLng(),
     }))
     stopDrawing()
-    return
-  }
-  if (currentDrawingMode.value === 'POLYLINE') {
-    finalizePolylineDrawing(window.TMap)
     return
   }
   const TMap = window.TMap
@@ -872,7 +745,6 @@ const renderZonesOnMap = () => {
   ensureZoneLayers(window.TMap)
   const polygonGeometries = []
   const circleGeometries = []
-  const polylineGeometries = []
   zoneList.value.forEach((zone) => {
     if (zone.type === 'CIRCLE' && zone.circle) {
       circleGeometries.push({
@@ -880,14 +752,6 @@ const renderZonesOnMap = () => {
         styleId: 'zone',
         center: new window.TMap.LatLng(zone.circle.latitude, zone.circle.longitude),
         radius: zone.circle.radiusMeters,
-      })
-    } else if (zone.type === 'POLYLINE' && Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      polylineGeometries.push({
-        id: zone.id,
-        styleId: 'zone',
-        paths: zone.coordinates.map(
-          (coord) => new window.TMap.LatLng(coord.latitude, coord.longitude),
-        ),
       })
     } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
       polygonGeometries.push({
@@ -901,9 +765,6 @@ const renderZonesOnMap = () => {
   })
   zonePolygonLayer.value.setGeometries(polygonGeometries)
   zoneCircleLayer.value.setGeometries(circleGeometries)
-  if (zonePolylineLayer.value) {
-    zonePolylineLayer.value.setGeometries(polylineGeometries)
-  }
 }
 
 const loadMerchantMarkers = async () => {
@@ -1083,15 +944,6 @@ watch(
   },
 )
 
-watch(
-  () => drawingRadius.value,
-  () => {
-    if (isDrawing.value && currentDrawingMode.value === 'CIRCLE' && window.TMap) {
-      updateCirclePreview(window.TMap)
-    }
-  },
-)
-
 onMounted(() => {
   initializeMap()
 })
@@ -1264,25 +1116,6 @@ onBeforeUnmount(() => {
 
 .form-actions {
   margin-top: 8px;
-}
-
-.coordinate-alert {
-  margin-bottom: 8px;
-}
-
-.coordinate-table {
-  margin-top: 8px;
-}
-
-.coordinate-table :deep(.ant-table-body) {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.radius-display {
-  margin-top: 6px;
-  font-size: 13px;
-  color: #ef4444;
 }
 
 .map-container {
