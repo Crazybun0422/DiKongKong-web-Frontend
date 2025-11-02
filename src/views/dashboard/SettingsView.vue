@@ -483,17 +483,27 @@ onMounted(() => {
             <a-modal
               :open="openPlatformPreviewVisible"
               :title="t('settings.openPlatform.preview.title')"
-              width="720px"
+              width="440px"
               :footer="null"
               @cancel="closeOpenPlatformPreview"
             >
               <div class="open-platform-preview">
-                <div
-                  v-if="openPlatformHasContent"
-                  class="open-platform-preview__content"
-                  v-html="openPlatformForm.content"
-                ></div>
-                <a-empty v-else :description="t('settings.openPlatform.preview.empty')" />
+                <div class="open-platform-preview__device">
+                  <div class="open-platform-preview__notch"></div>
+                  <div class="open-platform-preview__screen">
+                    <div class="open-platform-preview__scroller">
+                      <div
+                        v-if="openPlatformHasContent"
+                        class="open-platform-preview__content"
+                        v-html="openPlatformForm.content"
+                      ></div>
+                      <a-empty
+                        v-else
+                        :description="t('settings.openPlatform.preview.empty')"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="open-platform-preview__footer">
                 <a-button type="primary" @click="closeOpenPlatformPreview">
@@ -639,16 +649,56 @@ onMounted(() => {
 }
 
 .open-platform-preview {
-  max-height: 60vh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 0 16px;
+  background: #f3f4f6;
+}
+
+.open-platform-preview__device {
+  width: 360px;
+  max-width: 100%;
+  background: #111827;
+  border-radius: 32px;
+  padding: 12px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.open-platform-preview__notch {
+  align-self: center;
+  width: 108px;
+  height: 18px;
+  background: #0f172a;
+  border-radius: 0 0 12px 12px;
+}
+
+.open-platform-preview__screen {
+  background: #f8fafc;
+  border-radius: 24px;
+  flex: 1;
+  min-height: 600px;
+  display: flex;
+  overflow: hidden;
+}
+
+.open-platform-preview__scroller {
+  flex: 1;
   overflow-y: auto;
-  padding: 8px 0 0;
+  padding: 18px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .open-platform-preview__content {
-  padding: 16px;
+  width: 100%;
+  padding: 18px;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
   color: #1f2937;
   line-height: 1.7;
 }
@@ -658,10 +708,15 @@ onMounted(() => {
   height: auto;
 }
 
+.open-platform-preview__scroller :deep(.ant-empty) {
+  margin: auto;
+  padding: 48px 0;
+}
+
 .open-platform-preview__footer {
   margin-top: 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 @media (max-width: 768px) {

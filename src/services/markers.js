@@ -67,7 +67,14 @@ export const fetchMarkers = async ({
 
 export const reviewMarker = async (markerId, status) => {
   if (!markerId) throw new Error('markerId is required')
-  const { data } = await http.post(`/markers/${markerId}`, { status })
+  if (import.meta.env.DEV) {
+    console.info('[reviewMarker] request', {
+      baseURL: http.defaults.baseURL,
+      markerId,
+      status,
+    })
+  }
+  const { data } = await http.post(`/markers/${markerId}/review`, { status })
   return normalizeMarker(data?.data)
 }
 
