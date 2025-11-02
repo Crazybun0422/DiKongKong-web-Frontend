@@ -184,7 +184,6 @@
     "types": {
       "polygon": "Polygon",
       "rectangle": "Rectangle",
-      "polyline": "Along Line",
       "circle": "Circle"
     },
     "form": {
@@ -194,13 +193,6 @@
       "circleRadius": "Circle Radius",
       "radiusUnit": "m",
       "circleHint": "Click on the map to select the center before setting the radius.",
-      "coordinatesLabel": "Coordinates",
-      "coordinatesHint": "Click on the map to drop points. Longitude and latitude will appear here automatically.",
-      "coordinatesIndex": "Order",
-      "coordinatesValue": "Longitude, Latitude (decimal)",
-      "coordinatesCenter": "Center",
-      "coordinatesEmpty": "No coordinates yet. Start drawing on the map.",
-      "radiusDisplay": "Current radius: {radius} m",
       "timeRange": "Effective Time",
       "wechatLink": "Official Account Link",
       "wechatPlaceholder": "Only mp.weixin.qq.com URLs are supported"
@@ -230,7 +222,6 @@
     },
     "messages": {
       "polygonTooSmall": "Please add at least three points to form a polygon.",
-      "polylineTooShort": "Please add at least two points for an along-line zone.",
       "rectangleInvalid": "Please draw an axis-aligned rectangle.",
       "rectangleIncomplete": "Drag to adjust and confirm the rectangle area.",
       "circleCenterMissing": "Please choose a circle center on the map first.",
