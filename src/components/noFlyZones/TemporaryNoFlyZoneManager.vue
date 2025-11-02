@@ -29,7 +29,6 @@ const drawingCircle = ref(null)
 const merchantMarkerLayer = ref(null)
 const zonePolygonLayer = ref(null)
 const zoneCircleLayer = ref(null)
-const zonePolylineLayer = ref(null)
 const currentDrawingMode = ref('POLYGON')
 const isDrawing = ref(false)
 const drawingPoints = ref([])
@@ -39,7 +38,6 @@ const drawingRadius = ref(500)
 const mapClickHandler = ref(null)
 const mapMouseMoveHandler = ref(null)
 const mapMouseUpHandler = ref(null)
-const mapDblClickHandler = ref(null)
 
 const zoneList = ref([])
 const listLoading = ref(false)
@@ -64,7 +62,6 @@ const formSubmitting = ref(false)
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
   { label: t('noFlyZone.types.rectangle'), value: 'RECTANGLE' },
-  { label: t('noFlyZone.types.polyline'), value: 'POLYLINE' },
   { label: t('noFlyZone.types.circle'), value: 'CIRCLE' },
 ])
 
@@ -74,16 +71,6 @@ const hasDrawnGeometry = computed(() => {
   if (formState.type === 'CIRCLE') {
     return !!formState.circle
   }
-  if (!Array.isArray(formState.coordinates)) {
-    return false
-  }
-  if (formState.type === 'POLYLINE') {
-    return formState.coordinates.length >= 2
-  }
-  if (formState.type === 'RECTANGLE') {
-    return formState.coordinates.length >= 4
-  }
-  return formState.coordinates.length >= POLYGON_MIN_POINTS
   return Array.isArray(formState.coordinates) && formState.coordinates.length > 0
 })
 
@@ -94,8 +81,6 @@ const isPolygonMode = computed(() => formState.type === 'POLYGON' || formState.t
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
 const disableSubmit = computed(() => !hasDrawnGeometry.value || !formState.name.trim() || !formState.wechatLink.trim())
-
-const disableFormDuringDrawing = computed(() => isDrawing.value)
 
 const highlightStyle = {
   polygon: {
@@ -108,105 +93,12 @@ const highlightStyle = {
     strokeColor: '#ff4d4f',
     strokeWidth: 2,
   },
-  polyline: {
-    color: '#ff4d4f',
-    width: 3,
-  },
   dashed: {
     color: '#ff4d4f',
     width: 2,
     dashArray: [10, 6],
   },
 }
-
-const formatDecimalCoordinate = (value) => {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return ''
-  return num.toFixed(6)
-}
-
-const normalizePoint = (point) => {
-  if (!point) return null
-  if (typeof point.getLat === 'function' && typeof point.getLng === 'function') {
-    return {
-      latitude: point.getLat(),
-      longitude: point.getLng(),
-    }
-  }
-  const latitude = point.latitude ?? point.lat
-  const longitude = point.longitude ?? point.lng
-  if (latitude == null || longitude == null) {
-    return null
-  }
-  return {
-    latitude: Number(latitude),
-    longitude: Number(longitude),
-  }
-}
-
-const coordinateColumns = computed(() => [
-  {
-    title: t('noFlyZone.form.coordinatesIndex'),
-    dataIndex: 'label',
-    key: 'label',
-    width: 100,
-  },
-  {
-    title: t('noFlyZone.form.coordinatesValue'),
-    dataIndex: 'value',
-    key: 'value',
-  },
-])
-
-const displayedCoordinates = computed(() => {
-  if (isCircleMode.value) {
-    const centerPoint = isDrawing.value && currentDrawingMode.value === 'CIRCLE'
-      ? normalizePoint(drawingCenter.value)
-      : normalizePoint(formState.circle)
-    if (!centerPoint) return []
-    return [
-      {
-        key: 'center',
-        label: t('noFlyZone.form.coordinatesCenter'),
-        value: `${formatDecimalCoordinate(centerPoint.longitude)}, ${formatDecimalCoordinate(centerPoint.latitude)}`,
-      },
-    ]
-  }
-
-  const sourcePoints = []
-  if (isDrawing.value && drawingPoints.value.length) {
-    drawingPoints.value.forEach((point, index) => {
-      const normalized = normalizePoint(point)
-      if (normalized) {
-        sourcePoints.push({ ...normalized, index })
-      }
-    })
-  } else if (Array.isArray(formState.coordinates) && formState.coordinates.length) {
-    formState.coordinates.forEach((coord, index) => {
-      const normalized = normalizePoint(coord)
-      if (normalized) {
-        sourcePoints.push({ ...normalized, index })
-      }
-    })
-  }
-
-  return sourcePoints.map((point, index) => ({
-    key: `${index}`,
-    label: `${index + 1}`,
-    value: `${formatDecimalCoordinate(point.longitude)}, ${formatDecimalCoordinate(point.latitude)}`,
-  }))
-})
-
-const displayedCircleRadius = computed(() => {
-  if (!isCircleMode.value) return null
-  if (isDrawing.value && currentDrawingMode.value === 'CIRCLE') {
-    return drawingRadius.value
-  }
-  if (formState.circle?.radiusMeters != null) {
-    return Number(formState.circle.radiusMeters)
-  }
-  return null
-})
 
 const loadTencentMapScript = () => {
   if (window.TMap) return Promise.resolve(window.TMap)
@@ -277,22 +169,6 @@ const createPolylineLayer = (TMap) =>
         width: highlightStyle.dashed.width,
         dashArray: highlightStyle.dashed.dashArray,
       }),
-      solid: new TMap.PolylineStyle({
-        color: highlightStyle.polyline.color,
-        width: highlightStyle.polyline.width,
-      }),
-    },
-    geometries: [],
-  })
-
-const createZonePolylineLayer = (TMap) =>
-  new TMap.MultiPolyline({
-    map: mapInstance.value,
-    styles: {
-      zone: new TMap.PolylineStyle({
-        color: highlightStyle.polyline.color,
-        width: highlightStyle.polyline.width,
-      }),
     },
     geometries: [],
   })
@@ -315,9 +191,6 @@ const ensureZoneLayers = (TMap) => {
   }
   if (!zoneCircleLayer.value) {
     zoneCircleLayer.value = createCircleLayer(TMap)
-  }
-  if (!zonePolylineLayer.value) {
-    zonePolylineLayer.value = createZonePolylineLayer(TMap)
   }
 }
 
@@ -361,10 +234,6 @@ const detachMapListeners = () => {
     mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     mapMouseUpHandler.value = null
   }
-  if (mapDblClickHandler.value) {
-    mapInstance.value.off('dblclick', mapDblClickHandler.value)
-    mapDblClickHandler.value = null
-  }
 }
 
 const setupPolygonDrawing = (TMap) => {
@@ -392,48 +261,6 @@ const setupPolygonDrawing = (TMap) => {
       }
     }
     drawingPoints.value.push(point)
-    updatePathPreview()
-  }
-
-  mapInstance.value.on('click', mapClickHandler.value)
-  mapMouseMoveHandler.value = (event) => {
-    if (!event?.latLng || !drawingPoints.value.length) return
-    updatePathPreview(event.latLng)
-  }
-  mapDblClickHandler.value = (event) => {
-    event?.originalEvent?.preventDefault?.()
-    finalizePolygonDrawing(TMap)
-  }
-  mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
-  mapInstance.value.on('dblclick', mapDblClickHandler.value)
-}
-
-const setupPolylineDrawing = (TMap) => {
-  clearDrawingOverlays()
-  resetFormGeometry()
-  isDrawing.value = true
-  drawingPoints.value = []
-  currentDrawingMode.value = 'POLYLINE'
-
-  mapClickHandler.value = (event) => {
-    if (!event?.latLng) return
-    drawingPoints.value.push(event.latLng)
-    updatePathPreview()
-  }
-
-  mapMouseMoveHandler.value = (event) => {
-    if (!event?.latLng || !drawingPoints.value.length) return
-    updatePathPreview(event.latLng)
-  }
-
-  mapDblClickHandler.value = (event) => {
-    event?.originalEvent?.preventDefault?.()
-    finalizePolylineDrawing(TMap)
-  }
-
-  mapInstance.value.on('click', mapClickHandler.value)
-  mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
-  mapInstance.value.on('dblclick', mapDblClickHandler.value)
     updatePolygonPreview()
   }
 
@@ -465,32 +292,6 @@ const finalizePolygonDrawing = (TMap) => {
   stopDrawing()
 }
 
-const finalizePolylineDrawing = (TMap) => {
-  if (drawingPoints.value.length < 2) {
-    message.warning(t('noFlyZone.messages.polylineTooShort'))
-    return
-  }
-  formState.coordinates = drawingPoints.value.map((point) => ({
-    latitude: point.getLat(),
-    longitude: point.getLng(),
-  }))
-  drawingPolyline.value.setGeometries([
-    {
-      id: 'drawing',
-      styleId: 'solid',
-      paths: drawingPoints.value,
-    },
-  ])
-  stopDrawing()
-}
-
-const updatePathPreview = (cursorPoint = null) => {
-  if (!drawingPolyline.value) return
-  const points = [...drawingPoints.value]
-  if (cursorPoint) {
-    points.push(cursorPoint)
-  }
-  if (points.length < 2) {
 const updatePolygonPreview = () => {
   if (!drawingPolyline.value) return
   if (drawingPoints.value.length < 2) {
@@ -501,7 +302,6 @@ const updatePolygonPreview = () => {
     {
       id: 'preview',
       styleId: 'dashed',
-      paths: points,
       paths: drawingPoints.value,
     },
   ])
@@ -622,14 +422,11 @@ const startDrawing = async () => {
     setupCircleDrawing(TMap)
   } else if (formState.type === 'RECTANGLE') {
     setupRectangleDrawing(TMap)
-  } else if (formState.type === 'POLYLINE') {
-    setupPolylineDrawing(TMap)
   } else {
     setupPolygonDrawing(TMap)
   }
 }
 
-const finishDrawingManually = () => {
 const finishPolygonManually = () => {
   if (currentDrawingMode.value === 'RECTANGLE') {
     if (!drawingPoints.value.length) {
@@ -641,10 +438,6 @@ const finishPolygonManually = () => {
       longitude: point.getLng(),
     }))
     stopDrawing()
-    return
-  }
-  if (currentDrawingMode.value === 'POLYLINE') {
-    finalizePolylineDrawing(window.TMap)
     return
   }
   const TMap = window.TMap
@@ -798,24 +591,6 @@ const editZone = (zone) => {
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
     formState.coordinates = zone.coordinates.map((coord) => ({ ...coord }))
     ensureDrawingLayers(window.TMap)
-    const paths = zone.coordinates.map((coord) => new window.TMap.LatLng(coord.latitude, coord.longitude))
-    if (zone.type === 'POLYLINE') {
-      drawingPolyline.value.setGeometries([
-        {
-          id: 'drawing',
-          styleId: 'solid',
-          paths,
-        },
-      ])
-    } else {
-      drawingPolygon.value.setGeometries([
-        {
-          id: 'drawing',
-          styleId: 'zone',
-          paths,
-        },
-      ])
-    }
     drawingPolygon.value.setGeometries([
       {
         id: 'drawing',
@@ -891,7 +666,6 @@ const renderZonesOnMap = () => {
   ensureZoneLayers(window.TMap)
   const polygonGeometries = []
   const circleGeometries = []
-  const polylineGeometries = []
   zoneList.value.forEach((zone) => {
     if (zone.type === 'CIRCLE' && zone.circle) {
       circleGeometries.push({
@@ -899,14 +673,6 @@ const renderZonesOnMap = () => {
         styleId: 'zone',
         center: new window.TMap.LatLng(zone.circle.latitude, zone.circle.longitude),
         radius: zone.circle.radiusMeters,
-      })
-    } else if (zone.type === 'POLYLINE' && Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      polylineGeometries.push({
-        id: zone.id,
-        styleId: 'zone',
-        paths: zone.coordinates.map(
-          (coord) => new window.TMap.LatLng(coord.latitude, coord.longitude),
-        ),
       })
     } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
       polygonGeometries.push({
@@ -920,9 +686,6 @@ const renderZonesOnMap = () => {
   })
   zonePolygonLayer.value.setGeometries(polygonGeometries)
   zoneCircleLayer.value.setGeometries(circleGeometries)
-  if (zonePolylineLayer.value) {
-    zonePolylineLayer.value.setGeometries(polylineGeometries)
-  }
 }
 
 const loadMerchantMarkers = async () => {
@@ -1102,15 +865,6 @@ watch(
   },
 )
 
-watch(
-  () => drawingRadius.value,
-  () => {
-    if (isDrawing.value && currentDrawingMode.value === 'CIRCLE' && window.TMap) {
-      updateCirclePreview(window.TMap)
-    }
-  },
-)
-
 onMounted(() => {
   initializeMap()
 })
@@ -1132,14 +886,6 @@ onBeforeUnmount(() => {
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
           <a-form-item :label="t('noFlyZone.form.name')">
-            <a-input
-              v-model:value="formState.name"
-              :placeholder="t('noFlyZone.form.namePlaceholder')"
-              :disabled="disableFormDuringDrawing"
-            />
-          </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.type')">
-            <a-radio-group v-model:value="formState.type" :disabled="disableFormDuringDrawing">
             <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.type')">
@@ -1150,14 +896,6 @@ onBeforeUnmount(() => {
             </a-radio-group>
           </a-form-item>
           <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
-            <a-input-number
-              v-model:value="drawingRadius"
-              :min="CIRCLE_MIN_RADIUS"
-              :step="50"
-              class="radius-input"
-              :addon-after="t('noFlyZone.form.radiusUnit')"
-              :disabled="disableFormDuringDrawing"
-            />
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
               :addon-after="t('noFlyZone.form.radiusUnit')" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
@@ -1167,7 +905,6 @@ onBeforeUnmount(() => {
               <a-button type="primary" :disabled="drawButtonDisabled" @click="startDrawing">
                 {{ isDrawing ? t('noFlyZone.actions.drawing') : t('noFlyZone.actions.startDrawing') }}
               </a-button>
-              <a-button :disabled="!isDrawing" @click="finishDrawingManually">
               <a-button :disabled="!isDrawing" @click="finishPolygonManually">
                 {{ t('noFlyZone.actions.finishDrawing') }}
               </a-button>
@@ -1179,48 +916,6 @@ onBeforeUnmount(() => {
               </a-button>
             </a-space>
           </div>
-          <a-form-item :label="t('noFlyZone.form.coordinatesLabel')">
-            <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
-            <a-table
-              class="coordinate-table"
-              size="small"
-              :columns="coordinateColumns"
-              :data-source="displayedCoordinates"
-              :pagination="false"
-              :row-key="(record) => record.key"
-              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }"
-            />
-            <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
-              {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
-            </div>
-          </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.timeRange')">
-            <a-range-picker
-              v-model:value="formState.timeRange"
-              format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              show-time
-              allow-clear
-              :disabled="disableFormDuringDrawing"
-            />
-          </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.wechatLink')">
-            <a-input
-              v-model:value="formState.wechatLink"
-              :placeholder="t('noFlyZone.form.wechatPlaceholder')"
-              :disabled="disableFormDuringDrawing"
-            />
-          </a-form-item>
-          <a-space class="form-actions">
-            <a-button
-              type="primary"
-              :loading="formSubmitting"
-              :disabled="disableFormDuringDrawing || disableSubmit"
-              @click="handleSubmit"
-            >
-              {{ formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create') }}
-            </a-button>
-            <a-button :disabled="formSubmitting || disableFormDuringDrawing" @click="resetToCreateMode">
           <a-form-item :label="t('noFlyZone.form.timeRange')">
             <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
               value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear />
@@ -1266,19 +961,16 @@ onBeforeUnmount(() => {
           <template v-else-if="column.key === 'actions'">
             <a-space>
               <a-tooltip :title="t('noFlyZone.actions.focus')">
-                <a-button shape="circle" type="text" :disabled="isDrawing" @click="highlightZone(record)">
                 <a-button shape="circle" type="text" @click="highlightZone(record)">
                   <EnvironmentOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.edit')">
-                <a-button shape="circle" type="text" :disabled="isDrawing" @click="editZone(record)">
                 <a-button shape="circle" type="text" @click="editZone(record)">
                   <EditOutlined />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.delete')">
-                <a-button shape="circle" danger type="text" :disabled="isDrawing" @click="deleteZone(record)">
                 <a-button shape="circle" danger type="text" @click="deleteZone(record)">
                   <DeleteOutlined />
                 </a-button>
@@ -1333,25 +1025,6 @@ onBeforeUnmount(() => {
 
 .form-actions {
   margin-top: 8px;
-}
-
-.coordinate-alert {
-  margin-bottom: 8px;
-}
-
-.coordinate-table {
-  margin-top: 8px;
-}
-
-.coordinate-table :deep(.ant-table-body) {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.radius-display {
-  margin-top: 6px;
-  font-size: 13px;
-  color: #ef4444;
 }
 
 .map-container {
