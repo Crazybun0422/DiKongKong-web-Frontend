@@ -320,7 +320,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NoFlyZoneCoordinate'
-          description: 多边形、矩形或路径的坐标数组，其中 PATH 类型需要提供沿边距离。
+          description: 多边形、矩形或路径的坐标数组。
+        pathDistanceMeters:
+          type: number
+          format: double
+          description: PATH 类型的沿边距离（米），仅在 type 为 PATH 时填写，且必须为非负数。
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
           description: 圆形区域数据，仅在 type 为 CIRCLE 时填写。
@@ -349,6 +353,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NoFlyZoneCoordinate'
+        pathDistanceMeters:
+          type: number
+          format: double
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
         effectiveFrom:
@@ -374,10 +381,6 @@ components:
         longitude:
           type: number
           format: double
-        distanceMeters:
-          type: number
-          format: double
-          description: 沿边距离（米），仅在 PATH 类型时必填。
     NoFlyZoneCircle:
       type: object
       properties:
