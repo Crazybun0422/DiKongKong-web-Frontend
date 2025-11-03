@@ -314,20 +314,16 @@ components:
           description: 禁飞区域名称。
         type:
           type: string
-          enum: [POLYGON, RECTANGLE, CIRCLE, CORRIDOR]
+          enum: [POLYGON, RECTANGLE, CIRCLE, PATH]
           description: 区域类型。
         coordinates:
           type: array
           items:
             $ref: '#/components/schemas/NoFlyZoneCoordinate'
-          description: 多边形、矩形或折线的坐标数组。
+          description: 多边形、矩形或路径的坐标数组，其中 PATH 类型需要提供沿边距离。
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
           description: 圆形区域数据，仅在 type 为 CIRCLE 时填写。
-        alongEdgeDistanceMeters:
-          type: number
-          format: double
-          description: 沿边距离（米），仅在 type 为 CORRIDOR 时填写。
         effectiveFrom:
           type: integer
           format: int64
@@ -348,16 +344,13 @@ components:
           type: string
         type:
           type: string
-          enum: [POLYGON, RECTANGLE, CIRCLE, CORRIDOR]
+          enum: [POLYGON, RECTANGLE, CIRCLE, PATH]
         coordinates:
           type: array
           items:
             $ref: '#/components/schemas/NoFlyZoneCoordinate'
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
-        alongEdgeDistanceMeters:
-          type: number
-          format: double
         effectiveFrom:
           type: integer
           format: int64
@@ -381,6 +374,10 @@ components:
         longitude:
           type: number
           format: double
+        distanceMeters:
+          type: number
+          format: double
+          description: 沿边距离（米），仅在 PATH 类型时必填。
     NoFlyZoneCircle:
       type: object
       properties:
