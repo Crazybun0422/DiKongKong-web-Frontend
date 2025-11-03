@@ -1413,6 +1413,10 @@ const startDrawing = async () => {
 }
 
 const finishDrawingManually = () => {
+  if (currentDrawingMode.value === 'CIRCLE') {
+    applyCircleDrawing()
+    return
+  }
   if (currentDrawingMode.value === 'RECTANGLE') {
     if (!drawingPoints.value.length) {
       message.warning(t('noFlyZone.messages.rectangleIncomplete'))
