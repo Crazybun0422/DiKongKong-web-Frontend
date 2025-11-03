@@ -314,7 +314,7 @@ components:
           description: 禁飞区域名称。
         type:
           type: string
-          enum: [POLYGON, RECTANGLE, CIRCLE, POLYLINE]
+          enum: [POLYGON, RECTANGLE, CIRCLE, CORRIDOR]
           description: 区域类型。
         coordinates:
           type: array
@@ -324,6 +324,10 @@ components:
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
           description: 圆形区域数据，仅在 type 为 CIRCLE 时填写。
+        alongEdgeDistanceMeters:
+          type: number
+          format: double
+          description: 沿边距离（米），仅在 type 为 CORRIDOR 时填写。
         effectiveFrom:
           type: integer
           format: int64
@@ -344,13 +348,16 @@ components:
           type: string
         type:
           type: string
-          enum: [POLYGON, RECTANGLE, CIRCLE, POLYLINE]
+          enum: [POLYGON, RECTANGLE, CIRCLE, CORRIDOR]
         coordinates:
           type: array
           items:
             $ref: '#/components/schemas/NoFlyZoneCoordinate'
         circle:
           $ref: '#/components/schemas/NoFlyZoneCircle'
+        alongEdgeDistanceMeters:
+          type: number
+          format: double
         effectiveFrom:
           type: integer
           format: int64
