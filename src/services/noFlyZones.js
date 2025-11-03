@@ -17,14 +17,19 @@ const normalizeCircle = (circle = {}) => {
   }
 }
 
+const normalizeZoneType = (type) => (type === 'POLYLINE' ? 'CORRIDOR' : type)
+
 export const normalizeNoFlyZone = (zone = {}) => ({
   ...zone,
+  type: normalizeZoneType(zone.type),
   coordinates: Array.isArray(zone.coordinates)
     ? zone.coordinates.map((coord) => normalizeCoordinate(coord))
     : [],
   circle: normalizeCircle(zone.circle),
   effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
   effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
+  alongEdgeDistanceMeters:
+    zone.alongEdgeDistanceMeters != null ? Number(zone.alongEdgeDistanceMeters) : null,
 })
 
 export const listNoFlyZones = async ({ page = 1, size = 20, sortOrder = 'DESC' } = {}) => {

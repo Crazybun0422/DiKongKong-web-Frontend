@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, DeleteOutlined, EnvironmentOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
 import { wgs84ToGcj02 } from '../../utils/coords'
@@ -18,6 +18,9 @@ const MAP_DEFAULT_CENTER = { latitude: 26.074508, longitude: 119.296494 }
 const MAP_DEFAULT_ZOOM = 11
 const POLYGON_MIN_POINTS = 3
 const CIRCLE_MIN_RADIUS = 50
+const CORRIDOR_TYPE = 'CORRIDOR'
+const LEGACY_POLYLINE_TYPE = 'POLYLINE'
+const CORRIDOR_DEFAULT_DISTANCE = 200
 
 const { t } = useI18n()
 
@@ -53,6 +56,11 @@ const mapRightClickHandler = ref(null)
 const searchMarkerLayer = ref(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
+const searchResults = ref([])
+let searchDebounceTimer = null
+
+const isCorridorType = (type) => type === CORRIDOR_TYPE || type === LEGACY_POLYLINE_TYPE
+const normalizeZoneType = (type) => (type === LEGACY_POLYLINE_TYPE ? CORRIDOR_TYPE : type)
 
 const qqSuggest = ({
   key,
@@ -171,13 +179,14 @@ const formState = reactive({
   timeRange: [],
   coordinates: [],
   circle: null,
+  alongEdgeDistanceMeters: CORRIDOR_DEFAULT_DISTANCE,
 })
 
 const formSubmitting = ref(false)
 
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
-  { label: t('noFlyZone.types.polyline'), value: 'POLYLINE' },
+  { label: t('noFlyZone.types.corridor'), value: CORRIDOR_TYPE },
   { label: t('noFlyZone.types.rectangle'), value: 'RECTANGLE' },
   { label: t('noFlyZone.types.circle'), value: 'CIRCLE' },
 ])
@@ -191,7 +200,7 @@ const hasDrawnGeometry = computed(() => {
   if (!Array.isArray(formState.coordinates)) {
     return false
   }
-  if (formState.type === 'POLYLINE') {
+  if (isCorridorType(formState.type)) {
     return formState.coordinates.length >= 2
   }
   if (formState.type === 'RECTANGLE') {
@@ -201,19 +210,17 @@ const hasDrawnGeometry = computed(() => {
 })
 
 const isCircleMode = computed(() => formState.type === 'CIRCLE')
+const isCorridorMode = computed(() => formState.type === CORRIDOR_TYPE)
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
 const disableFormDuringDrawing = computed(() => isDrawing.value)
 
-const canSearch = computed(
-  () =>
-    !searchLoading.value &&
-    typeof searchQuery.value === 'string' &&
-    searchQuery.value.trim().length > 0,
-)
-
 const disableSubmit = computed(() => !hasDrawnGeometry.value || !formState.name.trim() || !formState.wechatLink.trim())
+
+const searchOptions = computed(() =>
+  searchResults.value.map((item) => ({ value: item.key, label: item.label })),
+)
 
 const highlightStyle = {
   polygon: {
@@ -286,6 +293,155 @@ const formatCoordinatePoint = (point) => {
 
 const formatCoordinateValue = (value) =>
   Number.isFinite(value) ? Number(value).toFixed(6) : '-'
+
+const EARTH_RADIUS_METERS = 6378137
+const toRadians = (degrees) => (degrees * Math.PI) / 180
+const toDegrees = (radians) => (radians * 180) / Math.PI
+
+const projectToMercator = ({ lat, lng }) => ({
+  x: EARTH_RADIUS_METERS * toRadians(lng),
+  y: EARTH_RADIUS_METERS * Math.log(Math.tan(Math.PI / 4 + toRadians(lat) / 2)),
+})
+
+const unprojectFromMercator = ({ x, y }) => ({
+  lat: toDegrees(2 * Math.atan(Math.exp(y / EARTH_RADIUS_METERS)) - Math.PI / 2),
+  lng: toDegrees(x / EARTH_RADIUS_METERS),
+})
+
+const toPlainCoordinate = (point) => {
+  if (!point) return null
+  if (typeof point.getLat === 'function' && typeof point.getLng === 'function') {
+    return { lat: Number(point.getLat()), lng: Number(point.getLng()) }
+  }
+  const latitude = Number(point.latitude ?? point.lat)
+  const longitude = Number(point.longitude ?? point.lng)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  return { lat: latitude, lng: longitude }
+}
+
+const normalizeVector = ({ x, y }) => {
+  const length = Math.hypot(x, y)
+  if (!length) {
+    return { x: 0, y: 0, length: 0 }
+  }
+  return { x: x / length, y: y / length, length }
+}
+
+const segmentNormal = (start, end) => {
+  const { x, y, length } = normalizeVector({ x: end.x - start.x, y: end.y - start.y })
+  if (!length) return null
+  return { x: -y, y: x }
+}
+
+const computeCorridorPolygon = (points, distanceMeters) => {
+  const distance = Number(distanceMeters)
+  if (!Array.isArray(points) || points.length < 2 || !Number.isFinite(distance) || distance <= 0) {
+    return []
+  }
+  const plain = points.map((point) => toPlainCoordinate(point)).filter(Boolean)
+  if (plain.length < 2) return []
+  const projected = plain.map((coord) => projectToMercator(coord))
+  const leftSide = []
+  const rightSide = []
+
+  for (let i = 0; i < projected.length; i += 1) {
+    const current = projected[i]
+    if (!current) continue
+    let normal = null
+    if (i === 0 && projected[i + 1]) {
+      normal = segmentNormal(current, projected[i + 1])
+    } else if (i === projected.length - 1 && projected[i - 1]) {
+      normal = segmentNormal(projected[i - 1], current)
+    } else if (projected[i - 1] && projected[i + 1]) {
+      const prevNormal = segmentNormal(projected[i - 1], current)
+      const nextNormal = segmentNormal(current, projected[i + 1])
+      if (prevNormal && nextNormal) {
+        const combined = { x: prevNormal.x + nextNormal.x, y: prevNormal.y + nextNormal.y }
+        const { x: nx, y: ny, length } = normalizeVector(combined)
+        if (length > 1e-6) {
+          normal = { x: nx, y: ny }
+        } else {
+          normal = prevNormal || nextNormal
+        }
+        const reference = prevNormal || nextNormal
+        if (reference) {
+          const dot = Math.abs(normal.x * reference.x + normal.y * reference.y)
+          const scale = distance / Math.max(dot, 0.2)
+          leftSide.push({ x: current.x + normal.x * scale, y: current.y + normal.y * scale })
+          rightSide.push({ x: current.x - normal.x * scale, y: current.y - normal.y * scale })
+          continue
+        }
+      }
+      normal = prevNormal || nextNormal
+    }
+    if (!normal) continue
+    const { x: nx, y: ny, length } = normalizeVector(normal)
+    if (length <= 0) continue
+    leftSide.push({ x: current.x + nx * distance, y: current.y + ny * distance })
+    rightSide.push({ x: current.x - nx * distance, y: current.y - ny * distance })
+  }
+
+  if (leftSide.length < 2 || rightSide.length < 2) {
+    return []
+  }
+  const polygon = [...leftSide, ...rightSide.reverse()]
+  if (polygon.length) {
+    polygon.push({ ...polygon[0] })
+  }
+  return polygon.map((point) => {
+    const unprojected = unprojectFromMercator(point)
+    return { latitude: unprojected.lat, longitude: unprojected.lng }
+  })
+}
+
+const updateCorridorPreview = (points = drawingPoints.value) => {
+  if (!mapInstance.value) return
+  const corridorPolygon = computeCorridorPolygon(points, formState.alongEdgeDistanceMeters)
+  if (!corridorPolygon.length) {
+    if (window.qq && window.qq.maps) {
+      if (drawingPolygon.value && typeof drawingPolygon.value.setMap === 'function') {
+        drawingPolygon.value.setMap(null)
+      }
+    } else if (drawingPolygon.value && typeof drawingPolygon.value.setGeometries === 'function') {
+      try {
+        drawingPolygon.value.setGeometries([])
+      } catch (_) { }
+    }
+    return
+  }
+
+  if (window.qq && window.qq.maps) {
+    const latLngs = corridorPolygon.map(
+      (coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude),
+    )
+    if (!drawingPolygon.value || typeof drawingPolygon.value.setPath !== 'function') {
+      drawingPolygon.value = new window.qq.maps.Polygon({
+        map: mapInstance.value,
+        path: latLngs,
+        strokeWeight: highlightStyle.polygon.strokeWidth,
+        strokeColor: '#ff4d4f',
+        fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+        clickable: false,
+      })
+    } else {
+      drawingPolygon.value.setPath(latLngs)
+      drawingPolygon.value.setMap(mapInstance.value)
+    }
+    return
+  }
+
+  if (typeof window !== 'undefined' && window.TMap) {
+    ensureDrawingLayers(window.TMap)
+    const latLngs = corridorPolygon.map(
+      (coord) => new window.TMap.LatLng(coord.latitude, coord.longitude),
+    )
+    try {
+      drawingPolygon.value.setGeometries([
+        { id: 'drawing', styleId: 'zone', paths: latLngs },
+      ])
+    } catch (_) { }
+  }
+}
 
 const coordinateColumns = computed(() => [
   {
@@ -864,13 +1020,17 @@ const setupPolygonDrawing = () => {
   mapInstance.value.on('dblclick', mapDblClickHandler.value)
 }
 
-const setupPolylineDrawing = () => {
+const setupCorridorDrawing = () => {
   clearDrawingOverlays()
   resetFormGeometry()
   isDrawing.value = true
   drawingPoints.value = []
-  currentDrawingMode.value = 'POLYLINE'
-  message.info({ content: t('noFlyZone.messages.polylineRightClickHint'), key: 'polyline-finish-hint', duration: 3 })
+  currentDrawingMode.value = CORRIDOR_TYPE
+  message.info({
+    content: t('noFlyZone.messages.corridorRightClickHint'),
+    key: 'corridor-finish-hint',
+    duration: 3,
+  })
 
   if (window.qq && window.qq.maps) {
     const clickListener = window.qq.maps.event.addListener(mapInstance.value, 'click', (event) => {
@@ -885,7 +1045,7 @@ const setupPolylineDrawing = () => {
       updatePathPreview(event.latLng)
     })
     qqListeners.value.push(moveListener)
-    const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizePolylineDrawing())
+    const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizeCorridorDrawing())
     qqListeners.value.push(dblListener)
     const rightClickListener = window.qq.maps.event.addListener(mapInstance.value, 'rightclick', (event) => {
       try {
@@ -894,7 +1054,7 @@ const setupPolylineDrawing = () => {
       try {
         if (event?.domEvent && typeof event.domEvent.preventDefault === 'function') event.domEvent.preventDefault()
       } catch (_) { }
-      finalizePolylineDrawing()
+      finalizeCorridorDrawing()
     })
     qqListeners.value.push(rightClickListener)
     return
@@ -914,12 +1074,12 @@ const setupPolylineDrawing = () => {
 
   mapDblClickHandler.value = (event) => {
     event?.originalEvent?.preventDefault?.()
-    finalizePolylineDrawing()
+    finalizeCorridorDrawing()
   }
 
   mapRightClickHandler.value = (event) => {
     event?.originalEvent?.preventDefault?.()
-    finalizePolylineDrawing()
+    finalizeCorridorDrawing()
   }
 
   mapInstance.value.on('click', mapClickHandler.value)
@@ -967,15 +1127,16 @@ const finalizePolygonDrawing = (TMap) => {
   stopDrawing()
 }
 
-const finalizePolylineDrawing = (TMap) => {
+const finalizeCorridorDrawing = (TMap) => {
   if (drawingPoints.value.length < 2) {
-    message.warning(t('noFlyZone.messages.polylineTooShort'))
+    message.warning(t('noFlyZone.messages.corridorTooShort'))
     return
   }
   formState.coordinates = drawingPoints.value.map((point) => ({
     latitude: point.getLat(),
     longitude: point.getLng(),
   }))
+  updateCorridorPreview(drawingPoints.value)
   if (window.qq && window.qq.maps) {
     if (!drawingPolyline.value || !drawingPolyline.value.setPath) {
       drawingPolyline.value = new window.qq.maps.Polyline({
@@ -1012,6 +1173,9 @@ const updatePathPreview = (cursorPoint = null) => {
   const points = [...drawingPoints.value]
   if (cursorPoint) points.push(cursorPoint)
   if (points.length < 2) {
+    if (isCorridorType(currentDrawingMode.value)) {
+      updateCorridorPreview([])
+    }
     if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
     else if (drawingPolyline.value && drawingPolyline.value.setGeometries) drawingPolyline.value.setGeometries([])
     return
@@ -1041,6 +1205,9 @@ const updatePathPreview = (cursorPoint = null) => {
     }
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([{ id: 'preview', styleId: 'dashed', paths: points }])
+  }
+  if (isCorridorType(currentDrawingMode.value)) {
+    updateCorridorPreview(points)
   }
   updateVertexMarkers()
 }
@@ -1219,8 +1386,8 @@ const startDrawing = async () => {
 
   if (formState.type === 'CIRCLE') {
     setupCircleDrawing()
-  } else if (formState.type === 'POLYLINE') {
-    setupPolylineDrawing()
+  } else if (isCorridorType(formState.type)) {
+    setupCorridorDrawing()
   } else if (formState.type === 'RECTANGLE') {
     setupRectangleDrawing()
   } else {
@@ -1242,8 +1409,8 @@ const finishDrawingManually = () => {
     stopDrawing()
     return
   }
-  if (currentDrawingMode.value === 'POLYLINE') {
-    finalizePolylineDrawing()
+  if (currentDrawingMode.value === CORRIDOR_TYPE) {
+    finalizeCorridorDrawing()
     return
   }
   finalizePolygonDrawing()
@@ -1308,7 +1475,7 @@ const buildZonePayload = () => {
     }))
   }
   const [effectiveFrom, effectiveTo] = convertTimeRangeToSeconds()
-  return {
+  const payload = {
     name: formState.name.trim(),
     type: formState.type,
     coordinates: coordinatesPayload,
@@ -1317,6 +1484,15 @@ const buildZonePayload = () => {
     effectiveTo: effectiveTo ?? undefined,
     wechatLink: formState.wechatLink.trim(),
   }
+  if (formState.type === CORRIDOR_TYPE) {
+    const distance = Number(formState.alongEdgeDistanceMeters)
+    if (!Number.isFinite(distance) || distance <= 0) {
+      message.warning(t('noFlyZone.messages.corridorDistanceInvalid'))
+      return null
+    }
+    payload.alongEdgeDistanceMeters = distance
+  }
+  return payload
 }
 
 const loadZoneList = async () => {
@@ -1326,7 +1502,13 @@ const loadZoneList = async () => {
       page: pagination.current,
       size: pagination.pageSize,
     })
-    zoneList.value = content
+    zoneList.value = content.map((item) => ({
+      ...item,
+      type: normalizeZoneType(item.type),
+      alongEdgeDistanceMeters: Number.isFinite(Number(item.alongEdgeDistanceMeters))
+        ? Number(item.alongEdgeDistanceMeters)
+        : null,
+    }))
     pagination.total = totalElements
     pagination.current = page
     pagination.pageSize = size
@@ -1367,6 +1549,7 @@ const resetForm = () => {
   formState.type = 'POLYGON'
   formState.wechatLink = ''
   formState.timeRange = []
+  formState.alongEdgeDistanceMeters = CORRIDOR_DEFAULT_DISTANCE
   resetFormGeometry()
   clearDrawing()
 }
@@ -1376,11 +1559,16 @@ const editZone = (zone) => {
   resetForm()
   formState.id = zone.id
   formState.name = zone.name || ''
-  formState.type = zone.type || 'POLYGON'
+  const zoneType = normalizeZoneType(zone.type) || 'POLYGON'
+  formState.type = zoneType
   formState.wechatLink = zone.wechatLink || ''
+  formState.alongEdgeDistanceMeters =
+    Number.isFinite(Number(zone.alongEdgeDistanceMeters)) && Number(zone.alongEdgeDistanceMeters) > 0
+      ? Number(zone.alongEdgeDistanceMeters)
+      : CORRIDOR_DEFAULT_DISTANCE
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
-  if (zone.type === 'CIRCLE' && zone.circle) {
+  if (zoneType === 'CIRCLE' && zone.circle) {
     formState.circle = { ...zone.circle }
     if (window.qq && window.qq.maps) {
       drawingCenter.value = new window.qq.maps.LatLng(zone.circle.latitude, zone.circle.longitude)
@@ -1401,7 +1589,7 @@ const editZone = (zone) => {
     const paths = zone.coordinates.map((coord) => normalizeLatLngPoint(coord)).filter(Boolean)
     drawingPoints.value = paths
     if (window.qq && window.qq.maps) {
-      if (zone.type === 'POLYLINE') {
+      if (zoneType === CORRIDOR_TYPE) {
         if (!drawingPolyline.value) {
           drawingPolyline.value = new window.qq.maps.Polyline({
             map: mapInstance.value,
@@ -1423,14 +1611,16 @@ const editZone = (zone) => {
             }
           } catch (_) { }
         }
+        updateCorridorPreview(paths)
       } else {
         if (!drawingPolygon.value) drawingPolygon.value = new window.qq.maps.Polygon({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polygon.strokeWidth, fillColor: toQqColor(highlightStyle.polygon.fillColor, 1) })
         else { drawingPolygon.value.setPath(paths); drawingPolygon.value.setMap(mapInstance.value) }
       }
     } else {
       ensureDrawingLayers(window.TMap)
-      if (zone.type === 'POLYLINE') {
+      if (zoneType === CORRIDOR_TYPE) {
         drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'dashed', paths }])
+        updateCorridorPreview(paths)
       } else {
         drawingPolygon.value.setGeometries([{ id: 'drawing', styleId: 'zone', paths }])
       }
@@ -1449,13 +1639,23 @@ const focusZoneOnMap = (zone) => {
     mapInstance.value.setCenter(center)
     mapInstance.value.setZoom(Math.max(Math.min(Math.round(18 - Math.log2(zone.circle.radiusMeters / 100)), 17), 12))
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
+    const zoneType = normalizeZoneType(zone.type)
+    const targetCoordinates =
+      zoneType === CORRIDOR_TYPE
+        ? computeCorridorPolygon(zone.coordinates, zone.alongEdgeDistanceMeters)
+        : zone.coordinates
+    if (!Array.isArray(targetCoordinates) || !targetCoordinates.length) return
     if (window.qq && window.qq.maps) {
       const bounds = new window.qq.maps.LatLngBounds()
-      zone.coordinates.forEach((coord) => bounds.extend(new window.qq.maps.LatLng(coord.latitude, coord.longitude)))
+      targetCoordinates.forEach((coord) =>
+        bounds.extend(new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+      )
       mapInstance.value.fitBounds(bounds)
     } else {
       const bounds = new window.TMap.LatLngBounds()
-      zone.coordinates.forEach((coord) => bounds.extend(new window.TMap.LatLng(coord.latitude, coord.longitude)))
+      targetCoordinates.forEach((coord) =>
+        bounds.extend(new window.TMap.LatLng(coord.latitude, coord.longitude)),
+      )
       mapInstance.value.fitBounds(bounds)
     }
   }
@@ -1528,16 +1728,18 @@ const renderZonesOnMap = () => {
         })
         zoneCircleOverlays.value.push(circle)
       }
-    } else if (zone.type === 'POLYLINE' && Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      if (window.qq && window.qq.maps) {
-        const polyline = new window.qq.maps.Polyline({
+    } else if (zone.type === CORRIDOR_TYPE && Array.isArray(zone.coordinates) && zone.coordinates.length) {
+      const corridorPolygon = computeCorridorPolygon(zone.coordinates, zone.alongEdgeDistanceMeters)
+      if (window.qq && window.qq.maps && corridorPolygon.length) {
+        const polygon = new window.qq.maps.Polygon({
           map: mapInstance.value,
-          path: zone.coordinates.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+          path: corridorPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
           strokeColor: '#ff4d4f',
-          strokeWeight: highlightStyle.polyline.width,
+          strokeWeight: highlightStyle.polygon.strokeWidth,
+          fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
           clickable: false,
         })
-        zonePolylineOverlays.value.push(polyline)
+        zonePolygonOverlays.value.push(polygon)
       }
     } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
       if (window.qq && window.qq.maps) {
@@ -1637,8 +1839,9 @@ const isRectangleShape = (paths) => {
 }
 
 const typeLabel = (type) => {
-  const option = typeOptions.value.find((item) => item.value === type)
-  return option?.label || type
+  const normalized = normalizeZoneType(type)
+  const option = typeOptions.value.find((item) => item.value === normalized)
+  return option?.label || normalized
 }
 
 const effectiveTimeText = (zone) => {
@@ -1744,6 +1947,14 @@ watch(
       }
     }
     currentDrawingMode.value = formState.type
+    if (formState.type === CORRIDOR_TYPE) {
+      const distance = Number(formState.alongEdgeDistanceMeters)
+      if (!Number.isFinite(distance) || distance <= 0) {
+        formState.alongEdgeDistanceMeters = CORRIDOR_DEFAULT_DISTANCE
+      }
+    } else {
+      updateCorridorPreview([])
+    }
   },
 )
 
@@ -1758,6 +1969,10 @@ onBeforeUnmount(() => {
       mapInstance.value.destroy()
     }
     mapInstance.value = null
+  }
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
   }
 })
 
@@ -1785,15 +2000,80 @@ watch(drawingRadius, () => {
   updateCirclePreview()
 })
 
-const handleSearch = async () => {
-  if (!canSearch.value) return
+watch(
+  () => formState.alongEdgeDistanceMeters,
+  () => {
+    if (!mapReady.value || formState.type !== CORRIDOR_TYPE) return
+    updateCorridorPreview()
+  },
+)
+
+const clearSearchMarker = () => {
+  try {
+    if (searchMarker.value && typeof searchMarker.value.setMap === 'function') {
+      searchMarker.value.setMap(null)
+    }
+  } catch (_) { }
+  searchMarker.value = null
+  if (searchMarkerLayer.value && typeof searchMarkerLayer.value.setGeometries === 'function') {
+    try {
+      searchMarkerLayer.value.setGeometries([])
+    } catch (_) { }
+  }
+}
+
+const centerMapOnResult = (result) => {
   if (!mapReady.value || !mapInstance.value) {
     message.warning(t('noFlyZone.search.mapNotReady'))
     return
   }
-  const query = searchQuery.value.trim()
-  if (!query) return
-  searchLoading.value = true
+  const lat = Number(result?.location?.lat)
+  const lng = Number(result?.location?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    message.warning(t('noFlyZone.search.noResult'))
+    return
+  }
+  const isQqMap = !!(window.qq && window.qq.maps)
+  const hasTMap = typeof window !== 'undefined' && window.TMap && typeof window.TMap.LatLng === 'function'
+  if (!isQqMap && !hasTMap) {
+    message.warning(t('noFlyZone.search.mapNotReady'))
+    return
+  }
+  const position = isQqMap
+    ? new window.qq.maps.LatLng(lat, lng)
+    : new window.TMap.LatLng(lat, lng)
+
+  if (isQqMap) {
+    if (searchMarker.value) {
+      try { searchMarker.value.setMap(null) } catch (_) { }
+    }
+    const icon = getSearchMarkerIcon()
+    const markerOptions = { map: mapInstance.value, position }
+    if (icon) markerOptions.icon = icon
+    searchMarker.value = new window.qq.maps.Marker(markerOptions)
+  } else if (hasTMap) {
+    ensureSearchLayer(window.TMap)
+    try {
+      searchMarkerLayer.value.setGeometries([{ id: 'search-result', styleId: 'result', position }])
+    } catch (error) {
+      console.error('Failed to render search marker', error)
+    }
+  }
+  if (typeof mapInstance.value.setCenter === 'function') {
+    mapInstance.value.setCenter(position)
+  }
+  if (typeof mapInstance.value.getZoom === 'function' && mapInstance.value.getZoom() < 14) {
+    if (typeof mapInstance.value.setZoom === 'function') {
+      mapInstance.value.setZoom(14)
+    }
+  }
+}
+
+const fetchSearchSuggestions = async (keyword) => {
+  if (!mapReady.value || !mapInstance.value) {
+    searchLoading.value = false
+    return
+  }
   try {
     let centerLocation = null
     if (typeof mapInstance.value.getCenter === 'function') {
@@ -1804,66 +2084,80 @@ const handleSearch = async () => {
         centerLocation = { lat, lng }
       }
     }
-
-    const results = await searchPlaces(query, centerLocation)
-    const firstResult = results.find((item) => {
-      const loc = item?.location
-      const lat = Number(loc?.lat)
-      const lng = Number(loc?.lng)
-      return Number.isFinite(lat) && Number.isFinite(lng)
-    })
-
-    if (!firstResult) {
-      message.warning(t('noFlyZone.search.noResult'))
-      return
-    }
-
-    const location = firstResult.location
-    const lat = Number(location.lat)
-    const lng = Number(location.lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      message.warning(t('noFlyZone.search.noResult'))
-      return
-    }
-
-    const isQqMap = !!(window.qq && window.qq.maps)
-    const hasTMap = typeof window !== 'undefined' && window.TMap && typeof window.TMap.LatLng === 'function'
-    if (!isQqMap && !hasTMap) {
-      message.warning(t('noFlyZone.search.mapNotReady'))
-      return
-    }
-    const position = isQqMap
-      ? new window.qq.maps.LatLng(lat, lng)
-      : new window.TMap.LatLng(lat, lng)
-
-    if (isQqMap) {
-      if (searchMarker.value) searchMarker.value.setMap(null)
-      const icon = getSearchMarkerIcon()
-      const markerOptions = { map: mapInstance.value, position }
-      if (icon) markerOptions.icon = icon
-      searchMarker.value = new window.qq.maps.Marker(markerOptions)
-    } else if (hasTMap) {
-      ensureSearchLayer(window.TMap)
-      searchMarkerLayer.value.setGeometries([{ id: 'search-result', styleId: 'result', position }])
-    }
-    if (typeof mapInstance.value.setCenter === 'function') {
-      mapInstance.value.setCenter(position)
-    }
-    if (typeof mapInstance.value.getZoom === 'function' && mapInstance.value.getZoom() < 14) {
-      if (typeof mapInstance.value.setZoom === 'function') {
-        mapInstance.value.setZoom(14)
-      }
-    }
+    const results = await searchPlaces(keyword, centerLocation)
+    searchResults.value = results
+      .map((item, index) => {
+        const location = item?.location
+        const lat = Number(location?.lat)
+        const lng = Number(location?.lng)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+        const title = item?.title || item?.name || keyword
+        const address = item?.address || item?.district || item?.city || ''
+        const key = item?.id || item?.uid || `${lat},${lng}-${index}`
+        return {
+          key,
+          title,
+          address,
+          label: address ? `${title} · ${address}` : title,
+          location: { lat, lng },
+        }
+      })
+      .filter(Boolean)
   } catch (error) {
     console.error('Failed to search address', error)
     if (error?.code === 'NO_RESULT') {
-      message.warning(t('noFlyZone.search.noResult'))
+      searchResults.value = []
     } else {
       message.error(t('noFlyZone.search.error'))
     }
   } finally {
     searchLoading.value = false
   }
+}
+
+const handleSearchInput = (value) => {
+  const trimmed = (value ?? '').toString().trim()
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
+  if (!trimmed) {
+    searchResults.value = []
+    searchLoading.value = false
+    clearSearchMarker()
+    return
+  }
+  if (!mapReady.value || !mapInstance.value) {
+    message.warning(t('noFlyZone.search.mapNotReady'))
+    return
+  }
+  searchLoading.value = true
+  searchDebounceTimer = setTimeout(() => {
+    fetchSearchSuggestions(trimmed)
+    searchDebounceTimer = null
+  }, 350)
+}
+
+const handleSelectSearchOption = (value) => {
+  const result = searchResults.value.find((item) => item.key === value)
+  if (!result) return
+  searchQuery.value = result.title
+  centerMapOnResult(result)
+}
+
+const handleSearchEnter = () => {
+  const firstResult = searchResults.value[0]
+  if (firstResult) {
+    searchQuery.value = firstResult.title
+    centerMapOnResult(firstResult)
+  } else if (searchQuery.value.trim()) {
+    message.warning(t('noFlyZone.search.noResult'))
+  }
+}
+
+const handleSearchClear = () => {
+  searchResults.value = []
+  clearSearchMarker()
 }
 </script>
 
@@ -1882,6 +2176,18 @@ const handleSearch = async () => {
                 {{ option.label }}
               </a-radio-button>
             </a-radio-group>
+          </a-form-item>
+          <a-form-item v-if="isCorridorMode" :label="t('noFlyZone.form.edgeDistance')">
+            <a-input-number
+              v-model:value="formState.alongEdgeDistanceMeters"
+              :min="10"
+              :step="10"
+              :disabled="disableFormDuringDrawing"
+              :addon-after="t('noFlyZone.form.radiusUnit')"
+              :placeholder="t('noFlyZone.form.edgeDistancePlaceholder')"
+              class="radius-input"
+            />
+            <p class="form-hint">{{ t('noFlyZone.form.edgeDistanceHint') }}</p>
           </a-form-item>
           <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
@@ -1935,14 +2241,32 @@ const handleSearch = async () => {
       <a-card class="map-panel" :bordered="false">
         <div ref="mapContainer" class="map-container">
           <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
-            <a-input-search v-model:value="searchQuery" :placeholder="t('noFlyZone.search.placeholder')" allow-clear
-              :loading="searchLoading" @search="handleSearch">
-              <template #enterButton>
-                <a-button type="primary" :loading="searchLoading" :disabled="!canSearch" @click="handleSearch">
-                  <SearchOutlined />
-                </a-button>
+            <a-auto-complete
+              v-model:value="searchQuery"
+              :options="searchOptions"
+              :loading="searchLoading"
+              :disabled="!mapReady"
+              allow-clear
+              class="map-search-input"
+              @search="handleSearchInput"
+              @select="handleSelectSearchOption"
+              @clear="handleSearchClear"
+            >
+              <template #default>
+                <a-input :placeholder="t('noFlyZone.search.placeholder')" @pressEnter="handleSearchEnter" />
               </template>
-            </a-input-search>
+              <template #notFoundContent>
+                <div class="map-search-empty">
+                  {{
+                    searchLoading
+                      ? t('noFlyZone.search.loading')
+                      : searchQuery.trim()
+                        ? t('noFlyZone.search.noResult')
+                        : t('noFlyZone.search.inputHint')
+                  }}
+                </div>
+              </template>
+            </a-auto-complete>
           </div>
           <div v-if="!mapReady" class="map-placeholder">
             <a-spin :spinning="true" />
@@ -2051,6 +2375,15 @@ const handleSearch = async () => {
   transform: translateX(-50%);
   width: min(360px, calc(100% - 32px));
   z-index: 2;
+}
+
+.map-search-input {
+  width: 100%;
+}
+
+.map-search-empty {
+  padding: 8px 12px;
+  color: #6b7280;
 }
 
 .map-search-bar--disabled {
