@@ -226,7 +226,8 @@
       "placeholder": "Search location",
       "button": "Search",
       "noResult": "No matching locations were found. Try another keyword.",
-      "error": "Failed to search for the address. Please try again later."
+      "error": "Failed to search for the address. Please try again later.",
+      "mapNotReady": "Map is not ready yet. Please try again shortly."
     },
     "table": {
       "columns": {

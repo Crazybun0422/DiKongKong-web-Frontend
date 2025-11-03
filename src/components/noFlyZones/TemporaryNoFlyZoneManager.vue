@@ -98,7 +98,6 @@ const disableFormDuringDrawing = computed(() => isDrawing.value)
 
 const canSearch = computed(
   () =>
-    mapReady.value &&
     !searchLoading.value &&
     typeof searchQuery.value === 'string' &&
     searchQuery.value.trim().length > 0,
@@ -1216,7 +1215,11 @@ watch(drawingRadius, () => {
 })
 
 const handleSearch = async () => {
-  if (!canSearch.value || !mapInstance.value || !window.TMap) return
+  if (!canSearch.value) return
+  if (!mapReady.value || !mapInstance.value || !window.TMap) {
+    message.warning(t('noFlyZone.search.mapNotReady'))
+    return
+  }
   const query = searchQuery.value.trim()
   if (!query) return
   searchLoading.value = true
@@ -1327,7 +1330,7 @@ const handleSearch = async () => {
         <div ref="mapContainer" class="map-container">
           <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
             <a-input-search v-model:value="searchQuery" :placeholder="t('noFlyZone.search.placeholder')" allow-clear
-              :loading="searchLoading" :disabled="!mapReady" @search="handleSearch">
+              :loading="searchLoading" @search="handleSearch">
               <template #enterButton>
                 <a-button type="primary" :loading="searchLoading" :disabled="!canSearch" @click="handleSearch">
                   <SearchOutlined />

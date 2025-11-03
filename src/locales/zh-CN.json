@@ -226,7 +226,8 @@
       "placeholder": "搜地点",
       "button": "搜索",
       "noResult": "未找到相关地点，请尝试其他关键词。",
-      "error": "搜索地点失败，请稍后重试。"
+      "error": "搜索地点失败，请稍后重试。",
+      "mapNotReady": "地图尚未准备好，请稍后再试。"
     },
     "table": {
       "columns": {
