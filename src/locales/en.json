@@ -183,6 +183,7 @@
   "noFlyZone": {
     "types": {
       "polygon": "Polygon",
+      "polyline": "Polyline",
       "rectangle": "Rectangle",
       "circle": "Circle"
     },
@@ -193,6 +194,15 @@
       "circleRadius": "Circle Radius",
       "radiusUnit": "m",
       "circleHint": "Click on the map to select the center before setting the radius.",
+      "coordinatesLabel": "Coordinates",
+      "coordinatesHint": "Click on the map to add vertices and preview their latitude and longitude here.",
+      "coordinatesEmpty": "Draw a no-fly zone on the map to view coordinates.",
+      "coordinateLabel": "Label",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "vertexLabel": "Vertex {index}",
+      "circleCenter": "Center",
+      "radiusDisplay": "Current radius: {radius} m",
       "timeRange": "Effective Time",
       "wechatLink": "Official Account Link",
       "wechatPlaceholder": "Only mp.weixin.qq.com URLs are supported"
@@ -228,6 +238,7 @@
     },
     "messages": {
       "polygonTooSmall": "Please add at least three points to form a polygon.",
+      "polylineTooShort": "Please add at least two points to form a flight path.",
       "rectangleInvalid": "Please draw an axis-aligned rectangle.",
       "rectangleIncomplete": "Drag to adjust and confirm the rectangle area.",
       "circleCenterMissing": "Please choose a circle center on the map first.",
