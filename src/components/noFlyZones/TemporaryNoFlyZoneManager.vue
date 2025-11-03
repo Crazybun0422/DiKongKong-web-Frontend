@@ -165,7 +165,7 @@ const toQqColor = (color, alpha = 1) => {
       const { r, g, b } = toRgb(color)
       return new window.qq.maps.Color(r, g, b, alpha)
     }
-  } catch (_) {}
+  } catch (_) { }
   return normalizeHex(color)
 }
 
@@ -287,7 +287,7 @@ const getQqMarkerImage = (src, width, height, anchorX, anchorY) => {
         new window.qq.maps.Size(width, height),
       )
     }
-  } catch (_) {}
+  } catch (_) { }
   return src
 }
 
@@ -313,15 +313,15 @@ const patchTMapEnvForCompatibility = () => {
   try {
     // SDK 的鉴权 JSONP 会写入 TMap._svcb.cb<rand>
     window.TMap._svcb = window.TMap._svcb || {}
-  } catch (_) {}
+  } catch (_) { }
   // 标记：即便 window.TMap 存在，也要继续加载脚本
   try {
     window.TMap.__forceReload = true
-  } catch (_) {}
+  } catch (_) { }
   // 开启 lite 模式（SDK 内部会读取该标志以走兼容路径）
   try {
     window.TMap._isLiteMode = true
-  } catch (_) {}
+  } catch (_) { }
   // 在部分内核上禁用 OffscreenCanvas（保留 Worker 不动，避免 “Worker is not a constructor”）
   try {
     if (typeof window.OffscreenCanvas !== 'undefined') {
@@ -330,23 +330,23 @@ const patchTMapEnvForCompatibility = () => {
       } catch (_) {
         try {
           window.OffscreenCanvas = undefined
-        } catch (_) {}
+        } catch (_) { }
       }
     }
-  } catch (_) {}
+  } catch (_) { }
 }
 
 const removeTencentMapScript = () => {
   try {
     const old = document.getElementById(TMAP_SCRIPT_ID)
     if (old && old.parentNode) old.parentNode.removeChild(old)
-  } catch (_) {}
+  } catch (_) { }
   // 不要把 window.TMap 置为 undefined，避免 JSONP 回调找不到命名空间
   try {
     window.TMap = window.TMap || {}
     window.TMap._svcb = window.TMap._svcb || {}
     window.TMap.__forceReload = true
-  } catch (_) {}
+  } catch (_) { }
 }
 
 const loadTencentMapScript = () => {
@@ -414,7 +414,7 @@ const loadTencentMapScript = () => {
     window[callbackName] = () => {
       try {
         if (window.TMap) window.TMap.__forceReload = false
-      } catch (_) {}
+      } catch (_) { }
       resolve(window.TMap)
       delete window[callbackName]
     }
@@ -568,13 +568,13 @@ const ensureSearchLayer = (TMap) => {
 const clearDrawingOverlays = () => {
   try {
     if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
-  } catch (_) {}
+  } catch (_) { }
   try {
     if (drawingPolygon.value && drawingPolygon.value.setMap) drawingPolygon.value.setMap(null)
-  } catch (_) {}
+  } catch (_) { }
   try {
     if (drawingCircle.value && drawingCircle.value.setMap) drawingCircle.value.setMap(null)
-  } catch (_) {}
+  } catch (_) { }
   drawingPolyline.value = null
   drawingPolygon.value = null
   drawingCircle.value = null
@@ -582,7 +582,7 @@ const clearDrawingOverlays = () => {
     drawingMarkerLayer.value.forEach((m) => m.setMap && m.setMap(null))
   } else if (drawingMarkerLayer.value && drawingMarkerLayer.value.setGeometries) {
     // GL path fallback
-    try { drawingMarkerLayer.value.setGeometries([]) } catch (_) {}
+    try { drawingMarkerLayer.value.setGeometries([]) } catch (_) { }
   }
   drawingMarkerLayer.value = []
   drawingPoints.value = []
@@ -609,7 +609,7 @@ const detachMapListeners = () => {
     if (mapInstance.value && mapMouseUpHandler.value) mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     if (mapInstance.value && mapDblClickHandler.value) mapInstance.value.off('dblclick', mapDblClickHandler.value)
     if (mapInstance.value && mapRightClickHandler.value) mapInstance.value.off('rightclick', mapRightClickHandler.value)
-  } catch (_) {}
+  } catch (_) { }
   mapClickHandler.value = null
   mapMouseMoveHandler.value = null
   mapMouseUpHandler.value = null
@@ -618,7 +618,7 @@ const detachMapListeners = () => {
   // 2D path
   if (Array.isArray(qqListeners.value)) {
     qqListeners.value.forEach((token) => {
-      try { window.qq && window.qq.maps && window.qq.maps.event.removeListener(token) } catch (_) {}
+      try { window.qq && window.qq.maps && window.qq.maps.event.removeListener(token) } catch (_) { }
     })
   }
   qqListeners.value = []
@@ -663,7 +663,7 @@ const updateVertexMarkers = (points = drawingPoints.value) => {
       const markerOptions = { map: mapInstance.value, position: latLng }
       if (vertexIcon) markerOptions.icon = vertexIcon
       const marker = new window.qq.maps.Marker(markerOptions)
-      try { marker.setClickable(false) } catch (_) {}
+      try { marker.setClickable(false) } catch (_) { }
       drawingMarkerLayer.value.push(marker)
     })
     return
@@ -788,10 +788,10 @@ const setupPolylineDrawing = () => {
     const rightClickListener = window.qq.maps.event.addListener(mapInstance.value, 'rightclick', (event) => {
       try {
         if (event?.event && typeof event.event.preventDefault === 'function') event.event.preventDefault()
-      } catch (_) {}
+      } catch (_) { }
       try {
         if (event?.domEvent && typeof event.domEvent.preventDefault === 'function') event.domEvent.preventDefault()
-      } catch (_) {}
+      } catch (_) { }
       finalizePolylineDrawing()
     })
     qqListeners.value.push(rightClickListener)
@@ -895,7 +895,7 @@ const finalizePolylineDrawing = (TMap) => {
             strokeDashStyle: 'dash',
           })
         }
-      } catch (_) {}
+      } catch (_) { }
     }
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([
@@ -935,7 +935,7 @@ const updatePathPreview = (cursorPoint = null) => {
             strokeDashStyle: 'dash',
           })
         }
-      } catch (_) {}
+      } catch (_) { }
     }
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([{ id: 'preview', styleId: 'dashed', paths: points }])
@@ -1319,7 +1319,7 @@ const editZone = (zone) => {
                 strokeDashStyle: 'dash',
               })
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       } else {
         if (!drawingPolygon.value) drawingPolygon.value = new window.qq.maps.Polygon({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polygon.strokeWidth, fillColor: toQqColor(highlightStyle.polygon.fillColor, 1) })
@@ -1803,9 +1803,9 @@ const handleSearch = async () => {
               <a-button danger :disabled="!isDrawing && !hasDrawnGeometry" @click="clearDrawing">
                 {{ t('noFlyZone.actions.clearDrawing') }}
               </a-button>
-              <a-button v-if="isCircleMode" type="default" :disabled="!isDrawing" @click="applyCircleDrawing">
+              <!-- <a-button v-if="isCircleMode" type="default" :disabled="!isDrawing" @click="applyCircleDrawing">
                 {{ t('noFlyZone.actions.applyCircle') }}
-              </a-button>
+              </a-button> -->
             </a-space>
           </div>
           <a-form-item :label="t('noFlyZone.form.coordinatesLabel')">
