@@ -216,7 +216,17 @@ const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
 const disableFormDuringDrawing = computed(() => isDrawing.value)
 
-const disableSubmit = computed(() => !hasDrawnGeometry.value || !formState.name.trim() || !formState.wechatLink.trim())
+const disableSubmit = computed(() => {
+  if (!hasDrawnGeometry.value) return true
+  if (!formState.name.trim()) return true
+  if (isCorridorMode.value) {
+    const distance = Number(formState.alongEdgeDistanceMeters)
+    if (!Number.isFinite(distance) || distance <= 0) {
+      return true
+    }
+  }
+  return false
+})
 
 const searchOptions = computed(() =>
   searchResults.value.map((item) => ({ value: item.key, label: item.label })),
@@ -1452,12 +1462,10 @@ const buildZonePayload = () => {
     message.warning(t('noFlyZone.messages.nameRequired'))
     return null
   }
-  if (!validateWechatLink(formState.wechatLink)) {
-    message.warning(t('noFlyZone.messages.invalidWechatLink'))
-    return null
-  }
+
   let coordinatesPayload = []
   let circlePayload = null
+
   if (formState.type === 'CIRCLE') {
     if (!formState.circle) {
       message.warning(t('noFlyZone.messages.circleMissing'))
@@ -1474,25 +1482,59 @@ const buildZonePayload = () => {
       longitude: coord.longitude,
     }))
   }
+
   const [effectiveFrom, effectiveTo] = convertTimeRangeToSeconds()
   const payload = {
     name: formState.name.trim(),
     type: formState.type,
-    coordinates: coordinatesPayload,
     circle: circlePayload,
     effectiveFrom: effectiveFrom ?? undefined,
     effectiveTo: effectiveTo ?? undefined,
-    wechatLink: formState.wechatLink.trim(),
   }
+
+  const trimmedWechatLink = formState.wechatLink.trim()
+  if (trimmedWechatLink) {
+    if (!validateWechatLink(trimmedWechatLink)) {
+      message.warning(t('noFlyZone.messages.invalidWechatLink'))
+      return null
+    }
+    payload.wechatLink = trimmedWechatLink
+  }
+
   if (formState.type === CORRIDOR_TYPE) {
     const distance = Number(formState.alongEdgeDistanceMeters)
     if (!Number.isFinite(distance) || distance <= 0) {
       message.warning(t('noFlyZone.messages.corridorDistanceInvalid'))
       return null
     }
-    payload.alongEdgeDistanceMeters = distance
+    payload.coordinates = coordinatesPayload.map((coord) => ({
+      ...coord,
+      distanceMeters: distance,
+    }))
+  } else if (coordinatesPayload.length) {
+    payload.coordinates = coordinatesPayload
+  } else {
+    payload.coordinates = []
   }
+
   return payload
+}
+
+const resolveCorridorDistance = (zone) => {
+  if (!zone) return null
+  const direct = Number(zone.alongEdgeDistanceMeters)
+  if (Number.isFinite(direct) && direct > 0) {
+    return direct
+  }
+  if (Array.isArray(zone.coordinates)) {
+    for (const coord of zone.coordinates) {
+      const distance = Number(coord?.distanceMeters)
+      if (Number.isFinite(distance) && distance > 0) {
+        return distance
+      }
+    }
+  }
+  return null
 }
 
 const loadZoneList = async () => {
@@ -1505,9 +1547,7 @@ const loadZoneList = async () => {
     zoneList.value = content.map((item) => ({
       ...item,
       type: normalizeZoneType(item.type),
-      alongEdgeDistanceMeters: Number.isFinite(Number(item.alongEdgeDistanceMeters))
-        ? Number(item.alongEdgeDistanceMeters)
-        : null,
+      alongEdgeDistanceMeters: resolveCorridorDistance(item),
     }))
     pagination.total = totalElements
     pagination.current = page
@@ -1562,10 +1602,9 @@ const editZone = (zone) => {
   const zoneType = normalizeZoneType(zone.type) || 'POLYGON'
   formState.type = zoneType
   formState.wechatLink = zone.wechatLink || ''
+  const corridorDistance = resolveCorridorDistance(zone)
   formState.alongEdgeDistanceMeters =
-    Number.isFinite(Number(zone.alongEdgeDistanceMeters)) && Number(zone.alongEdgeDistanceMeters) > 0
-      ? Number(zone.alongEdgeDistanceMeters)
-      : CORRIDOR_DEFAULT_DISTANCE
+    corridorDistance != null ? corridorDistance : CORRIDOR_DEFAULT_DISTANCE
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
   if (zoneType === 'CIRCLE' && zone.circle) {
@@ -2166,18 +2205,36 @@ const handleSearchClear = () => {
     <div class="manager-content">
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
-          <a-form-item :label="t('noFlyZone.form.name')">
+          <a-form-item>
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.name') }}
+              </span>
+            </template>
             <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
               :disabled="disableFormDuringDrawing" />
           </a-form-item>
-          <a-form-item :label="t('noFlyZone.form.type')">
+          <a-form-item>
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.type') }}
+              </span>
+            </template>
             <a-radio-group v-model:value="formState.type" :disabled="disableFormDuringDrawing">
               <a-radio-button v-for="option in typeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </a-radio-button>
             </a-radio-group>
           </a-form-item>
-          <a-form-item v-if="isCorridorMode" :label="t('noFlyZone.form.edgeDistance')">
+          <a-form-item v-if="isCorridorMode">
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.edgeDistance') }}
+              </span>
+            </template>
             <a-input-number
               v-model:value="formState.alongEdgeDistanceMeters"
               :min="10"
@@ -2189,7 +2246,13 @@ const handleSearchClear = () => {
             />
             <p class="form-hint">{{ t('noFlyZone.form.edgeDistanceHint') }}</p>
           </a-form-item>
-          <a-form-item v-if="isCircleMode" :label="t('noFlyZone.form.circleRadius')">
+          <a-form-item v-if="isCircleMode">
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.circleRadius') }}
+              </span>
+            </template>
             <a-input-number v-model:value="drawingRadius" :min="CIRCLE_MIN_RADIUS" :step="50" class="radius-input"
               :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing && !isCircleMode" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
@@ -2210,7 +2273,13 @@ const handleSearchClear = () => {
               </a-button> -->
             </a-space>
           </div>
-          <a-form-item :label="t('noFlyZone.form.coordinatesLabel')">
+          <a-form-item>
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.coordinatesLabel') }}
+              </span>
+            </template>
             <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
             <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
               :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
@@ -2340,6 +2409,16 @@ const handleSearchClear = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.form-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-item-label__asterisk {
+  color: #ff4d4f;
 }
 
 .radius-input {
