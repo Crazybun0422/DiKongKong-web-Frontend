@@ -252,6 +252,8 @@
       "submitFailed": "Submission failed, please retry later.",
       "createSuccess": "Zone created successfully.",
       "updateSuccess": "Zone updated successfully.",
+      "polygonFinishHint": "Click the first point again to finish the polygon.",
+      "polylineRightClickHint": "Right-click to finish drawing the path.",
       "deleteConfirmTitle": "Delete No-Fly Zone",
       "deleteConfirmContent": "Are you sure you want to delete \"{name}\"?",
       "deleteSuccess": "Zone deleted successfully.",

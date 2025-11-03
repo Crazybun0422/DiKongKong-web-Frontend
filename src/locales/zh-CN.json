@@ -252,6 +252,8 @@
       "submitFailed": "提交失败，请稍后重试。",
       "createSuccess": "禁飞区创建成功。",
       "updateSuccess": "禁飞区更新成功。",
+      "polygonFinishHint": "再次点击第一个点即可闭合多边形。",
+      "polylineRightClickHint": "右键单击即可结束沿线描点绘制。",
       "deleteConfirmTitle": "确认删除禁飞区",
       "deleteConfirmContent": "确认删除“{name}”禁飞区域吗？",
       "deleteSuccess": "禁飞区已删除。",
