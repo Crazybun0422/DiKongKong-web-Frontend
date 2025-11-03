@@ -1,9 +1,20 @@
 import http from './http'
 
-const normalizeCoordinate = (coord = {}) => ({
-  latitude: Number(coord.latitude),
-  longitude: Number(coord.longitude),
-})
+const normalizeCoordinate = (coord = {}) => {
+  const normalized = {
+    latitude: Number(coord.latitude),
+    longitude: Number(coord.longitude),
+  }
+
+  if (coord.distanceMeters != null && coord.distanceMeters !== '') {
+    const distance = Number(coord.distanceMeters)
+    if (Number.isFinite(distance)) {
+      normalized.distanceMeters = distance
+    }
+  }
+
+  return normalized
+}
 
 const normalizeCircle = (circle = {}) => {
   if (!circle) return null
@@ -19,18 +30,42 @@ const normalizeCircle = (circle = {}) => {
 
 const normalizeZoneType = (type) => (type === 'POLYLINE' ? 'CORRIDOR' : type)
 
-export const normalizeNoFlyZone = (zone = {}) => ({
-  ...zone,
-  type: normalizeZoneType(zone.type),
-  coordinates: Array.isArray(zone.coordinates)
+const extractCorridorDistance = (coordinates = []) => {
+  if (!Array.isArray(coordinates)) return null
+  for (const coord of coordinates) {
+    const distance = Number(coord?.distanceMeters ?? coord?.alongEdgeDistanceMeters)
+    if (Number.isFinite(distance) && distance > 0) {
+      return distance
+    }
+  }
+  return null
+}
+
+export const normalizeNoFlyZone = (zone = {}) => {
+  const normalizedCoordinates = Array.isArray(zone.coordinates)
     ? zone.coordinates.map((coord) => normalizeCoordinate(coord))
-    : [],
-  circle: normalizeCircle(zone.circle),
-  effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
-  effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
-  alongEdgeDistanceMeters:
-    zone.alongEdgeDistanceMeters != null ? Number(zone.alongEdgeDistanceMeters) : null,
-})
+    : []
+
+  const normalizedCircle = normalizeCircle(zone.circle)
+
+  const normalizedAlongEdgeDistance = (() => {
+    const explicit = Number(zone.alongEdgeDistanceMeters)
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return explicit
+    }
+    return extractCorridorDistance(normalizedCoordinates)
+  })()
+
+  return {
+    ...zone,
+    type: normalizeZoneType(zone.type),
+    coordinates: normalizedCoordinates,
+    circle: normalizedCircle,
+    effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
+    effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
+    alongEdgeDistanceMeters: normalizedAlongEdgeDistance,
+  }
+}
 
 export const listNoFlyZones = async ({ page = 1, size = 20, sortOrder = 'DESC' } = {}) => {
   const params = {
