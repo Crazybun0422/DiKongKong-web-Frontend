@@ -1,20 +1,9 @@
 import http from './http'
 
-const normalizeCoordinate = (coord = {}) => {
-  const normalized = {
-    latitude: Number(coord.latitude),
-    longitude: Number(coord.longitude),
-  }
-
-  if (coord.distanceMeters != null && coord.distanceMeters !== '') {
-    const distance = Number(coord.distanceMeters)
-    if (Number.isFinite(distance)) {
-      normalized.distanceMeters = distance
-    }
-  }
-
-  return normalized
-}
+const normalizeCoordinate = (coord = {}) => ({
+  latitude: Number(coord.latitude),
+  longitude: Number(coord.longitude),
+})
 
 const normalizeCircle = (circle = {}) => {
   if (!circle) return null
@@ -28,9 +17,14 @@ const normalizeCircle = (circle = {}) => {
   }
 }
 
-const normalizeZoneType = (type) => (type === 'POLYLINE' ? 'CORRIDOR' : type)
+const normalizeZoneType = (type) => {
+  if (type === 'POLYLINE' || type === 'CORRIDOR') {
+    return 'PATH'
+  }
+  return type
+}
 
-const extractCorridorDistance = (coordinates = []) => {
+const extractPathDistance = (coordinates = []) => {
   if (!Array.isArray(coordinates)) return null
   for (const coord of coordinates) {
     const distance = Number(coord?.distanceMeters ?? coord?.alongEdgeDistanceMeters)
@@ -48,12 +42,12 @@ export const normalizeNoFlyZone = (zone = {}) => {
 
   const normalizedCircle = normalizeCircle(zone.circle)
 
-  const normalizedAlongEdgeDistance = (() => {
-    const explicit = Number(zone.alongEdgeDistanceMeters)
+  const normalizedPathDistance = (() => {
+    const explicit = Number(zone.pathDistanceMeters ?? zone.alongEdgeDistanceMeters)
     if (Number.isFinite(explicit) && explicit > 0) {
       return explicit
     }
-    return extractCorridorDistance(normalizedCoordinates)
+    return extractPathDistance(normalizedCoordinates)
   })()
 
   return {
@@ -63,7 +57,7 @@ export const normalizeNoFlyZone = (zone = {}) => {
     circle: normalizedCircle,
     effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
     effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
-    alongEdgeDistanceMeters: normalizedAlongEdgeDistance,
+    pathDistanceMeters: normalizedPathDistance,
   }
 }
 

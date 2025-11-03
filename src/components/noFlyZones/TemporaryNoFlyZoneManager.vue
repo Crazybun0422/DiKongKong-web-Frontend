@@ -18,9 +18,10 @@ const MAP_DEFAULT_CENTER = { latitude: 26.074508, longitude: 119.296494 }
 const MAP_DEFAULT_ZOOM = 11
 const POLYGON_MIN_POINTS = 3
 const CIRCLE_MIN_RADIUS = 50
-const CORRIDOR_TYPE = 'CORRIDOR'
+const PATH_TYPE = 'PATH'
+const LEGACY_CORRIDOR_TYPE = 'CORRIDOR'
 const LEGACY_POLYLINE_TYPE = 'POLYLINE'
-const CORRIDOR_DEFAULT_DISTANCE = 200
+const PATH_DEFAULT_DISTANCE = 200
 
 const { t } = useI18n()
 
@@ -59,8 +60,14 @@ const searchLoading = ref(false)
 const searchResults = ref([])
 let searchDebounceTimer = null
 
-const isCorridorType = (type) => type === CORRIDOR_TYPE || type === LEGACY_POLYLINE_TYPE
-const normalizeZoneType = (type) => (type === LEGACY_POLYLINE_TYPE ? CORRIDOR_TYPE : type)
+const isPathType = (type) =>
+  type === PATH_TYPE || type === LEGACY_CORRIDOR_TYPE || type === LEGACY_POLYLINE_TYPE
+const normalizeZoneType = (type) => {
+  if (type === LEGACY_POLYLINE_TYPE || type === LEGACY_CORRIDOR_TYPE) {
+    return PATH_TYPE
+  }
+  return type
+}
 
 const qqSuggest = ({
   key,
@@ -179,14 +186,14 @@ const formState = reactive({
   timeRange: [],
   coordinates: [],
   circle: null,
-  alongEdgeDistanceMeters: CORRIDOR_DEFAULT_DISTANCE,
+  pathDistanceMeters: PATH_DEFAULT_DISTANCE,
 })
 
 const formSubmitting = ref(false)
 
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
-  { label: t('noFlyZone.types.corridor'), value: CORRIDOR_TYPE },
+  { label: t('noFlyZone.types.path'), value: PATH_TYPE },
   { label: t('noFlyZone.types.rectangle'), value: 'RECTANGLE' },
   { label: t('noFlyZone.types.circle'), value: 'CIRCLE' },
 ])
@@ -200,7 +207,7 @@ const hasDrawnGeometry = computed(() => {
   if (!Array.isArray(formState.coordinates)) {
     return false
   }
-  if (isCorridorType(formState.type)) {
+  if (isPathType(formState.type)) {
     return formState.coordinates.length >= 2
   }
   if (formState.type === 'RECTANGLE') {
@@ -210,7 +217,7 @@ const hasDrawnGeometry = computed(() => {
 })
 
 const isCircleMode = computed(() => formState.type === 'CIRCLE')
-const isCorridorMode = computed(() => formState.type === CORRIDOR_TYPE)
+const isPathMode = computed(() => formState.type === PATH_TYPE)
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
@@ -219,8 +226,8 @@ const disableFormDuringDrawing = computed(() => isDrawing.value)
 const disableSubmit = computed(() => {
   if (!hasDrawnGeometry.value) return true
   if (!formState.name.trim()) return true
-  if (isCorridorMode.value) {
-    const distance = Number(formState.alongEdgeDistanceMeters)
+  if (isPathMode.value) {
+    const distance = Number(formState.pathDistanceMeters)
     if (!Number.isFinite(distance) || distance <= 0) {
       return true
     }
@@ -343,7 +350,7 @@ const segmentNormal = (start, end) => {
   return { x: -y, y: x }
 }
 
-const computeCorridorPolygon = (points, distanceMeters) => {
+const computePathBufferPolygon = (points, distanceMeters) => {
   const distance = Number(distanceMeters)
   if (!Array.isArray(points) || points.length < 2 || !Number.isFinite(distance) || distance <= 0) {
     return []
@@ -404,10 +411,10 @@ const computeCorridorPolygon = (points, distanceMeters) => {
   })
 }
 
-const updateCorridorPreview = (points = drawingPoints.value) => {
+const updatePathPreview = (points = drawingPoints.value) => {
   if (!mapInstance.value) return
-  const corridorPolygon = computeCorridorPolygon(points, formState.alongEdgeDistanceMeters)
-  if (!corridorPolygon.length) {
+  const pathPolygon = computePathBufferPolygon(points, formState.pathDistanceMeters)
+  if (!pathPolygon.length) {
     if (window.qq && window.qq.maps) {
       if (drawingPolygon.value && typeof drawingPolygon.value.setMap === 'function') {
         drawingPolygon.value.setMap(null)
@@ -421,7 +428,7 @@ const updateCorridorPreview = (points = drawingPoints.value) => {
   }
 
   if (window.qq && window.qq.maps) {
-    const latLngs = corridorPolygon.map(
+    const latLngs = pathPolygon.map(
       (coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude),
     )
     if (!drawingPolygon.value || typeof drawingPolygon.value.setPath !== 'function') {
@@ -442,7 +449,7 @@ const updateCorridorPreview = (points = drawingPoints.value) => {
 
   if (typeof window !== 'undefined' && window.TMap) {
     ensureDrawingLayers(window.TMap)
-    const latLngs = corridorPolygon.map(
+    const latLngs = pathPolygon.map(
       (coord) => new window.TMap.LatLng(coord.latitude, coord.longitude),
     )
     try {
@@ -980,13 +987,13 @@ const setupPolygonDrawing = () => {
         }
       }
       drawingPoints.value.push(point)
-      updatePathPreview()
+      updatePolylinePreview()
       updateVertexMarkers()
     })
     qqListeners.value.push(clickListener)
     const moveListener = window.qq.maps.event.addListener(mapInstance.value, 'mousemove', (event) => {
       if (!event?.latLng || !drawingPoints.value.length) return
-      updatePathPreview(event.latLng)
+      updatePolylinePreview(event.latLng)
     })
     qqListeners.value.push(moveListener)
     const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizePolygonDrawing())
@@ -1013,14 +1020,14 @@ const setupPolygonDrawing = () => {
       }
     }
     drawingPoints.value.push(point)
-    updatePathPreview()
+    updatePolylinePreview()
     updateVertexMarkers()
   }
 
   mapInstance.value.on('click', mapClickHandler.value)
   mapMouseMoveHandler.value = (event) => {
     if (!event?.latLng || !drawingPoints.value.length) return
-    updatePathPreview(event.latLng)
+    updatePolylinePreview(event.latLng)
   }
   mapDblClickHandler.value = (event) => {
     event?.originalEvent?.preventDefault?.()
@@ -1030,15 +1037,15 @@ const setupPolygonDrawing = () => {
   mapInstance.value.on('dblclick', mapDblClickHandler.value)
 }
 
-const setupCorridorDrawing = () => {
+const setupPathDrawing = () => {
   clearDrawingOverlays()
   resetFormGeometry()
   isDrawing.value = true
   drawingPoints.value = []
-  currentDrawingMode.value = CORRIDOR_TYPE
+  currentDrawingMode.value = PATH_TYPE
   message.info({
-    content: t('noFlyZone.messages.corridorRightClickHint'),
-    key: 'corridor-finish-hint',
+    content: t('noFlyZone.messages.pathRightClickHint'),
+    key: 'path-finish-hint',
     duration: 3,
   })
 
@@ -1046,16 +1053,16 @@ const setupCorridorDrawing = () => {
     const clickListener = window.qq.maps.event.addListener(mapInstance.value, 'click', (event) => {
       if (!event?.latLng) return
       drawingPoints.value.push(event.latLng)
-      updatePathPreview()
+      updatePolylinePreview()
       updateVertexMarkers()
     })
     qqListeners.value.push(clickListener)
     const moveListener = window.qq.maps.event.addListener(mapInstance.value, 'mousemove', (event) => {
       if (!event?.latLng || !drawingPoints.value.length) return
-      updatePathPreview(event.latLng)
+      updatePolylinePreview(event.latLng)
     })
     qqListeners.value.push(moveListener)
-    const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizeCorridorDrawing())
+    const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizePathDrawing())
     qqListeners.value.push(dblListener)
     const rightClickListener = window.qq.maps.event.addListener(mapInstance.value, 'rightclick', (event) => {
       try {
@@ -1064,7 +1071,7 @@ const setupCorridorDrawing = () => {
       try {
         if (event?.domEvent && typeof event.domEvent.preventDefault === 'function') event.domEvent.preventDefault()
       } catch (_) { }
-      finalizeCorridorDrawing()
+      finalizePathDrawing()
     })
     qqListeners.value.push(rightClickListener)
     return
@@ -1073,23 +1080,23 @@ const setupCorridorDrawing = () => {
   mapClickHandler.value = (event) => {
     if (!event?.latLng) return
     drawingPoints.value.push(event.latLng)
-    updatePathPreview()
+    updatePolylinePreview()
     updateVertexMarkers()
   }
 
   mapMouseMoveHandler.value = (event) => {
     if (!event?.latLng || !drawingPoints.value.length) return
-    updatePathPreview(event.latLng)
+    updatePolylinePreview(event.latLng)
   }
 
   mapDblClickHandler.value = (event) => {
     event?.originalEvent?.preventDefault?.()
-    finalizeCorridorDrawing()
+    finalizePathDrawing()
   }
 
   mapRightClickHandler.value = (event) => {
     event?.originalEvent?.preventDefault?.()
-    finalizeCorridorDrawing()
+    finalizePathDrawing()
   }
 
   mapInstance.value.on('click', mapClickHandler.value)
@@ -1137,16 +1144,16 @@ const finalizePolygonDrawing = (TMap) => {
   stopDrawing()
 }
 
-const finalizeCorridorDrawing = (TMap) => {
+const finalizePathDrawing = (TMap) => {
   if (drawingPoints.value.length < 2) {
-    message.warning(t('noFlyZone.messages.corridorTooShort'))
+    message.warning(t('noFlyZone.messages.pathTooShort'))
     return
   }
   formState.coordinates = drawingPoints.value.map((point) => ({
     latitude: point.getLat(),
     longitude: point.getLng(),
   }))
-  updateCorridorPreview(drawingPoints.value)
+  updatePathPreview(drawingPoints.value)
   if (window.qq && window.qq.maps) {
     if (!drawingPolyline.value || !drawingPolyline.value.setPath) {
       drawingPolyline.value = new window.qq.maps.Polyline({
@@ -1179,12 +1186,12 @@ const finalizeCorridorDrawing = (TMap) => {
   stopDrawing()
 }
 
-const updatePathPreview = (cursorPoint = null) => {
+const updatePolylinePreview = (cursorPoint = null) => {
   const points = [...drawingPoints.value]
   if (cursorPoint) points.push(cursorPoint)
   if (points.length < 2) {
-    if (isCorridorType(currentDrawingMode.value)) {
-      updateCorridorPreview([])
+    if (isPathType(currentDrawingMode.value)) {
+      updatePathPreview([])
     }
     if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
     else if (drawingPolyline.value && drawingPolyline.value.setGeometries) drawingPolyline.value.setGeometries([])
@@ -1216,8 +1223,8 @@ const updatePathPreview = (cursorPoint = null) => {
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([{ id: 'preview', styleId: 'dashed', paths: points }])
   }
-  if (isCorridorType(currentDrawingMode.value)) {
-    updateCorridorPreview(points)
+  if (isPathType(currentDrawingMode.value)) {
+    updatePathPreview(points)
   }
   updateVertexMarkers()
 }
@@ -1396,8 +1403,8 @@ const startDrawing = async () => {
 
   if (formState.type === 'CIRCLE') {
     setupCircleDrawing()
-  } else if (isCorridorType(formState.type)) {
-    setupCorridorDrawing()
+  } else if (isPathType(formState.type)) {
+    setupPathDrawing()
   } else if (formState.type === 'RECTANGLE') {
     setupRectangleDrawing()
   } else {
@@ -1419,8 +1426,8 @@ const finishDrawingManually = () => {
     stopDrawing()
     return
   }
-  if (currentDrawingMode.value === CORRIDOR_TYPE) {
-    finalizeCorridorDrawing()
+  if (currentDrawingMode.value === PATH_TYPE) {
+    finalizePathDrawing()
     return
   }
   finalizePolygonDrawing()
@@ -1501,16 +1508,14 @@ const buildZonePayload = () => {
     payload.wechatLink = trimmedWechatLink
   }
 
-  if (formState.type === CORRIDOR_TYPE) {
-    const distance = Number(formState.alongEdgeDistanceMeters)
+  if (formState.type === PATH_TYPE) {
+    const distance = Number(formState.pathDistanceMeters)
     if (!Number.isFinite(distance) || distance <= 0) {
-      message.warning(t('noFlyZone.messages.corridorDistanceInvalid'))
+      message.warning(t('noFlyZone.messages.pathDistanceInvalid'))
       return null
     }
-    payload.coordinates = coordinatesPayload.map((coord) => ({
-      ...coord,
-      distanceMeters: distance,
-    }))
+    payload.coordinates = coordinatesPayload
+    payload.pathDistanceMeters = distance
   } else if (coordinatesPayload.length) {
     payload.coordinates = coordinatesPayload
   } else {
@@ -1520,9 +1525,9 @@ const buildZonePayload = () => {
   return payload
 }
 
-const resolveCorridorDistance = (zone) => {
+const resolvePathDistance = (zone) => {
   if (!zone) return null
-  const direct = Number(zone.alongEdgeDistanceMeters)
+  const direct = Number(zone.pathDistanceMeters)
   if (Number.isFinite(direct) && direct > 0) {
     return direct
   }
@@ -1547,7 +1552,7 @@ const loadZoneList = async () => {
     zoneList.value = content.map((item) => ({
       ...item,
       type: normalizeZoneType(item.type),
-      alongEdgeDistanceMeters: resolveCorridorDistance(item),
+      pathDistanceMeters: resolvePathDistance(item),
     }))
     pagination.total = totalElements
     pagination.current = page
@@ -1589,7 +1594,7 @@ const resetForm = () => {
   formState.type = 'POLYGON'
   formState.wechatLink = ''
   formState.timeRange = []
-  formState.alongEdgeDistanceMeters = CORRIDOR_DEFAULT_DISTANCE
+  formState.pathDistanceMeters = PATH_DEFAULT_DISTANCE
   resetFormGeometry()
   clearDrawing()
 }
@@ -1602,9 +1607,9 @@ const editZone = (zone) => {
   const zoneType = normalizeZoneType(zone.type) || 'POLYGON'
   formState.type = zoneType
   formState.wechatLink = zone.wechatLink || ''
-  const corridorDistance = resolveCorridorDistance(zone)
-  formState.alongEdgeDistanceMeters =
-    corridorDistance != null ? corridorDistance : CORRIDOR_DEFAULT_DISTANCE
+  const pathDistance = resolvePathDistance(zone)
+  formState.pathDistanceMeters =
+    pathDistance != null ? pathDistance : PATH_DEFAULT_DISTANCE
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
   if (zoneType === 'CIRCLE' && zone.circle) {
@@ -1628,7 +1633,7 @@ const editZone = (zone) => {
     const paths = zone.coordinates.map((coord) => normalizeLatLngPoint(coord)).filter(Boolean)
     drawingPoints.value = paths
     if (window.qq && window.qq.maps) {
-      if (zoneType === CORRIDOR_TYPE) {
+      if (zoneType === PATH_TYPE) {
         if (!drawingPolyline.value) {
           drawingPolyline.value = new window.qq.maps.Polyline({
             map: mapInstance.value,
@@ -1650,16 +1655,16 @@ const editZone = (zone) => {
             }
           } catch (_) { }
         }
-        updateCorridorPreview(paths)
+        updatePathPreview(paths)
       } else {
         if (!drawingPolygon.value) drawingPolygon.value = new window.qq.maps.Polygon({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polygon.strokeWidth, fillColor: toQqColor(highlightStyle.polygon.fillColor, 1) })
         else { drawingPolygon.value.setPath(paths); drawingPolygon.value.setMap(mapInstance.value) }
       }
     } else {
       ensureDrawingLayers(window.TMap)
-      if (zoneType === CORRIDOR_TYPE) {
+      if (zoneType === PATH_TYPE) {
         drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'dashed', paths }])
-        updateCorridorPreview(paths)
+        updatePathPreview(paths)
       } else {
         drawingPolygon.value.setGeometries([{ id: 'drawing', styleId: 'zone', paths }])
       }
@@ -1680,8 +1685,8 @@ const focusZoneOnMap = (zone) => {
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
     const zoneType = normalizeZoneType(zone.type)
     const targetCoordinates =
-      zoneType === CORRIDOR_TYPE
-        ? computeCorridorPolygon(zone.coordinates, zone.alongEdgeDistanceMeters)
+      zoneType === PATH_TYPE
+        ? computePathBufferPolygon(zone.coordinates, zone.pathDistanceMeters)
         : zone.coordinates
     if (!Array.isArray(targetCoordinates) || !targetCoordinates.length) return
     if (window.qq && window.qq.maps) {
@@ -1767,12 +1772,12 @@ const renderZonesOnMap = () => {
         })
         zoneCircleOverlays.value.push(circle)
       }
-    } else if (zone.type === CORRIDOR_TYPE && Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      const corridorPolygon = computeCorridorPolygon(zone.coordinates, zone.alongEdgeDistanceMeters)
-      if (window.qq && window.qq.maps && corridorPolygon.length) {
+    } else if (zone.type === PATH_TYPE && Array.isArray(zone.coordinates) && zone.coordinates.length) {
+      const pathPolygon = computePathBufferPolygon(zone.coordinates, zone.pathDistanceMeters)
+      if (window.qq && window.qq.maps && pathPolygon.length) {
         const polygon = new window.qq.maps.Polygon({
           map: mapInstance.value,
-          path: corridorPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+          path: pathPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.polygon.strokeWidth,
           fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
@@ -1986,13 +1991,13 @@ watch(
       }
     }
     currentDrawingMode.value = formState.type
-    if (formState.type === CORRIDOR_TYPE) {
-      const distance = Number(formState.alongEdgeDistanceMeters)
+    if (formState.type === PATH_TYPE) {
+      const distance = Number(formState.pathDistanceMeters)
       if (!Number.isFinite(distance) || distance <= 0) {
-        formState.alongEdgeDistanceMeters = CORRIDOR_DEFAULT_DISTANCE
+        formState.pathDistanceMeters = PATH_DEFAULT_DISTANCE
       }
     } else {
-      updateCorridorPreview([])
+      updatePathPreview([])
     }
   },
 )
@@ -2040,10 +2045,10 @@ watch(drawingRadius, () => {
 })
 
 watch(
-  () => formState.alongEdgeDistanceMeters,
+  () => formState.pathDistanceMeters,
   () => {
-    if (!mapReady.value || formState.type !== CORRIDOR_TYPE) return
-    updateCorridorPreview()
+    if (!mapReady.value || formState.type !== PATH_TYPE) return
+    updatePathPreview()
   },
 )
 
@@ -2228,7 +2233,7 @@ const handleSearchClear = () => {
               </a-radio-button>
             </a-radio-group>
           </a-form-item>
-          <a-form-item v-if="isCorridorMode">
+          <a-form-item v-if="isPathMode">
             <template #label>
               <span class="form-item-label form-item-label--required">
                 <span class="form-item-label__asterisk">*</span>
@@ -2236,7 +2241,7 @@ const handleSearchClear = () => {
               </span>
             </template>
             <a-input-number
-              v-model:value="formState.alongEdgeDistanceMeters"
+              v-model:value="formState.pathDistanceMeters"
               :min="10"
               :step="10"
               :disabled="disableFormDuringDrawing"

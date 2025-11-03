@@ -184,7 +184,7 @@
     "types": {
       "polygon": "多边形",
       "polyline": "沿线描点",
-      "corridor": "沿边缓冲",
+      "path": "路径缓冲",
       "rectangle": "矩形",
       "circle": "圆形"
     },
@@ -260,9 +260,9 @@
       "updateSuccess": "禁飞区更新成功。",
       "polygonFinishHint": "再次点击第一个点即可闭合多边形。",
       "polylineRightClickHint": "右键单击即可结束沿线描点绘制。",
-      "corridorTooShort": "请至少绘制两个点以生成沿边区域。",
-      "corridorRightClickHint": "右键单击或双击即可结束沿边缓冲绘制。",
-      "corridorDistanceInvalid": "请设置大于 0 的沿边距离。",
+      "pathTooShort": "请至少绘制两个点以生成沿边缓冲区。",
+      "pathRightClickHint": "右键单击或双击即可结束沿边缓冲绘制。",
+      "pathDistanceInvalid": "请设置大于 0 的沿边距离。",
       "deleteConfirmTitle": "确认删除禁飞区",
       "deleteConfirmContent": "确认删除“{name}”禁飞区域吗？",
       "deleteSuccess": "禁飞区已删除。",
