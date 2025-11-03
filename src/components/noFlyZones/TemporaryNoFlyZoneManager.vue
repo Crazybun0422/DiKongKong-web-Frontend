@@ -30,6 +30,7 @@ const drawingMarkerLayer = ref(null)
 const merchantMarkerLayer = ref(null)
 const zonePolygonLayer = ref(null)
 const zoneCircleLayer = ref(null)
+const zonePolylineLayer = ref(null)
 const currentDrawingMode = ref('POLYGON')
 const isDrawing = ref(false)
 const drawingPoints = ref([])
@@ -66,6 +67,7 @@ const formSubmitting = ref(false)
 
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
+  { label: t('noFlyZone.types.polyline'), value: 'POLYLINE' },
   { label: t('noFlyZone.types.rectangle'), value: 'RECTANGLE' },
   { label: t('noFlyZone.types.circle'), value: 'CIRCLE' },
 ])
@@ -96,7 +98,6 @@ const disableFormDuringDrawing = computed(() => isDrawing.value)
 
 const canSearch = computed(
   () =>
-    mapReady.value &&
     !searchLoading.value &&
     typeof searchQuery.value === 'string' &&
     searchQuery.value.trim().length > 0,
@@ -125,6 +126,94 @@ const highlightStyle = {
     dashArray: [10, 6],
   },
 }
+
+const formatCoordinatePoint = (point) => {
+  if (!point) return null
+  if (typeof point.getLat === 'function' && typeof point.getLng === 'function') {
+    return { latitude: point.getLat(), longitude: point.getLng() }
+  }
+  const latitude = Number(point.latitude ?? point.lat)
+  const longitude = Number(point.longitude ?? point.lng)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null
+  }
+  return { latitude, longitude }
+}
+
+const formatCoordinateValue = (value) =>
+  Number.isFinite(value) ? Number(value).toFixed(6) : '-'
+
+const coordinateColumns = computed(() => [
+  {
+    title: t('noFlyZone.form.coordinateLabel'),
+    dataIndex: 'label',
+    key: 'label',
+    width: 140,
+  },
+  {
+    title: t('noFlyZone.form.latitude'),
+    dataIndex: 'latitude',
+    key: 'latitude',
+  },
+  {
+    title: t('noFlyZone.form.longitude'),
+    dataIndex: 'longitude',
+    key: 'longitude',
+  },
+])
+
+const displayedCoordinates = computed(() => {
+  if (formState.type === 'CIRCLE') {
+    const centerSource =
+      formState.circle ??
+      (drawingCenter.value
+        ? { latitude: drawingCenter.value.getLat(), longitude: drawingCenter.value.getLng() }
+        : null)
+    const center = formatCoordinatePoint(centerSource)
+    if (!center) return []
+    return [
+      {
+        key: 'center',
+        label: t('noFlyZone.form.circleCenter'),
+        latitude: formatCoordinateValue(center.latitude),
+        longitude: formatCoordinateValue(center.longitude),
+      },
+    ]
+  }
+
+  const sourcePoints =
+    isDrawing.value && drawingPoints.value.length
+      ? drawingPoints.value
+      : formState.coordinates ?? []
+
+  if (!Array.isArray(sourcePoints)) {
+    return []
+  }
+
+  return sourcePoints
+    .map((point, index) => {
+      const coordinate = formatCoordinatePoint(point)
+      if (!coordinate) return null
+      return {
+        key: `${index}`,
+        label: t('noFlyZone.form.vertexLabel', { index: index + 1 }),
+        latitude: formatCoordinateValue(coordinate.latitude),
+        longitude: formatCoordinateValue(coordinate.longitude),
+      }
+    })
+    .filter((item) => item !== null)
+})
+
+const displayedCircleRadius = computed(() => {
+  if (formState.type !== 'CIRCLE') return null
+  if (formState.circle?.radiusMeters) {
+    return Math.round(formState.circle.radiusMeters)
+  }
+  if (drawingCenter.value && drawingRadius.value) {
+    return Math.round(drawingRadius.value)
+  }
+  return null
+})
 
 const createSvgDataUrl = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 
@@ -196,6 +285,18 @@ const createCircleLayer = (TMap) =>
     geometries: [],
   })
 
+const createZonePolylineLayer = (TMap) =>
+  new TMap.MultiPolyline({
+    map: mapInstance.value,
+    styles: {
+      zone: new TMap.PolylineStyle({
+        color: highlightStyle.polyline.color,
+        width: highlightStyle.polyline.width,
+      }),
+    },
+    geometries: [],
+  })
+
 const createPolylineLayer = (TMap) =>
   new TMap.MultiPolyline({
     map: mapInstance.value,
@@ -262,6 +363,9 @@ const ensureZoneLayers = (TMap) => {
   }
   if (!zoneCircleLayer.value) {
     zoneCircleLayer.value = createCircleLayer(TMap)
+  }
+  if (!zonePolylineLayer.value) {
+    zonePolylineLayer.value = createZonePolylineLayer(TMap)
   }
 }
 
@@ -610,6 +714,8 @@ const startDrawing = async () => {
 
   if (formState.type === 'CIRCLE') {
     setupCircleDrawing(TMap)
+  } else if (formState.type === 'POLYLINE') {
+    setupPolylineDrawing(TMap)
   } else if (formState.type === 'RECTANGLE') {
     setupRectangleDrawing(TMap)
   } else {
@@ -629,6 +735,11 @@ const finishDrawingManually = () => {
     }))
     updateVertexMarkers(drawingPoints.value)
     stopDrawing()
+    return
+  }
+  if (currentDrawingMode.value === 'POLYLINE') {
+    const TMap = window.TMap
+    finalizePolylineDrawing(TMap)
     return
   }
   const TMap = window.TMap
@@ -874,6 +985,7 @@ const renderZonesOnMap = () => {
   ensureZoneLayers(window.TMap)
   const polygonGeometries = []
   const circleGeometries = []
+  const polylineGeometries = []
   zoneList.value.forEach((zone) => {
     if (zone.type === 'CIRCLE' && zone.circle) {
       circleGeometries.push({
@@ -881,6 +993,14 @@ const renderZonesOnMap = () => {
         styleId: 'zone',
         center: new window.TMap.LatLng(zone.circle.latitude, zone.circle.longitude),
         radius: zone.circle.radiusMeters,
+      })
+    } else if (zone.type === 'POLYLINE' && Array.isArray(zone.coordinates) && zone.coordinates.length) {
+      polylineGeometries.push({
+        id: zone.id,
+        styleId: 'zone',
+        paths: zone.coordinates.map(
+          (coord) => new window.TMap.LatLng(coord.latitude, coord.longitude),
+        ),
       })
     } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
       polygonGeometries.push({
@@ -894,6 +1014,7 @@ const renderZonesOnMap = () => {
   })
   zonePolygonLayer.value.setGeometries(polygonGeometries)
   zoneCircleLayer.value.setGeometries(circleGeometries)
+  zonePolylineLayer.value.setGeometries(polylineGeometries)
 }
 
 const loadMerchantMarkers = async () => {
@@ -1094,7 +1215,11 @@ watch(drawingRadius, () => {
 })
 
 const handleSearch = async () => {
-  if (!canSearch.value || !mapInstance.value || !window.TMap) return
+  if (!canSearch.value) return
+  if (!mapReady.value || !mapInstance.value || !window.TMap) {
+    message.warning(t('noFlyZone.search.mapNotReady'))
+    return
+  }
   const query = searchQuery.value.trim()
   if (!query) return
   searchLoading.value = true
@@ -1205,7 +1330,7 @@ const handleSearch = async () => {
         <div ref="mapContainer" class="map-container">
           <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
             <a-input-search v-model:value="searchQuery" :placeholder="t('noFlyZone.search.placeholder')" allow-clear
-              :loading="searchLoading" :disabled="!mapReady" @search="handleSearch">
+              :loading="searchLoading" @search="handleSearch">
               <template #enterButton>
                 <a-button type="primary" :loading="searchLoading" :disabled="!canSearch" @click="handleSearch">
                   <SearchOutlined />
