@@ -54,32 +54,101 @@ const searchMarkerLayer = ref(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
 
+const qqSuggest = ({
+  key,
+  keyword,
+  region,
+  location,
+  page_size = 20,
+  policy = 1,
+  timeout = 10000,
+}) => {
+  return new Promise((resolve, reject) => {
+    if (typeof document === 'undefined' || typeof window === 'undefined') {
+      reject(new Error('JSONP is only supported in browser environments'))
+      return
+    }
+
+    const callbackName = `qqmap_cb_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    let timeoutId = null
+    const script = document.createElement('script')
+
+    const cleanup = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        timeoutId = null
+      }
+      if (callbackName in window) {
+        delete window[callbackName]
+      }
+      if (script.parentNode) {
+        script.parentNode.removeChild(script)
+      }
+    }
+
+    window[callbackName] = (data) => {
+      resolve(data)
+      cleanup()
+    }
+
+    const url = new URL('https://apis.map.qq.com/ws/place/v1/suggestion')
+    const params = {
+      key,
+      keyword,
+      region,
+      location,
+      page_size,
+      policy,
+      output: 'jsonp',
+      callback: callbackName,
+    }
+
+    Object.entries(params).forEach(([paramKey, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        url.searchParams.set(paramKey, value)
+      }
+    })
+
+    script.src = url.toString()
+    script.onerror = (error) => {
+      cleanup()
+      reject(error instanceof Error ? error : Object.assign(new Error('JSONP request failed'), { cause: error }))
+    }
+
+    if (Number.isFinite(timeout) && timeout > 0) {
+      timeoutId = setTimeout(() => {
+        cleanup()
+        reject(Object.assign(new Error('JSONP request timed out'), { code: 'TIMEOUT' }))
+      }, timeout)
+    }
+
+    document.body.appendChild(script)
+  })
+}
+
 const searchPlaces = async (keyword, location) => {
   const trimmed = typeof keyword === 'string' ? keyword.trim() : ''
   if (!trimmed) return []
   if (!TENCENT_MAP_KEY) {
     throw Object.assign(new Error('Missing Tencent Map key'), { code: 'MISSING_KEY' })
   }
-  const params = new URLSearchParams({
-    key: TENCENT_MAP_KEY,
-    keyword: trimmed,
-    region: 'nationwide',
-    page_size: '20',
-    policy: '1',
-  })
+  let locationParam
   if (location) {
     const lat = Number(location.lat ?? location.latitude)
     const lng = Number(location.lng ?? location.longitude)
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       const gcj = wgs84ToGcj02(lng, lat)
-      params.set('location', `${gcj.lat},${gcj.lng}`)
+      locationParam = `${gcj.lat},${gcj.lng}`
     }
   }
-  const response = await fetch(`https://apis.map.qq.com/ws/place/v1/suggestion?${params.toString()}`)
-  if (!response.ok) {
-    throw Object.assign(new Error(`Search failed: ${response.status}`), { code: 'REQUEST_FAILED', status: response.status })
-  }
-  const data = await response.json()
+  const data = await qqSuggest({
+    key: TENCENT_MAP_KEY,
+    keyword: trimmed,
+    region: 'nationwide',
+    location: locationParam,
+    page_size: 20,
+    policy: 1,
+  })
   if (data?.status !== 0) {
     throw Object.assign(new Error('Search API returned error'), { code: 'API_ERROR', data })
   }
