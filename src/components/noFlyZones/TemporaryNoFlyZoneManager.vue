@@ -48,6 +48,7 @@ const mapClickHandler = ref(null)
 const mapMouseMoveHandler = ref(null)
 const mapMouseUpHandler = ref(null)
 const mapDblClickHandler = ref(null)
+const mapRightClickHandler = ref(null)
 const searchMarkerLayer = ref(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
@@ -129,7 +130,7 @@ const highlightStyle = {
   },
   dashed: {
     color: '#ff4d4f',
-    width: 2,
+    width: 1,
     dashArray: [10, 6],
   },
 }
@@ -265,6 +266,44 @@ const DRAW_VERTEX_ICON = createSvgDataUrl(
 const SEARCH_MARKER_ICON = createSvgDataUrl(
   "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='32' viewBox='0 0 24 32'><path d='M12 0C5.372 0 0 5.372 0 12c0 8.25 10.218 18.922 10.651 19.357a1.88 1.88 0 0 0 2.698 0C13.782 30.922 24 20.25 24 12 24 5.372 18.628 0 12 0zm0 17.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z' fill='%23256BEB'/></svg>",
 )
+
+let cachedVertexMarkerImage = null
+let cachedSearchMarkerImage = null
+
+const getQqMarkerImage = (src, width, height, anchorX, anchorY) => {
+  try {
+    if (
+      window.qq &&
+      window.qq.maps &&
+      typeof window.qq.maps.MarkerImage === 'function' &&
+      typeof window.qq.maps.Size === 'function' &&
+      typeof window.qq.maps.Point === 'function'
+    ) {
+      return new window.qq.maps.MarkerImage(
+        src,
+        new window.qq.maps.Size(width, height),
+        new window.qq.maps.Point(0, 0),
+        new window.qq.maps.Point(anchorX, anchorY),
+        new window.qq.maps.Size(width, height),
+      )
+    }
+  } catch (_) {}
+  return src
+}
+
+const getVertexMarkerIcon = () => {
+  if (!cachedVertexMarkerImage && window.qq && window.qq.maps) {
+    cachedVertexMarkerImage = getQqMarkerImage(DRAW_VERTEX_ICON, 16, 16, 8, 8)
+  }
+  return cachedVertexMarkerImage || DRAW_VERTEX_ICON
+}
+
+const getSearchMarkerIcon = () => {
+  if (!cachedSearchMarkerImage && window.qq && window.qq.maps) {
+    cachedSearchMarkerImage = getQqMarkerImage(SEARCH_MARKER_ICON, 24, 32, 12, 32)
+  }
+  return cachedSearchMarkerImage || SEARCH_MARKER_ICON
+}
 
 let tmapReloadedOnce = false
 
@@ -569,11 +608,13 @@ const detachMapListeners = () => {
     if (mapInstance.value && mapMouseMoveHandler.value) mapInstance.value.off('mousemove', mapMouseMoveHandler.value)
     if (mapInstance.value && mapMouseUpHandler.value) mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     if (mapInstance.value && mapDblClickHandler.value) mapInstance.value.off('dblclick', mapDblClickHandler.value)
+    if (mapInstance.value && mapRightClickHandler.value) mapInstance.value.off('rightclick', mapRightClickHandler.value)
   } catch (_) {}
   mapClickHandler.value = null
   mapMouseMoveHandler.value = null
   mapMouseUpHandler.value = null
   mapDblClickHandler.value = null
+  mapRightClickHandler.value = null
   // 2D path
   if (Array.isArray(qqListeners.value)) {
     qqListeners.value.forEach((token) => {
@@ -612,14 +653,17 @@ const updateVertexMarkers = (points = drawingPoints.value) => {
     drawingMarkerLayer.value.forEach((m) => m.setMap && m.setMap(null))
     drawingMarkerLayer.value = []
     const seen = new Set()
+    const vertexIcon = getVertexMarkerIcon()
     points.forEach((point) => {
       const latLng = normalizeLatLngPoint(point)
       if (!latLng) return
       const key = `${latLng.getLat()}_${latLng.getLng()}`
       if (seen.has(key)) return
       seen.add(key)
-      const marker = new window.qq.maps.Marker({ map: mapInstance.value, position: latLng })
-      try { marker.setIcon(DRAW_VERTEX_ICON) } catch (_) {}
+      const markerOptions = { map: mapInstance.value, position: latLng }
+      if (vertexIcon) markerOptions.icon = vertexIcon
+      const marker = new window.qq.maps.Marker(markerOptions)
+      try { marker.setClickable(false) } catch (_) {}
       drawingMarkerLayer.value.push(marker)
     })
     return
@@ -646,6 +690,7 @@ const setupPolygonDrawing = () => {
   isDrawing.value = true
   drawingPoints.value = []
   currentDrawingMode.value = 'POLYGON'
+  message.info({ content: t('noFlyZone.messages.polygonFinishHint'), key: 'polygon-finish-hint', duration: 3 })
 
   if (window.qq && window.qq.maps) {
     const clickListener = window.qq.maps.event.addListener(mapInstance.value, 'click', (event) => {
@@ -723,6 +768,7 @@ const setupPolylineDrawing = () => {
   isDrawing.value = true
   drawingPoints.value = []
   currentDrawingMode.value = 'POLYLINE'
+  message.info({ content: t('noFlyZone.messages.polylineRightClickHint'), key: 'polyline-finish-hint', duration: 3 })
 
   if (window.qq && window.qq.maps) {
     const clickListener = window.qq.maps.event.addListener(mapInstance.value, 'click', (event) => {
@@ -739,6 +785,16 @@ const setupPolylineDrawing = () => {
     qqListeners.value.push(moveListener)
     const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizePolylineDrawing())
     qqListeners.value.push(dblListener)
+    const rightClickListener = window.qq.maps.event.addListener(mapInstance.value, 'rightclick', (event) => {
+      try {
+        if (event?.event && typeof event.event.preventDefault === 'function') event.event.preventDefault()
+      } catch (_) {}
+      try {
+        if (event?.domEvent && typeof event.domEvent.preventDefault === 'function') event.domEvent.preventDefault()
+      } catch (_) {}
+      finalizePolylineDrawing()
+    })
+    qqListeners.value.push(rightClickListener)
     return
   }
 
@@ -759,9 +815,15 @@ const setupPolylineDrawing = () => {
     finalizePolylineDrawing()
   }
 
+  mapRightClickHandler.value = (event) => {
+    event?.originalEvent?.preventDefault?.()
+    finalizePolylineDrawing()
+  }
+
   mapInstance.value.on('click', mapClickHandler.value)
   mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
   mapInstance.value.on('dblclick', mapDblClickHandler.value)
+  mapInstance.value.on('rightclick', mapRightClickHandler.value)
 }
 
 const finalizePolygonDrawing = (TMap) => {
@@ -818,16 +880,26 @@ const finalizePolylineDrawing = (TMap) => {
         map: mapInstance.value,
         path: drawingPoints.value,
         strokeColor: '#ff4d4f',
-        strokeWeight: highlightStyle.polyline.width,
+        strokeWeight: highlightStyle.dashed.width,
+        strokeDashStyle: 'dash',
         clickable: false,
       })
     } else {
       drawingPolyline.value.setPath(drawingPoints.value)
       drawingPolyline.value.setMap(mapInstance.value)
+      try {
+        if (typeof drawingPolyline.value.setOptions === 'function') {
+          drawingPolyline.value.setOptions({
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.dashed.width,
+            strokeDashStyle: 'dash',
+          })
+        }
+      } catch (_) {}
     }
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([
-      { id: 'drawing', styleId: 'solid', paths: drawingPoints.value },
+      { id: 'drawing', styleId: 'dashed', paths: drawingPoints.value },
     ])
   }
   updateVertexMarkers()
@@ -849,11 +921,21 @@ const updatePathPreview = (cursorPoint = null) => {
         path: points,
         strokeColor: '#ff4d4f',
         strokeWeight: highlightStyle.dashed.width,
+        strokeDashStyle: 'dash',
         clickable: false,
       })
     } else {
       drawingPolyline.value.setPath(points)
       drawingPolyline.value.setMap(mapInstance.value)
+      try {
+        if (typeof drawingPolyline.value.setOptions === 'function') {
+          drawingPolyline.value.setOptions({
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.dashed.width,
+            strokeDashStyle: 'dash',
+          })
+        }
+      } catch (_) {}
     }
   } else if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
     drawingPolyline.value.setGeometries([{ id: 'preview', styleId: 'dashed', paths: points }])
@@ -1218,8 +1300,27 @@ const editZone = (zone) => {
     drawingPoints.value = paths
     if (window.qq && window.qq.maps) {
       if (zone.type === 'POLYLINE') {
-        if (!drawingPolyline.value) drawingPolyline.value = new window.qq.maps.Polyline({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polyline.width })
-        else { drawingPolyline.value.setPath(paths); drawingPolyline.value.setMap(mapInstance.value) }
+        if (!drawingPolyline.value) {
+          drawingPolyline.value = new window.qq.maps.Polyline({
+            map: mapInstance.value,
+            path: paths,
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.dashed.width,
+            strokeDashStyle: 'dash',
+          })
+        } else {
+          drawingPolyline.value.setPath(paths)
+          drawingPolyline.value.setMap(mapInstance.value)
+          try {
+            if (typeof drawingPolyline.value.setOptions === 'function') {
+              drawingPolyline.value.setOptions({
+                strokeColor: '#ff4d4f',
+                strokeWeight: highlightStyle.dashed.width,
+                strokeDashStyle: 'dash',
+              })
+            }
+          } catch (_) {}
+        }
       } else {
         if (!drawingPolygon.value) drawingPolygon.value = new window.qq.maps.Polygon({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polygon.strokeWidth, fillColor: toQqColor(highlightStyle.polygon.fillColor, 1) })
         else { drawingPolygon.value.setPath(paths); drawingPolygon.value.setMap(mapInstance.value) }
@@ -1227,7 +1328,7 @@ const editZone = (zone) => {
     } else {
       ensureDrawingLayers(window.TMap)
       if (zone.type === 'POLYLINE') {
-        drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'solid', paths }])
+        drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'dashed', paths }])
       } else {
         drawingPolygon.value.setGeometries([{ id: 'drawing', styleId: 'zone', paths }])
       }
@@ -1592,37 +1693,78 @@ const handleSearch = async () => {
   if (!query) return
   searchLoading.value = true
   try {
-    const response = await fetch(
-      `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(query)}&key=${TENCENT_MAP_KEY}`,
-    )
-    if (!response.ok) {
-      throw new Error(`Unexpected response status: ${response.status}`)
+    let position = null
+    if (window.qq && window.qq.maps && typeof window.qq.maps.Geocoder === 'function') {
+      const location = await new Promise((resolve, reject) => {
+        try {
+          const geocoder = new window.qq.maps.Geocoder({
+            complete: (result) => {
+              const detail = result?.detail || {}
+              const loc = detail.location || result?.location
+              const lat = Number(loc?.lat)
+              const lng = Number(loc?.lng)
+              if (Number.isNaN(lat) || Number.isNaN(lng)) {
+                reject(Object.assign(new Error('GEOCODER_EMPTY'), { code: 'NO_RESULT' }))
+                return
+              }
+              resolve({ lat, lng })
+            },
+            error: (err) => reject(err || Object.assign(new Error('GEOCODER_ERROR'), { code: 'GEOCODER_ERROR' })),
+          })
+          geocoder.getLocation(query)
+        } catch (error) {
+          reject(error)
+        }
+      })
+      position = new window.qq.maps.LatLng(location.lat, location.lng)
+    } else {
+      const response = await fetch(
+        `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(query)}&key=${TENCENT_MAP_KEY}`,
+      )
+      if (!response.ok) {
+        throw new Error(`Unexpected response status: ${response.status}`)
+      }
+      const data = await response.json()
+      const location = data?.result?.location
+      const lat = Number(location?.lat)
+      const lng = Number(location?.lng)
+      if (data?.status !== 0 || Number.isNaN(lat) || Number.isNaN(lng)) {
+        message.warning(t('noFlyZone.search.noResult'))
+        return
+      }
+      position = new window.TMap.LatLng(lat, lng)
     }
-    const data = await response.json()
-    const location = data?.result?.location
-    const lat = Number(location?.lat)
-    const lng = Number(location?.lng)
-    if (data?.status !== 0 || Number.isNaN(lat) || Number.isNaN(lng)) {
+
+    if (!position) {
       message.warning(t('noFlyZone.search.noResult'))
       return
     }
-    const position = (window.qq && window.qq.maps)
-      ? new window.qq.maps.LatLng(lat, lng)
-      : new window.TMap.LatLng(lat, lng)
+
     if (window.qq && window.qq.maps) {
       if (searchMarker.value) searchMarker.value.setMap(null)
-      searchMarker.value = new window.qq.maps.Marker({ map: mapInstance.value, position })
+      const icon = getSearchMarkerIcon()
+      const markerOptions = { map: mapInstance.value, position }
+      if (icon) markerOptions.icon = icon
+      searchMarker.value = new window.qq.maps.Marker(markerOptions)
     } else {
       ensureSearchLayer(window.TMap)
       searchMarkerLayer.value.setGeometries([{ id: 'search-result', styleId: 'result', position }])
     }
-    mapInstance.value.setCenter(position)
-    if (mapInstance.value.getZoom() < 14) {
-      mapInstance.value.setZoom(14)
+    if (typeof mapInstance.value.setCenter === 'function') {
+      mapInstance.value.setCenter(position)
+    }
+    if (typeof mapInstance.value.getZoom === 'function' && mapInstance.value.getZoom() < 14) {
+      if (typeof mapInstance.value.setZoom === 'function') {
+        mapInstance.value.setZoom(14)
+      }
     }
   } catch (error) {
     console.error('Failed to search address', error)
-    message.error(t('noFlyZone.search.error'))
+    if (error?.code === 'NO_RESULT') {
+      message.warning(t('noFlyZone.search.noResult'))
+    } else {
+      message.error(t('noFlyZone.search.error'))
+    }
   } finally {
     searchLoading.value = false
   }
