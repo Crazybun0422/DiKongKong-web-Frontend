@@ -4,6 +4,7 @@ import { message, Modal } from 'ant-design-vue'
 import { EditOutlined, DeleteOutlined, EnvironmentOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
+import { wgs84ToGcj02 } from '../../utils/coords'
 import {
   createNoFlyZone,
   deleteNoFlyZone,
@@ -52,6 +53,38 @@ const mapRightClickHandler = ref(null)
 const searchMarkerLayer = ref(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
+
+const searchPlaces = async (keyword, location) => {
+  const trimmed = typeof keyword === 'string' ? keyword.trim() : ''
+  if (!trimmed) return []
+  if (!TENCENT_MAP_KEY) {
+    throw Object.assign(new Error('Missing Tencent Map key'), { code: 'MISSING_KEY' })
+  }
+  const params = new URLSearchParams({
+    key: TENCENT_MAP_KEY,
+    keyword: trimmed,
+    region: 'nationwide',
+    page_size: '20',
+    policy: '1',
+  })
+  if (location) {
+    const lat = Number(location.lat ?? location.latitude)
+    const lng = Number(location.lng ?? location.longitude)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      const gcj = wgs84ToGcj02(lng, lat)
+      params.set('location', `${gcj.lat},${gcj.lng}`)
+    }
+  }
+  const response = await fetch(`https://apis.map.qq.com/ws/place/v1/suggestion?${params.toString()}`)
+  if (!response.ok) {
+    throw Object.assign(new Error(`Search failed: ${response.status}`), { code: 'REQUEST_FAILED', status: response.status })
+  }
+  const data = await response.json()
+  if (data?.status !== 0) {
+    throw Object.assign(new Error('Search API returned error'), { code: 'API_ERROR', data })
+  }
+  return Array.isArray(data?.data) ? data.data : []
+}
 
 const zoneList = ref([])
 const listLoading = ref(false)
@@ -1693,60 +1726,54 @@ const handleSearch = async () => {
   if (!query) return
   searchLoading.value = true
   try {
-    let position = null
-    if (window.qq && window.qq.maps && typeof window.qq.maps.Geocoder === 'function') {
-      const location = await new Promise((resolve, reject) => {
-        try {
-          const geocoder = new window.qq.maps.Geocoder({
-            complete: (result) => {
-              const detail = result?.detail || {}
-              const loc = detail.location || result?.location
-              const lat = Number(loc?.lat)
-              const lng = Number(loc?.lng)
-              if (Number.isNaN(lat) || Number.isNaN(lng)) {
-                reject(Object.assign(new Error('GEOCODER_EMPTY'), { code: 'NO_RESULT' }))
-                return
-              }
-              resolve({ lat, lng })
-            },
-            error: (err) => reject(err || Object.assign(new Error('GEOCODER_ERROR'), { code: 'GEOCODER_ERROR' })),
-          })
-          geocoder.getLocation(query)
-        } catch (error) {
-          reject(error)
-        }
-      })
-      position = new window.qq.maps.LatLng(location.lat, location.lng)
-    } else {
-      const response = await fetch(
-        `https://apis.map.qq.com/ws/geocoder/v1/?address=${encodeURIComponent(query)}&key=${TENCENT_MAP_KEY}`,
-      )
-      if (!response.ok) {
-        throw new Error(`Unexpected response status: ${response.status}`)
+    let centerLocation = null
+    if (typeof mapInstance.value.getCenter === 'function') {
+      const center = mapInstance.value.getCenter()
+      const lat = Number(center?.lat ?? center?.getLat?.())
+      const lng = Number(center?.lng ?? center?.getLng?.())
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        centerLocation = { lat, lng }
       }
-      const data = await response.json()
-      const location = data?.result?.location
-      const lat = Number(location?.lat)
-      const lng = Number(location?.lng)
-      if (data?.status !== 0 || Number.isNaN(lat) || Number.isNaN(lng)) {
-        message.warning(t('noFlyZone.search.noResult'))
-        return
-      }
-      position = new window.TMap.LatLng(lat, lng)
     }
 
-    if (!position) {
+    const results = await searchPlaces(query, centerLocation)
+    const firstResult = results.find((item) => {
+      const loc = item?.location
+      const lat = Number(loc?.lat)
+      const lng = Number(loc?.lng)
+      return Number.isFinite(lat) && Number.isFinite(lng)
+    })
+
+    if (!firstResult) {
       message.warning(t('noFlyZone.search.noResult'))
       return
     }
 
-    if (window.qq && window.qq.maps) {
+    const location = firstResult.location
+    const lat = Number(location.lat)
+    const lng = Number(location.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      message.warning(t('noFlyZone.search.noResult'))
+      return
+    }
+
+    const isQqMap = !!(window.qq && window.qq.maps)
+    const hasTMap = typeof window !== 'undefined' && window.TMap && typeof window.TMap.LatLng === 'function'
+    if (!isQqMap && !hasTMap) {
+      message.warning(t('noFlyZone.search.mapNotReady'))
+      return
+    }
+    const position = isQqMap
+      ? new window.qq.maps.LatLng(lat, lng)
+      : new window.TMap.LatLng(lat, lng)
+
+    if (isQqMap) {
       if (searchMarker.value) searchMarker.value.setMap(null)
       const icon = getSearchMarkerIcon()
       const markerOptions = { map: mapInstance.value, position }
       if (icon) markerOptions.icon = icon
       searchMarker.value = new window.qq.maps.Marker(markerOptions)
-    } else {
+    } else if (hasTMap) {
       ensureSearchLayer(window.TMap)
       searchMarkerLayer.value.setGeometries([{ id: 'search-result', styleId: 'result', position }])
     }
@@ -1943,7 +1970,7 @@ const handleSearch = async () => {
 .map-container {
   position: relative;
   width: 100%;
-  height: 460px;
+  height: 600px;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -1983,7 +2010,7 @@ const handleSearch = async () => {
   }
 
   .map-container {
-    height: 360px;
+    height: 420px;
   }
 }
 </style>
