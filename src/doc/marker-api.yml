@@ -118,6 +118,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /api/markers/search:
+    get:
+      summary: 搜索已审核通过的标记
+      description: 根据关键字模糊搜索已审核通过（APPROVED）状态的标记，接口无需登录即可访问。
+      security: []
+      parameters:
+        - in: query
+          name: keyword
+          required: true
+          schema:
+            type: string
+          description: 搜索关键字，不能为空。
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 返回结果条数上限，默认 20，最大 50。
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMarkerList'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
         '401':
           description: 未授权
           content:
@@ -266,6 +299,68 @@ paths:
                 $ref: '#/components/schemas/ApiResponseObject'
         '403':
           description: 无权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '404':
+          description: 标记不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+  /api/markers/{id}/exposure:
+    post:
+      summary: 标记曝光次数 +1
+      description: 公开接口，根据标记 ID 将曝光次数自增 1 并返回最新指标。
+      operationId: incrementMarkerExposure
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMarkerMetricsResponse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '404':
+          description: 标记不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+  /api/markers/{id}/phone-call:
+    post:
+      summary: 标记拨打电话次数 +1
+      description: 公开接口，根据标记 ID 将拨打电话次数自增 1 并返回最新指标。
+      operationId: incrementMarkerPhoneCall
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMarkerMetricsResponse'
+        '400':
+          description: 参数错误
           content:
             application/json:
               schema:
@@ -469,6 +564,17 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/MarkerCountResponse'
+    ApiResponseMarkerMetricsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          $ref: '#/components/schemas/MarkerMetricsResponse'
     ApiResponseVoid:
       type: object
       properties:
@@ -499,3 +605,14 @@ components:
         count:
           type: integer
           format: int64
+    MarkerMetricsResponse:
+      type: object
+      properties:
+        exposureCount:
+          type: integer
+          format: int64
+          description: 标记被曝光的总次数。
+        phoneCallCount:
+          type: integer
+          format: int64
+          description: 标记被拨打电话的总次数。

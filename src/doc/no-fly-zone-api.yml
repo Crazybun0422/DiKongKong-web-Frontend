@@ -307,7 +307,6 @@ components:
       required:
         - name
         - type
-        - wechatLink
       properties:
         name:
           type: string
@@ -338,7 +337,7 @@ components:
           description: 失效时间（秒），可选。
         wechatLink:
           type: string
-          description: 关联的微信公众号链接，仅支持 mp.weixin.qq.com 域名。
+          description: 关联的微信公众号链接，仅支持 mp.weixin.qq.com 域名，非必填。
     NoFlyZoneResponse:
       type: object
       properties:
