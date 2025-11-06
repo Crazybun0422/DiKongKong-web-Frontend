@@ -273,12 +273,31 @@
   },
   "settings": {
     "weapp": {
-      "tabTitle": "Mini program"
+      "tabTitle": "Mini program",
+      "appId": "AppID",
+      "secret": "App Secret",
+      "jwtSecret": "JWT Secret",
+      "placeholders": {
+        "appId": "Enter the mini program AppID",
+        "secret": "Enter the App Secret",
+        "jwtSecret": "Enter the JWT secret for token exchange"
+      },
+      "validation": {
+        "appId": "Please enter the AppID",
+        "secret": "Please enter the App Secret",
+        "jwtSecret": "Please enter the JWT secret"
+      },
+      "messages": {
+        "loadFailed": "Failed to load mini program settings",
+        "saveSuccess": "Mini program settings saved",
+        "saveFailed": "Failed to save mini program settings"
+      }
     },
     "tabs": {
       "invite": "Referral rewards",
       "mapSettlement": "Merchant onboarding",
       "openPlatform": "Open platform",
+      "payment": "Payment settings",
       "weapp": "Mini program"
     },
     "invite": {
@@ -344,21 +363,50 @@
         "content": "Open platform content",
         "placeholder": "Enter rich text content for the open platform"
       },
-  "actions": {
-    "save": "Save content",
-    "preview": "Preview content"
-  },
-  "messages": {
-    "loadFailed": "Failed to load open platform content",
-    "saveSuccess": "Open platform content saved",
-    "saveFailed": "Failed to save open platform content"
-  },
-  "preview": {
-    "title": "Open platform content preview",
-    "empty": "No content to preview yet. Please add copy in the editor.",
-    "close": "Close preview"
-  }
-}
+      "actions": {
+        "save": "Save content",
+        "preview": "Preview content"
+      },
+      "messages": {
+        "loadFailed": "Failed to load open platform content",
+        "saveSuccess": "Open platform content saved",
+        "saveFailed": "Failed to save open platform content"
+      },
+      "preview": {
+        "title": "Open platform content preview",
+        "empty": "No content to preview yet. Please add copy in the editor.",
+        "close": "Close preview"
+      }
+    },
+    "payment": {
+      "description": "Configure the credentials required for WeChat Pay integration.",
+      "form": {
+        "mchId": "Merchant ID",
+        "privateKeyPath": "API certificate private key path",
+        "certificateSerialNumber": "Certificate serial number",
+        "apiV3Key": "APIv3 key",
+        "callbackUrl": "Payment callback URL"
+      },
+      "placeholders": {
+        "mchId": "Enter the WeChat Pay merchant ID",
+        "privateKeyPath": "Enter the absolute path to the merchant private key",
+        "certificateSerialNumber": "Enter the certificate serial number",
+        "apiV3Key": "Enter the 32-character APIv3 key",
+        "callbackUrl": "Enter the callback URL exposed to WeChat"
+      },
+      "validation": {
+        "mchId": "Please enter the merchant ID",
+        "privateKeyPath": "Please enter the private key path",
+        "certificateSerialNumber": "Please enter the certificate serial number",
+        "apiV3Key": "Please enter the APIv3 key",
+        "callbackUrl": "Please enter the callback URL"
+      },
+      "messages": {
+        "loadFailed": "Failed to load payment configuration",
+        "saveSuccess": "Payment configuration saved",
+        "saveFailed": "Failed to save payment configuration"
+      }
+    }
   },
   "messages": {
     "requestFailed": "Request failed, please retry"

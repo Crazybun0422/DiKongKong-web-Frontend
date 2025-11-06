@@ -10,6 +10,7 @@ import {
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
 } from '../../services/config'
+import { fetchWechatPayConfig, saveWechatPayConfig } from '../../services/wechatPayConfig'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
@@ -91,6 +92,25 @@ const weappRules = computed(() => ({
 }))
 const weappLoading = ref(false)
 const weappSaving = ref(false)
+
+const paymentForm = reactive({
+  mchId: '',
+  privateKeyPath: '',
+  certificateSerialNumber: '',
+  apiV3Key: '',
+  callbackUrl: '',
+})
+const paymentRules = computed(() => ({
+  mchId: [{ required: true, message: t('settings.payment.validation.mchId') }],
+  privateKeyPath: [{ required: true, message: t('settings.payment.validation.privateKeyPath') }],
+  certificateSerialNumber: [
+    { required: true, message: t('settings.payment.validation.certificateSerialNumber') },
+  ],
+  apiV3Key: [{ required: true, message: t('settings.payment.validation.apiV3Key') }],
+  callbackUrl: [{ required: true, message: t('settings.payment.validation.callbackUrl') }],
+}))
+const paymentLoading = ref(false)
+const paymentSaving = ref(false)
 
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
@@ -265,6 +285,43 @@ const submitWeappForm = async () => {
   }
 }
 
+const loadPaymentConfig = async () => {
+  paymentLoading.value = true
+  try {
+    const data = await fetchWechatPayConfig()
+    paymentForm.mchId = data?.mchId || ''
+    paymentForm.privateKeyPath = data?.privateKeyPath || ''
+    paymentForm.certificateSerialNumber = data?.certificateSerialNumber || ''
+    paymentForm.apiV3Key = data?.apiV3Key || ''
+    paymentForm.callbackUrl = data?.callbackUrl || ''
+  } catch (error) {
+    console.error('Failed to load payment config', error)
+    message.error(t('settings.payment.messages.loadFailed'))
+  } finally {
+    paymentLoading.value = false
+  }
+}
+
+const submitPaymentForm = async () => {
+  paymentSaving.value = true
+  try {
+    await saveWechatPayConfig({
+      mchId: paymentForm.mchId,
+      privateKeyPath: paymentForm.privateKeyPath,
+      certificateSerialNumber: paymentForm.certificateSerialNumber,
+      apiV3Key: paymentForm.apiV3Key,
+      callbackUrl: paymentForm.callbackUrl,
+    })
+    message.success(t('settings.payment.messages.saveSuccess'))
+    loadPaymentConfig()
+  } catch (error) {
+    console.error('Failed to save payment config', error)
+    message.error(t('settings.payment.messages.saveFailed'))
+  } finally {
+    paymentSaving.value = false
+  }
+}
+
 const invitePaginationConfig = computed(() => ({
   current: inviteLogPagination.current,
   pageSize: inviteLogPagination.pageSize,
@@ -284,6 +341,7 @@ onMounted(() => {
   loadInviteLogs()
   loadMapConfig()
   loadOpenPlatform()
+  loadPaymentConfig()
   loadWeappConfig()
 })
 </script>
@@ -514,6 +572,86 @@ onMounted(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="payment" :tab="t('settings.tabs.payment')">
+          <div class="tab-section">
+            <p class="tab-description">{{ t('settings.payment.description') }}</p>
+            <a-spin :spinning="paymentLoading">
+              <a-form
+                :model="paymentForm"
+                :rules="paymentRules"
+                layout="vertical"
+                @finish="submitPaymentForm"
+              >
+                <a-row :gutter="[24, 12]">
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="mchId" :label="t('settings.payment.form.mchId')">
+                      <a-input
+                        v-model:value="paymentForm.mchId"
+                        :placeholder="t('settings.payment.placeholders.mchId')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item
+                      name="privateKeyPath"
+                      :label="t('settings.payment.form.privateKeyPath')"
+                    >
+                      <a-input
+                        v-model:value="paymentForm.privateKeyPath"
+                        :placeholder="t('settings.payment.placeholders.privateKeyPath')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item
+                      name="certificateSerialNumber"
+                      :label="t('settings.payment.form.certificateSerialNumber')"
+                    >
+                      <a-input
+                        v-model:value="paymentForm.certificateSerialNumber"
+                        :placeholder="t('settings.payment.placeholders.certificateSerialNumber')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="apiV3Key" :label="t('settings.payment.form.apiV3Key')">
+                      <a-input-password
+                        v-model:value="paymentForm.apiV3Key"
+                        :placeholder="t('settings.payment.placeholders.apiV3Key')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="24">
+                    <a-form-item name="callbackUrl" :label="t('settings.payment.form.callbackUrl')">
+                      <a-input
+                        v-model:value="paymentForm.callbackUrl"
+                        :placeholder="t('settings.payment.placeholders.callbackUrl')"
+                        allow-clear
+                      />
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="paymentSaving">
+                    {{ t('common.actions.save') }}
+                  </a-button>
+                  <a-button
+                    type="default"
+                    @click="loadPaymentConfig"
+                    :disabled="paymentLoading || paymentSaving"
+                  >
+                    {{ t('common.actions.reset') }}
+                  </a-button>
+                </div>
+              </a-form>
+            </a-spin>
+          </div>
+        </a-tab-pane>
+
         <a-tab-pane key="weapp" :tab="t('settings.tabs.weapp')">
           <div class="tab-section">
             <a-spin :spinning="weappLoading">
@@ -582,6 +720,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+.tab-description {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .invite-table {

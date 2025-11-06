@@ -273,12 +273,31 @@
   },
   "settings": {
     "weapp": {
-      "tabTitle": "小程序设置"
+      "tabTitle": "小程序设置",
+      "appId": "小程序 AppID",
+      "secret": "小程序密钥",
+      "jwtSecret": "JWT 密钥",
+      "placeholders": {
+        "appId": "请输入小程序 AppID",
+        "secret": "请输入小程序密钥",
+        "jwtSecret": "请输入 JWT 密钥"
+      },
+      "validation": {
+        "appId": "请填写小程序 AppID",
+        "secret": "请填写小程序密钥",
+        "jwtSecret": "请填写 JWT 密钥"
+      },
+      "messages": {
+        "loadFailed": "小程序配置加载失败",
+        "saveSuccess": "小程序配置已保存",
+        "saveFailed": "小程序配置保存失败"
+      }
     },
     "tabs": {
       "invite": "拉新奖励配置",
       "mapSettlement": "地图商户入驻配置",
       "openPlatform": "开放平台",
+      "payment": "支付设置",
       "weapp": "小程序设置"
     },
     "invite": {
@@ -344,21 +363,50 @@
         "content": "开放平台文案",
         "placeholder": "请输入开放平台的展示内容"
       },
-  "actions": {
-    "save": "保存文案",
-    "preview": "预览文案"
-  },
-  "messages": {
-    "loadFailed": "开放平台文案加载失败",
-    "saveSuccess": "开放平台文案已保存",
-    "saveFailed": "开放平台文案保存失败"
-  },
-  "preview": {
-    "title": "开放平台文案预览",
-    "empty": "暂无文案内容，请先在编辑器中输入文案。",
-    "close": "关闭预览"
-  }
-}
+      "actions": {
+        "save": "保存文案",
+        "preview": "预览文案"
+      },
+      "messages": {
+        "loadFailed": "开放平台文案加载失败",
+        "saveSuccess": "开放平台文案已保存",
+        "saveFailed": "开放平台文案保存失败"
+      },
+      "preview": {
+        "title": "开放平台文案预览",
+        "empty": "暂无文案内容，请先在编辑器中输入文案。",
+        "close": "关闭预览"
+      }
+    },
+    "payment": {
+      "description": "配置微信支付接口所需的商户与回调参数。",
+      "form": {
+        "mchId": "商户号",
+        "privateKeyPath": "证书私钥路径",
+        "certificateSerialNumber": "证书序列号",
+        "apiV3Key": "APIv3 密钥",
+        "callbackUrl": "回调通知 URL"
+      },
+      "placeholders": {
+        "mchId": "请输入微信支付商户号",
+        "privateKeyPath": "请输入商户 API 证书私钥路径",
+        "certificateSerialNumber": "请输入商户证书序列号",
+        "apiV3Key": "请输入 32 位 APIv3 密钥",
+        "callbackUrl": "请输入微信回调通知地址"
+      },
+      "validation": {
+        "mchId": "请填写商户号",
+        "privateKeyPath": "请填写证书私钥路径",
+        "certificateSerialNumber": "请填写证书序列号",
+        "apiV3Key": "请填写 APIv3 密钥",
+        "callbackUrl": "请填写回调通知地址"
+      },
+      "messages": {
+        "loadFailed": "支付配置加载失败",
+        "saveSuccess": "支付配置已保存",
+        "saveFailed": "支付配置保存失败"
+      }
+    }
   },
   "messages": {
     "requestFailed": "请求失败，请稍后重试"
