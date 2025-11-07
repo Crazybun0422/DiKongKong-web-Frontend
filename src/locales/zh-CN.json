@@ -73,6 +73,43 @@
   "dashboard": {
     "pending": "待审核"
   },
+  "orders": {
+    "summary": {
+      "title": "新增订单"
+    },
+    "modal": {
+      "title": "订单详情",
+      "close": "关闭"
+    },
+    "table": {
+      "columns": {
+        "orderNumber": "订单号",
+        "featureCode": "功能码",
+        "status": "状态",
+        "paymentType": "支付方式",
+        "amount": "金额",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间"
+      }
+    },
+    "status": {
+      "waitingPayment": "待支付",
+      "paid": "已支付",
+      "refunded": "已退款",
+      "unknown": "未知"
+    },
+    "paymentType": {
+      "cash": "现金",
+      "flp": "FLP",
+      "unknown": "未知"
+    },
+    "messages": {
+      "loadFailed": "订单加载失败，请稍后重试。"
+    },
+    "pagination": {
+      "total": "共 {total} 条订单 · 显示第 {start}-{end} 条"
+    }
+  },
   "airspace": {
     "title": "空域地图标记管理",
     "subtitle": "按审核状态快速筛选，完成标记的审核与维护。",
