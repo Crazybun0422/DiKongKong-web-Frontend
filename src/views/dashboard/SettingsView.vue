@@ -289,11 +289,11 @@ const loadPaymentConfig = async () => {
   paymentLoading.value = true
   try {
     const data = await fetchWechatPayConfig()
-    paymentForm.mchId = data?.mchId || ''
+    paymentForm.mchId = data?.merchantId || ''
     paymentForm.privateKeyPath = data?.privateKeyPath || ''
-    paymentForm.certificateSerialNumber = data?.certificateSerialNumber || ''
+    paymentForm.certificateSerialNumber = data?.merchantSerialNumber || ''
     paymentForm.apiV3Key = data?.apiV3Key || ''
-    paymentForm.callbackUrl = data?.callbackUrl || ''
+    paymentForm.callbackUrl = data?.notifyUrl || ''
   } catch (error) {
     console.error('Failed to load payment config', error)
     message.error(t('settings.payment.messages.loadFailed'))
@@ -306,11 +306,11 @@ const submitPaymentForm = async () => {
   paymentSaving.value = true
   try {
     await saveWechatPayConfig({
-      mchId: paymentForm.mchId,
+      merchantId: paymentForm.mchId,
       privateKeyPath: paymentForm.privateKeyPath,
-      certificateSerialNumber: paymentForm.certificateSerialNumber,
+      merchantSerialNumber: paymentForm.certificateSerialNumber,
       apiV3Key: paymentForm.apiV3Key,
-      callbackUrl: paymentForm.callbackUrl,
+      notifyUrl: paymentForm.callbackUrl,
     })
     message.success(t('settings.payment.messages.saveSuccess'))
     loadPaymentConfig()
@@ -359,25 +359,15 @@ onMounted(() => {
                   <p>{{ t('settings.invite.logs.subtitle') }}</p>
                 </div>
                 <div class="filters">
-                  <a-input
-                    v-model:value="inviteLogFilters.featureCode"
-                    :placeholder="t('settings.invite.logs.searchPlaceholder')"
-                    allow-clear
-                    class="filter-input"
-                  />
+                  <a-input v-model:value="inviteLogFilters.featureCode"
+                    :placeholder="t('settings.invite.logs.searchPlaceholder')" allow-clear class="filter-input" />
                   <a-button type="primary" @click="handleInviteLogSearch">
                     {{ t('settings.invite.logs.search') }}
                   </a-button>
                 </div>
               </header>
-              <a-table
-                :columns="inviteColumns"
-                :data-source="inviteLogs"
-                :loading="inviteLogsLoading"
-                :pagination="invitePaginationConfig"
-                row-key="id"
-                @change="handleInviteLogTableChange"
-              >
+              <a-table :columns="inviteColumns" :data-source="inviteLogs" :loading="inviteLogsLoading"
+                :pagination="invitePaginationConfig" row-key="id" @change="handleInviteLogTableChange">
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'avatar'">
                     <a-avatar :src="record?.user?.avatarUrl" :alt="record?.user?.username" />
@@ -405,27 +395,16 @@ onMounted(() => {
                 <a-form :model="inviteForm" :rules="inviteRules" layout="vertical" @finish="submitInviteForm">
                   <a-row :gutter="[24, 12]">
                     <a-col :xs="24" :md="12">
-                      <a-form-item name="friendRegisterRewardFlp" :label="t('settings.invite.form.friendRegisterRewardFlp')">
-                        <a-input-number
-                          v-model:value="inviteForm.friendRegisterRewardFlp"
-                          :min="0"
-                          :step="0.1"
-                          :precision="2"
-                          :placeholder="t('settings.invite.form.placeholder')"
-                          style="width: 100%"
-                        />
+                      <a-form-item name="friendRegisterRewardFlp"
+                        :label="t('settings.invite.form.friendRegisterRewardFlp')">
+                        <a-input-number v-model:value="inviteForm.friendRegisterRewardFlp" :min="0" :step="0.1"
+                          :precision="2" :placeholder="t('settings.invite.form.placeholder')" style="width: 100%" />
                       </a-form-item>
                     </a-col>
                     <a-col :xs="24" :md="12">
                       <a-form-item name="friendFirstMarkerFlp" :label="t('settings.invite.form.friendFirstMarkerFlp')">
-                        <a-input-number
-                          v-model:value="inviteForm.friendFirstMarkerFlp"
-                          :min="0"
-                          :step="0.1"
-                          :precision="2"
-                          :placeholder="t('settings.invite.form.placeholder')"
-                          style="width: 100%"
-                        />
+                        <a-input-number v-model:value="inviteForm.friendFirstMarkerFlp" :min="0" :step="0.1"
+                          :precision="2" :placeholder="t('settings.invite.form.placeholder')" style="width: 100%" />
                       </a-form-item>
                     </a-col>
                   </a-row>
@@ -450,46 +429,26 @@ onMounted(() => {
                 <a-row :gutter="[24, 12]">
                   <a-col :xs="24" :md="12">
                     <a-form-item name="wechatListPrice" :label="t('settings.mapSettlement.form.wechatListPrice')">
-                      <a-input-number
-                        v-model:value="mapForm.wechatListPrice"
-                        :min="0"
-                        :precision="2"
-                        :step="0.1"
-                        style="width: 100%"
-                      />
+                      <a-input-number v-model:value="mapForm.wechatListPrice" :min="0" :precision="2" :step="0.1"
+                        style="width: 100%" />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="wechatNetPrice" :label="t('settings.mapSettlement.form.wechatNetPrice')">
-                      <a-input-number
-                        v-model:value="mapForm.wechatNetPrice"
-                        :min="0"
-                        :precision="2"
-                        :step="0.1"
-                        style="width: 100%"
-                      />
+                      <a-input-number v-model:value="mapForm.wechatNetPrice" :min="0" :precision="2" :step="0.1"
+                        style="width: 100%" />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="flpListPrice" :label="t('settings.mapSettlement.form.flpListPrice')">
-                      <a-input-number
-                        v-model:value="mapForm.flpListPrice"
-                        :min="0"
-                        :precision="2"
-                        :step="0.1"
-                        style="width: 100%"
-                      />
+                      <a-input-number v-model:value="mapForm.flpListPrice" :min="0" :precision="2" :step="0.1"
+                        style="width: 100%" />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="flpNetPrice" :label="t('settings.mapSettlement.form.flpNetPrice')">
-                      <a-input-number
-                        v-model:value="mapForm.flpNetPrice"
-                        :min="0"
-                        :precision="2"
-                        :step="0.1"
-                        style="width: 100%"
-                      />
+                      <a-input-number v-model:value="mapForm.flpNetPrice" :min="0" :precision="2" :step="0.1"
+                        style="width: 100%" />
                     </a-form-item>
                   </a-col>
                 </a-row>
@@ -511,54 +470,34 @@ onMounted(() => {
             <a-spin :spinning="openPlatformLoading">
               <a-form :model="openPlatformForm" layout="vertical" @finish="submitOpenPlatform">
                 <a-form-item name="content" :label="t('settings.openPlatform.form.content')">
-                  <open-platform-editor
-                    v-model="openPlatformForm.content"
+                  <open-platform-editor v-model="openPlatformForm.content"
                     :placeholder="t('settings.openPlatform.form.placeholder')"
-                    :disabled="openPlatformLoading || openPlatformSaving"
-                  />
+                    :disabled="openPlatformLoading || openPlatformSaving" />
                 </a-form-item>
                 <div class="actions">
                   <a-button type="primary" html-type="submit" :loading="openPlatformSaving">
                     {{ t('settings.openPlatform.actions.save') }}
                   </a-button>
-                  <a-button
-                    type="default"
-                    @click="showOpenPlatformPreview"
-                    :disabled="openPlatformLoading"
-                  >
+                  <a-button type="default" @click="showOpenPlatformPreview" :disabled="openPlatformLoading">
                     {{ t('settings.openPlatform.actions.preview') }}
                   </a-button>
-                  <a-button
-                    type="default"
-                    @click="loadOpenPlatform"
-                    :disabled="openPlatformLoading || openPlatformSaving"
-                  >
+                  <a-button type="default" @click="loadOpenPlatform"
+                    :disabled="openPlatformLoading || openPlatformSaving">
                     {{ t('common.actions.reset') }}
                   </a-button>
                 </div>
               </a-form>
             </a-spin>
-            <a-modal
-              :open="openPlatformPreviewVisible"
-              :title="t('settings.openPlatform.preview.title')"
-              width="440px"
-              :footer="null"
-              @cancel="closeOpenPlatformPreview"
-            >
+            <a-modal :open="openPlatformPreviewVisible" :title="t('settings.openPlatform.preview.title')" width="440px"
+              :footer="null" @cancel="closeOpenPlatformPreview">
               <div class="open-platform-preview">
                 <div class="open-platform-preview__device">
                   <div class="open-platform-preview__notch"></div>
                   <div class="open-platform-preview__screen">
                     <div class="open-platform-preview__scroller">
-                      <div
-                        v-if="openPlatformHasContent"
-                        class="open-platform-preview__content"
-                        v-html="openPlatformForm.content"
-                      ></div>
-                      <a-empty
-                        v-else
-                        :description="t('settings.openPlatform.preview.empty')"
-                      />
+                      <div v-if="openPlatformHasContent" class="open-platform-preview__content"
+                        v-html="openPlatformForm.content"></div>
+                      <a-empty v-else :description="t('settings.openPlatform.preview.empty')" />
                     </div>
                   </div>
                 </div>
@@ -576,62 +515,37 @@ onMounted(() => {
           <div class="tab-section">
             <p class="tab-description">{{ t('settings.payment.description') }}</p>
             <a-spin :spinning="paymentLoading">
-              <a-form
-                :model="paymentForm"
-                :rules="paymentRules"
-                layout="vertical"
-                @finish="submitPaymentForm"
-              >
+              <a-form :model="paymentForm" :rules="paymentRules" layout="vertical" @finish="submitPaymentForm">
                 <a-row :gutter="[24, 12]">
                   <a-col :xs="24" :md="12">
                     <a-form-item name="mchId" :label="t('settings.payment.form.mchId')">
-                      <a-input
-                        v-model:value="paymentForm.mchId"
-                        :placeholder="t('settings.payment.placeholders.mchId')"
-                        allow-clear
-                      />
+                      <a-input v-model:value="paymentForm.mchId" :placeholder="t('settings.payment.placeholders.mchId')"
+                        allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
-                    <a-form-item
-                      name="privateKeyPath"
-                      :label="t('settings.payment.form.privateKeyPath')"
-                    >
-                      <a-input
-                        v-model:value="paymentForm.privateKeyPath"
-                        :placeholder="t('settings.payment.placeholders.privateKeyPath')"
-                        allow-clear
-                      />
+                    <a-form-item name="privateKeyPath" :label="t('settings.payment.form.privateKeyPath')">
+                      <a-input v-model:value="paymentForm.privateKeyPath"
+                        :placeholder="t('settings.payment.placeholders.privateKeyPath')" allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
-                    <a-form-item
-                      name="certificateSerialNumber"
-                      :label="t('settings.payment.form.certificateSerialNumber')"
-                    >
-                      <a-input
-                        v-model:value="paymentForm.certificateSerialNumber"
-                        :placeholder="t('settings.payment.placeholders.certificateSerialNumber')"
-                        allow-clear
-                      />
+                    <a-form-item name="certificateSerialNumber"
+                      :label="t('settings.payment.form.certificateSerialNumber')">
+                      <a-input v-model:value="paymentForm.certificateSerialNumber"
+                        :placeholder="t('settings.payment.placeholders.certificateSerialNumber')" allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="apiV3Key" :label="t('settings.payment.form.apiV3Key')">
-                      <a-input-password
-                        v-model:value="paymentForm.apiV3Key"
-                        :placeholder="t('settings.payment.placeholders.apiV3Key')"
-                        allow-clear
-                      />
+                      <a-input-password v-model:value="paymentForm.apiV3Key"
+                        :placeholder="t('settings.payment.placeholders.apiV3Key')" allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :span="24">
                     <a-form-item name="callbackUrl" :label="t('settings.payment.form.callbackUrl')">
-                      <a-input
-                        v-model:value="paymentForm.callbackUrl"
-                        :placeholder="t('settings.payment.placeholders.callbackUrl')"
-                        allow-clear
-                      />
+                      <a-input v-model:value="paymentForm.callbackUrl"
+                        :placeholder="t('settings.payment.placeholders.callbackUrl')" allow-clear />
                     </a-form-item>
                   </a-col>
                 </a-row>
@@ -639,11 +553,7 @@ onMounted(() => {
                   <a-button type="primary" html-type="submit" :loading="paymentSaving">
                     {{ t('common.actions.save') }}
                   </a-button>
-                  <a-button
-                    type="default"
-                    @click="loadPaymentConfig"
-                    :disabled="paymentLoading || paymentSaving"
-                  >
+                  <a-button type="default" @click="loadPaymentConfig" :disabled="paymentLoading || paymentSaving">
                     {{ t('common.actions.reset') }}
                   </a-button>
                 </div>
@@ -659,29 +569,20 @@ onMounted(() => {
                 <a-row :gutter="[24, 12]">
                   <a-col :xs="24" :md="12">
                     <a-form-item name="appId" :label="t('settings.weapp.appId')">
-                      <a-input
-                        v-model:value="weappForm.appId"
-                        :placeholder="t('settings.weapp.placeholders.appId')"
-                        allow-clear
-                      />
+                      <a-input v-model:value="weappForm.appId" :placeholder="t('settings.weapp.placeholders.appId')"
+                        allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="secret" :label="t('settings.weapp.secret')">
-                      <a-input-password
-                        v-model:value="weappForm.secret"
-                        :placeholder="t('settings.weapp.placeholders.secret')"
-                        allow-clear
-                      />
+                      <a-input-password v-model:value="weappForm.secret"
+                        :placeholder="t('settings.weapp.placeholders.secret')" allow-clear />
                     </a-form-item>
                   </a-col>
                   <a-col :xs="24" :md="12">
                     <a-form-item name="jwtSecret" :label="t('settings.weapp.jwtSecret')">
-                      <a-input-password
-                        v-model:value="weappForm.jwtSecret"
-                        :placeholder="t('settings.weapp.placeholders.jwtSecret')"
-                        allow-clear
-                      />
+                      <a-input-password v-model:value="weappForm.jwtSecret"
+                        :placeholder="t('settings.weapp.placeholders.jwtSecret')" allow-clear />
                     </a-form-item>
                   </a-col>
                 </a-row>
