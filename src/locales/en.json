@@ -73,6 +73,43 @@
   "dashboard": {
     "pending": "Pending"
   },
+  "orders": {
+    "summary": {
+      "title": "New Orders"
+    },
+    "modal": {
+      "title": "Order details",
+      "close": "Close"
+    },
+    "table": {
+      "columns": {
+        "orderNumber": "Order No.",
+        "featureCode": "Feature code",
+        "status": "Status",
+        "paymentType": "Payment",
+        "amount": "Amount",
+        "createdAt": "Created at",
+        "updatedAt": "Updated at"
+      }
+    },
+    "status": {
+      "waitingPayment": "Awaiting payment",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "unknown": "Unknown"
+    },
+    "paymentType": {
+      "cash": "Cash",
+      "flp": "FLP",
+      "unknown": "Unknown"
+    },
+    "messages": {
+      "loadFailed": "Unable to load orders, please try again later."
+    },
+    "pagination": {
+      "total": "Total {total} orders · Showing {start}-{end}"
+    }
+  },
   "airspace": {
     "title": "Airspace Markers",
     "subtitle": "Manage and review submitted markers with quick filters.",
