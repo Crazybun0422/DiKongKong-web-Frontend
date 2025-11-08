@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -9,6 +9,8 @@ import {
   saveMapSettlementConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchFlpRewardHelpCopy,
+  saveFlpRewardHelpCopy,
 } from '../../services/config'
 import { fetchWechatPayConfig, saveWechatPayConfig } from '../../services/wechatPayConfig'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
@@ -60,14 +62,15 @@ const mapRules = computed(() => ({
 const mapLoading = ref(false)
 const mapSaving = ref(false)
 
-const openPlatformForm = reactive({
+const copyType = ref('openPlatform')
+const copyForm = reactive({
   content: '',
 })
-const openPlatformLoading = ref(false)
-const openPlatformSaving = ref(false)
-const openPlatformPreviewVisible = ref(false)
-const openPlatformHasContent = computed(() => {
-  const rawContent = openPlatformForm.content || ''
+const copyLoading = ref(false)
+const copySaving = ref(false)
+const copyPreviewVisible = ref(false)
+const copyHasContent = computed(() => {
+  const rawContent = copyForm.content || ''
   if (!rawContent.trim()) {
     return false
   }
@@ -79,6 +82,20 @@ const openPlatformHasContent = computed(() => {
 
   return /<img\s|<video\s|<iframe\s/i.test(rawContent)
 })
+const copyTypeOptions = computed(() => [
+  { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
+  { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
+])
+const copyHandlers = {
+  openPlatform: {
+    fetch: fetchOpenPlatformCopy,
+    save: saveOpenPlatformCopy,
+  },
+  flpRewardHelp: {
+    fetch: fetchFlpRewardHelpCopy,
+    save: saveFlpRewardHelpCopy,
+  },
+}
 
 const weappForm = reactive({
   appId: '',
@@ -218,39 +235,49 @@ const submitMapForm = async () => {
   }
 }
 
-const loadOpenPlatform = async () => {
-  openPlatformLoading.value = true
+const loadCopyContent = async () => {
+  const handler = copyHandlers[copyType.value]
+  if (!handler) {
+    return
+  }
+
+  copyLoading.value = true
   try {
-    const data = await fetchOpenPlatformCopy()
-    openPlatformForm.content = data?.content ?? ''
+    const data = await handler.fetch()
+    copyForm.content = data?.content ?? ''
   } catch (error) {
-    console.error('Failed to load open platform copy', error)
-    message.error(t('settings.openPlatform.messages.loadFailed'))
+    console.error('Failed to load copy content', error)
+    message.error(t('settings.copySettings.messages.loadFailed'))
   } finally {
-    openPlatformLoading.value = false
+    copyLoading.value = false
   }
 }
 
-const submitOpenPlatform = async () => {
-  openPlatformSaving.value = true
+const submitCopyForm = async () => {
+  const handler = copyHandlers[copyType.value]
+  if (!handler) {
+    return
+  }
+
+  copySaving.value = true
   try {
-    await saveOpenPlatformCopy({ content: openPlatformForm.content || '' })
-    message.success(t('settings.openPlatform.messages.saveSuccess'))
-    loadOpenPlatform()
+    await handler.save({ content: copyForm.content || '' })
+    message.success(t('settings.copySettings.messages.saveSuccess'))
+    loadCopyContent()
   } catch (error) {
-    console.error('Failed to save open platform copy', error)
-    message.error(t('settings.openPlatform.messages.saveFailed'))
+    console.error('Failed to save copy content', error)
+    message.error(t('settings.copySettings.messages.saveFailed'))
   } finally {
-    openPlatformSaving.value = false
+    copySaving.value = false
   }
 }
 
-const showOpenPlatformPreview = () => {
-  openPlatformPreviewVisible.value = true
+const showCopyPreview = () => {
+  copyPreviewVisible.value = true
 }
 
-const closeOpenPlatformPreview = () => {
-  openPlatformPreviewVisible.value = false
+const closeCopyPreview = () => {
+  copyPreviewVisible.value = false
 }
 
 const loadWeappConfig = async () => {
@@ -336,11 +363,17 @@ const invitePaginationConfig = computed(() => ({
     }),
 }))
 
+watch(copyType, (next, previous) => {
+  if (next !== previous) {
+    loadCopyContent()
+  }
+})
+
 onMounted(() => {
   loadInviteConfig()
   loadInviteLogs()
   loadMapConfig()
-  loadOpenPlatform()
+  loadCopyContent()
   loadPaymentConfig()
   loadWeappConfig()
 })
@@ -465,46 +498,51 @@ onMounted(() => {
           </div>
         </a-tab-pane>
 
-        <a-tab-pane key="open-platform" :tab="t('settings.tabs.openPlatform')">
+        <a-tab-pane key="copy-settings" :tab="t('settings.tabs.copySettings')">
           <div class="tab-section">
-            <a-spin :spinning="openPlatformLoading">
-              <a-form :model="openPlatformForm" layout="vertical" @finish="submitOpenPlatform">
-                <a-form-item name="content" :label="t('settings.openPlatform.form.content')">
-                  <open-platform-editor v-model="openPlatformForm.content"
-                    :placeholder="t('settings.openPlatform.form.placeholder')"
-                    :disabled="openPlatformLoading || openPlatformSaving" />
+            <a-spin :spinning="copyLoading">
+              <a-form :model="copyForm" layout="vertical" @finish="submitCopyForm">
+                <a-form-item :label="t('settings.copySettings.form.type')">
+                  <a-radio-group v-model:value="copyType" :disabled="copyLoading || copySaving">
+                    <a-radio v-for="option in copyTypeOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </a-radio>
+                  </a-radio-group>
+                </a-form-item>
+                <a-form-item name="content" :label="t('settings.copySettings.form.content')">
+                  <open-platform-editor v-model="copyForm.content"
+                    :placeholder="t('settings.copySettings.form.placeholder')"
+                    :disabled="copyLoading || copySaving" />
                 </a-form-item>
                 <div class="actions">
-                  <a-button type="primary" html-type="submit" :loading="openPlatformSaving">
-                    {{ t('settings.openPlatform.actions.save') }}
+                  <a-button type="primary" html-type="submit" :loading="copySaving">
+                    {{ t('settings.copySettings.actions.save') }}
                   </a-button>
-                  <a-button type="default" @click="showOpenPlatformPreview" :disabled="openPlatformLoading">
-                    {{ t('settings.openPlatform.actions.preview') }}
+                  <a-button type="default" @click="showCopyPreview" :disabled="copyLoading">
+                    {{ t('settings.copySettings.actions.preview') }}
                   </a-button>
-                  <a-button type="default" @click="loadOpenPlatform"
-                    :disabled="openPlatformLoading || openPlatformSaving">
+                  <a-button type="default" @click="loadCopyContent" :disabled="copyLoading || copySaving">
                     {{ t('common.actions.reset') }}
                   </a-button>
                 </div>
               </a-form>
             </a-spin>
-            <a-modal :open="openPlatformPreviewVisible" :title="t('settings.openPlatform.preview.title')" width="440px"
-              :footer="null" @cancel="closeOpenPlatformPreview">
+            <a-modal :open="copyPreviewVisible" :title="t('settings.copySettings.preview.title')" width="440px"
+              :footer="null" @cancel="closeCopyPreview">
               <div class="open-platform-preview">
                 <div class="open-platform-preview__device">
                   <div class="open-platform-preview__notch"></div>
                   <div class="open-platform-preview__screen">
                     <div class="open-platform-preview__scroller">
-                      <div v-if="openPlatformHasContent" class="open-platform-preview__content"
-                        v-html="openPlatformForm.content"></div>
-                      <a-empty v-else :description="t('settings.openPlatform.preview.empty')" />
+                      <div v-if="copyHasContent" class="open-platform-preview__content" v-html="copyForm.content"></div>
+                      <a-empty v-else :description="t('settings.copySettings.preview.empty')" />
                     </div>
                   </div>
                 </div>
               </div>
               <div class="open-platform-preview__footer">
-                <a-button type="primary" @click="closeOpenPlatformPreview">
-                  {{ t('settings.openPlatform.preview.close') }}
+                <a-button type="primary" @click="closeCopyPreview">
+                  {{ t('settings.copySettings.preview.close') }}
                 </a-button>
               </div>
             </a-modal>

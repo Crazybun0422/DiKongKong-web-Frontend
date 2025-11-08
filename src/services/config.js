@@ -35,6 +35,16 @@ export const saveOpenPlatformCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchFlpRewardHelpCopy = async () => {
+  const response = await http.get('/config/flp-reward-help')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveFlpRewardHelpCopy = async (payload) => {
+  const response = await http.put('/config/flp-reward-help', payload)
+  return normalizePagePayload(response, {})
+}
+
 export default {
   fetchInviteConfig,
   saveInviteConfig,
@@ -42,4 +52,6 @@ export default {
   saveMapSettlementConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchFlpRewardHelpCopy,
+  saveFlpRewardHelpCopy,
 }
