@@ -46,14 +46,39 @@ paths:
   /api/payments/wechat/callback:
     post:
       summary: 接收微信支付回调
-      description: 微信支付平台向该接口推送支付结果。接口会验证签名并更新订单状态。
+      description: 微信支付平台向该接口推送支付结果。接口会验证 HTTP 头部签名并更新订单状态。
+      parameters:
+        - in: header
+          name: Wechatpay-Serial
+          required: true
+          schema:
+            type: string
+          description: 微信平台证书序列号。
+        - in: header
+          name: Wechatpay-Signature
+          required: true
+          schema:
+            type: string
+          description: 回调请求的签名。
+        - in: header
+          name: Wechatpay-Timestamp
+          required: true
+          schema:
+            type: string
+          description: 回调请求的时间戳。
+        - in: header
+          name: Wechatpay-Nonce
+          required: true
+          schema:
+            type: string
+          description: 回调请求的随机串。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              description: 微信支付回调的原始报文。
+              type: string
+              description: 微信支付回调的原始报文字符串。
       responses:
         '200':
           description: 接收成功
