@@ -333,7 +333,7 @@
     "tabs": {
       "invite": "Referral rewards",
       "mapSettlement": "Merchant onboarding",
-      "openPlatform": "Open platform",
+      "copySettings": "Copy settings",
       "payment": "Payment settings",
       "weapp": "Mini program"
     },
@@ -395,22 +395,27 @@
         "saveFailed": "Failed to save merchant onboarding prices"
       }
     },
-    "openPlatform": {
+    "copySettings": {
       "form": {
-        "content": "Open platform content",
-        "placeholder": "Enter rich text content for the open platform"
+        "type": "Copy type",
+        "content": "Copy content",
+        "placeholder": "Enter the rich text copy"
+      },
+      "options": {
+        "openPlatform": "Open platform",
+        "flpRewardHelp": "FLP mechanism"
       },
       "actions": {
         "save": "Save content",
         "preview": "Preview content"
       },
       "messages": {
-        "loadFailed": "Failed to load open platform content",
-        "saveSuccess": "Open platform content saved",
-        "saveFailed": "Failed to save open platform content"
+        "loadFailed": "Failed to load copy",
+        "saveSuccess": "Copy saved",
+        "saveFailed": "Failed to save copy"
       },
       "preview": {
-        "title": "Open platform content preview",
+        "title": "Copy preview",
         "empty": "No content to preview yet. Please add copy in the editor.",
         "close": "Close preview"
       }
