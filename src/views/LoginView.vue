@@ -20,6 +20,9 @@ const backgroundStyle = computed(() => ({
     <main class="auth-main">
       <AdminAuthPanel />
     </main>
+    <a class="icp-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">
+      苏ICP备2025183953号-2
+    </a>
   </div>
 </template>
 
@@ -104,5 +107,22 @@ const backgroundStyle = computed(() => ({
   .brand {
     font-size: 1rem;
   }
+
+
+}
+
+.icp-link {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.775rem;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.icp-link:hover,
+.icp-link:focus {
+  text-decoration: underline;
 }
 </style>

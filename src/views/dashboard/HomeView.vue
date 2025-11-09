@@ -154,7 +154,7 @@ const goToPendingMarkers = () => {
   router.push({
     name: 'airspace',
     query: { status: MARKER_REVIEW_STATUS.PENDING },
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 onMounted(() => {
@@ -182,14 +182,7 @@ onMounted(() => {
       </button>
     </div>
 
-    <a
-      class="icp-link"
-      href="https://beian.miit.gov.cn/"
-      target="_blank"
-      rel="noopener"
-    >
-      苏ICP备2025183953号-2
-    </a>
+
 
     <a-modal :open="ordersVisible" :title="t('orders.modal.title')" width="960px" :destroy-on-close="true"
       @cancel="closeOrdersModal">
@@ -279,19 +272,5 @@ onMounted(() => {
 
 .orders-table {
   margin-top: 8px;
-}
-
-.icp-link {
-  position: fixed;
-  bottom: 50px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.icp-link:hover,
-.icp-link:focus {
-  text-decoration: underline;
 }
 </style>
