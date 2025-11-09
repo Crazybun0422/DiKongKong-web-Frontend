@@ -1,6 +1,11 @@
 import axios from 'axios'
 
-export const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:7010/api' : '/api'
+const resolveProdBaseUrl = () => {
+  if (typeof window === 'undefined') return '/api'
+  return `${window.location.origin}/api`
+}
+
+export const API_BASE_URL = import.meta.env.DEV ? 'http://localhost:7010/api' : resolveProdBaseUrl()
 
 export const AUTH_TOKEN_KEY = 'dikongkong_token'
 
