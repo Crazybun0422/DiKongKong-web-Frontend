@@ -61,12 +61,14 @@ const statusTabs = computed(() => [
   { key: MARKER_REVIEW_STATUS.PENDING, label: t('airspace.tabs.pending') },
   { key: MARKER_REVIEW_STATUS.APPROVED, label: t('airspace.tabs.approved') },
   { key: MARKER_REVIEW_STATUS.REJECTED, label: t('airspace.tabs.rejected') },
+  { key: MARKER_REVIEW_STATUS.DRAFT, label: t('airspace.tabs.draft') },
 ])
 
 const statusColors = {
   PENDING: 'gold',
   APPROVED: 'green',
   REJECTED: 'red',
+  DRAFT: 'default',
 }
 
 const formatDateTime = (value) => {
@@ -87,6 +89,31 @@ const formatDateTime = (value) => {
 const statusText = (status) => {
   if (!status) return t('airspace.status.unknown')
   return t(`airspace.status.${status.toLowerCase()}`)
+}
+
+const isDraftRecord = (record) => {
+  if (!record) return false
+  if (typeof record.draft === 'boolean') {
+    return record.draft
+  }
+  if (typeof record.paid === 'boolean') {
+    return !record.paid
+  }
+  return false
+}
+
+const getStatusDisplay = (record) => {
+  if (isDraftRecord(record)) {
+    return {
+      text: t('airspace.status.draft'),
+      color: statusColors.DRAFT,
+    }
+  }
+  const status = record?.reviewStatus
+  return {
+    text: statusText(status),
+    color: statusColors[status] || 'default',
+  }
 }
 
 const canReviewRecord = (record) => record?.paid && record?.reviewStatus === MARKER_REVIEW_STATUS.PENDING
@@ -126,12 +153,24 @@ const syncDetailRecord = () => {
 const loadData = async () => {
   loading.value = true
   try {
-    const { content, totalElements, page, size } = await fetchMarkers({
+    const params = {
       page: pagination.current,
       size: pagination.pageSize,
-      status: activeStatus.value,
       sortOrder: sortOrder.value,
-    })
+    }
+
+    if (activeStatus.value === MARKER_REVIEW_STATUS.DRAFT) {
+      params.draft = true
+    } else {
+      if (activeStatus.value !== MARKER_REVIEW_STATUS.ALL) {
+        params.status = activeStatus.value
+      }
+      if (activeStatus.value === MARKER_REVIEW_STATUS.PENDING) {
+        params.draft = false
+      }
+    }
+
+    const { content, totalElements, page, size } = await fetchMarkers(params)
     tableData.value = content
     pagination.total = totalElements
     pagination.current = page
@@ -281,8 +320,8 @@ watch(
             {{ formatDateTime(record.createdAt) }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="statusColors[record.reviewStatus] || 'default'">
-              {{ statusText(record.reviewStatus) }}
+            <a-tag :color="getStatusDisplay(record).color">
+              {{ getStatusDisplay(record).text }}
             </a-tag>
           </template>
           <template v-else-if="column.key === 'exposureCount'">
@@ -345,8 +384,8 @@ watch(
               {{ detailRecord.phone || t('airspace.table.placeholders.notProvided') }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.status')">
-              <a-tag :color="statusColors[detailRecord.reviewStatus] || 'default'">
-                {{ statusText(detailRecord.reviewStatus) }}
+              <a-tag :color="getStatusDisplay(detailRecord).color">
+                {{ getStatusDisplay(detailRecord).text }}
               </a-tag>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.paid')">
