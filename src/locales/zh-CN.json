@@ -1,6 +1,7 @@
 {
   "app": {
-    "brand": "低空星球管理平台"
+    "brandPrimary": "低空星球",
+    "brandTag": "管理平台"
   },
   "navigation": {
     "home": "首页",

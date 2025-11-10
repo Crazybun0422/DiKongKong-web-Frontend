@@ -1,6 +1,7 @@
 {
   "app": {
-    "brand": "DiKongKong Admin"
+    "brandPrimary": "DiKong Planet",
+    "brandTag": "Admin Console"
   },
   "navigation": {
     "home": "Home",

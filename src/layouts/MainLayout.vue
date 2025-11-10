@@ -85,10 +85,13 @@ onMounted(() => {
   <div class="layout">
     <header class="top-bar">
       <div class="logo-area">
-        <div class="logo-circle">
-          <img class="logo-spin" :src="logoImage" alt="DKK logo" />
+        <div class="logo-chip">
+          <img class="logo-image" :src="logoImage" alt="DKK logo" />
         </div>
-        <span class="brand-title">{{ t('app.brand') }}</span>
+        <div class="brand-labels">
+          <span class="brand-primary">{{ t('app.brandPrimary') }}</span>
+          <span class="brand-tag">{{ t('app.brandTag') }}</span>
+        </div>
       </div>
       <nav class="main-nav">
         <button
@@ -157,7 +160,7 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.logo-circle {
+.logo-chip {
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -168,18 +171,36 @@ onMounted(() => {
   box-shadow: 0 6px 18px rgba(255, 255, 255, 0.35);
 }
 
-.logo-spin {
+.logo-image {
   width: 46px;
   height: 46px;
-  object-fit: cover;
-  animation: spin 5s linear infinite;
+  object-fit: contain;
 }
 
-.brand-title {
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+.brand-labels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.brand-primary {
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.brand-tag {
+  font-size: 0.9rem;
+  padding: 0.1rem 0.75rem;
+  border: 1px solid rgba(74, 162, 255, 0.75);
+  border-radius: 999px;
+  background: rgba(66, 148, 255, 0.9);
+  color: #ffffff;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 12px rgba(66, 148, 255, 0.45);
 }
 
 .main-nav {
@@ -273,16 +294,6 @@ onMounted(() => {
   padding: 2.5rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
   margin: 0 auto;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @media (max-width: 960px) {
