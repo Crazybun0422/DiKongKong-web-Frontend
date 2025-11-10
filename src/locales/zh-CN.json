@@ -43,7 +43,6 @@
     "password": "密码",
     "passwordPlaceholder": "请输入密码",
     "submitLogin": "登录到控制台",
-    "tokenTitle": "登录令牌",
     "createAdminAccountPlaceholder": "创建管理员账号",
     "setPasswordPlaceholder": "设置登录密码",
     "confirmPassword": "确认密码",
@@ -121,7 +120,8 @@
       "all": "全部",
       "pending": "待审核",
       "approved": "已通过",
-      "rejected": "已驳回"
+      "rejected": "已驳回",
+      "draft": "草稿"
     },
     "table": {
       "columns": {
@@ -148,6 +148,7 @@
       "pending": "待审核",
       "approved": "已通过",
       "rejected": "已驳回",
+      "draft": "草稿",
       "unknown": "未知"
     },
     "paidStatus": {

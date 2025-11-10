@@ -43,7 +43,6 @@
     "password": "Password",
     "passwordPlaceholder": "Enter password",
     "submitLogin": "Access Console",
-    "tokenTitle": "Session Token",
     "createAdminAccountPlaceholder": "Create admin account",
     "setPasswordPlaceholder": "Set sign-in password",
     "confirmPassword": "Confirm Password",
@@ -121,7 +120,8 @@
       "all": "All",
       "pending": "Pending",
       "approved": "Approved",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "draft": "Draft"
     },
     "table": {
       "columns": {
@@ -148,6 +148,7 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected",
+      "draft": "Draft",
       "unknown": "Unknown"
     },
     "paidStatus": {

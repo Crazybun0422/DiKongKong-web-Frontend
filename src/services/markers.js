@@ -6,6 +6,7 @@ export const MARKER_REVIEW_STATUS = {
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+  DRAFT: 'DRAFT',
 }
 
 const normalizeMarker = (marker = {}) => {
@@ -37,18 +38,23 @@ export const fetchMarkers = async ({
   size = 10,
   status = MARKER_REVIEW_STATUS.ALL,
   sortOrder = 'DESC',
+  draft,
 } = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
     size,
   }
 
-  if (status && status !== MARKER_REVIEW_STATUS.ALL) {
+  if (status && ![MARKER_REVIEW_STATUS.ALL, MARKER_REVIEW_STATUS.DRAFT].includes(status)) {
     params.status = status
   }
 
   if (sortOrder) {
     params.sortOrder = sortOrder
+  }
+
+  if (typeof draft === 'boolean') {
+    params.draft = draft
   }
 
   const { data } = await http.get('/markers', { params })

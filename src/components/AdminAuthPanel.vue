@@ -29,8 +29,6 @@ const registerForm = reactive({
 
 const loginLoading = ref(false)
 const registerLoading = ref(false)
-const tokenPreview = ref('')
-
 const captchaVisible = ref(false)
 const pendingLogin = reactive({
   username: '',
@@ -103,7 +101,6 @@ const applyLoginSuccess = (responseData) => {
 
   if (token) {
     setAuthToken(token)
-    tokenPreview.value = token
   }
   if (username) {
     localStorage.setItem('admin_username', username)
@@ -230,17 +227,6 @@ watch(
               </a-button>
             </a-form-item>
           </a-form>
-          <a-alert
-            v-if="tokenPreview"
-            type="success"
-            show-icon
-            class="token-alert"
-            :message="t('auth.tokenTitle')"
-          >
-            <template #description>
-              <code>{{ tokenPreview }}</code>
-            </template>
-          </a-alert>
         </a-tab-pane>
         <a-tab-pane :key="'register'" :tab="t('auth.registerTab')">
           <a-form
