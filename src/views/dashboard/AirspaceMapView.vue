@@ -4,6 +4,7 @@ import { Modal, message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS } from '../../services/markers'
+import { fetchOrderByReference } from '../../services/orders'
 import detailIcon from '../../assets/img/detail.png'
 import TemporaryNoFlyZoneManager from '../../components/noFlyZones/TemporaryNoFlyZoneManager.vue'
 
@@ -23,11 +24,20 @@ const pagination = reactive({
 
 const detailVisible = ref(false)
 const detailRecord = ref(null)
+const orderDetailVisible = ref(false)
+const orderDetailLoading = ref(false)
+const orderDetail = ref(null)
 const sortOrder = ref('DESC')
 const sortIndicator = computed(() => (sortOrder.value === 'ASC' ? '↑' : '↓'))
 const sortLabel = computed(() =>
   sortOrder.value === 'ASC' ? t('airspace.sort.ascend') : t('airspace.sort.descend'),
 )
+
+const ORDER_STATUS_COLORS = {
+  WAITING_PAYMENT: 'gold',
+  PAID: 'green',
+  REFUNDED: 'blue',
+}
 
 const normalizeStatus = (value) => {
   if (Array.isArray(value)) {
@@ -117,6 +127,93 @@ const getStatusDisplay = (record) => {
 }
 
 const canReviewRecord = (record) => record?.paid && record?.reviewStatus === MARKER_REVIEW_STATUS.PENDING
+
+const formatOrderStatus = (status) => {
+  switch (status) {
+    case 'WAITING_PAYMENT':
+      return t('orders.status.waitingPayment')
+    case 'PAID':
+      return t('orders.status.paid')
+    case 'REFUNDED':
+      return t('orders.status.refunded')
+    default:
+      return t('orders.status.unknown')
+  }
+}
+
+const formatOrderPaymentType = (type) => {
+  switch (type) {
+    case 'CASH':
+      return t('orders.paymentType.cash')
+    case 'FLP':
+      return t('orders.paymentType.flp')
+    case 'WECHAT':
+      return t('orders.paymentType.wechat')
+    default:
+      return t('orders.paymentType.unknown')
+  }
+}
+
+const formatOrderAmount = (value) => {
+  if (value === null || value === undefined) return '-'
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '-'
+  return numeric.toFixed(2)
+}
+
+const formatOrderDate = (value) => {
+  if (!value) return '-'
+  try {
+    return new Date(value).toLocaleString()
+  } catch (error) {
+    return value
+  }
+}
+
+const formatOrderItemLabel = (key) => {
+  if (!key) return '-'
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase())
+}
+
+const formatOrderItemValue = (value) => {
+  if (value === null || value === undefined) return '-'
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch (error) {
+      return '-'
+    }
+  }
+  return value
+}
+
+const normalizedOrderItems = computed(() => {
+  if (!orderDetail.value || !Array.isArray(orderDetail.value.items)) return []
+  return orderDetail.value.items.map((item, index) => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      return {
+        key: index,
+        entries: Object.entries(item).map(([entryKey, entryValue], entryIndex) => ({
+          key: `${entryKey}-${entryIndex}`,
+          label: entryKey,
+          value: entryValue,
+        })),
+      }
+    }
+    return {
+      key: index,
+      entries: [
+        {
+          key: `value-${index}`,
+          label: 'value',
+          value: item,
+        },
+      ],
+    }
+  })
+})
 
 const columns = computed(() => [
   { title: t('airspace.table.columns.name'), dataIndex: 'name', key: 'name' },
@@ -221,6 +318,46 @@ const openDetail = (record) => {
 const closeDetail = () => {
   detailVisible.value = false
   detailRecord.value = null
+}
+
+const openOrderDetail = async (referenceId) => {
+  const resolvedReference = referenceId || detailRecord.value?.id
+  if (!resolvedReference) {
+    message.warning(t('airspace.orderModal.messages.missingReference'))
+    return
+  }
+
+  orderDetailVisible.value = true
+  orderDetailLoading.value = true
+  orderDetail.value = null
+
+  try {
+    const order = await fetchOrderByReference(resolvedReference)
+    if (order) {
+      orderDetail.value = order
+    } else {
+      message.warning(t('airspace.orderModal.messages.notFound'))
+    }
+  } catch (error) {
+    console.error('Failed to load order detail', error)
+    if (error?.response?.status === 404) {
+      message.warning(t('airspace.orderModal.messages.notFound'))
+    } else {
+      message.error(t('airspace.orderModal.messages.loadFailed'))
+      orderDetailVisible.value = false
+    }
+  } finally {
+    orderDetailLoading.value = false
+  }
+}
+
+const handleOpenOrderDetail = () => {
+  openOrderDetail(detailRecord.value?.id)
+}
+
+const closeOrderDetail = () => {
+  orderDetailVisible.value = false
+  orderDetail.value = null
 }
 
 const executeReview = async (record, status) => {
@@ -384,9 +521,15 @@ watch(
               {{ detailRecord.phone || t('airspace.table.placeholders.notProvided') }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.status')">
-              <a-tag :color="getStatusDisplay(detailRecord).color">
-                {{ getStatusDisplay(detailRecord).text }}
-              </a-tag>
+              <div class="status-action-row">
+                <a-tag :color="getStatusDisplay(detailRecord).color">
+                  {{ getStatusDisplay(detailRecord).text }}
+                </a-tag>
+                <a-button v-if="detailRecord?.id" type="link" size="small" class="order-detail-link"
+                  @click="handleOpenOrderDetail">
+                  {{ t('airspace.modal.actions.viewOrder') }}
+                </a-button>
+              </div>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.paid')">
               <a-tag :color="detailRecord.paid ? 'green' : 'orange'">
@@ -484,6 +627,68 @@ watch(
       </div>
       <a-empty v-else />
     </a-modal>
+    <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px"
+      :destroy-on-close="true" @cancel="closeOrderDetail">
+      <template #footer>
+        <a-button @click="closeOrderDetail">{{ t('airspace.orderModal.close') }}</a-button>
+      </template>
+
+      <a-spin :spinning="orderDetailLoading">
+        <div v-if="orderDetail" class="order-detail-body">
+          <section class="detail-section">
+            <h3>{{ t('airspace.orderModal.sections.basic') }}</h3>
+            <a-descriptions :column="2" bordered size="small">
+              <a-descriptions-item :label="t('airspace.orderModal.fields.orderNumber')">
+                {{ orderDetail.orderNumber || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.referenceId')">
+                {{ orderDetail.referenceId || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.featureCode')">
+                {{ orderDetail.featureCode || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.orderType')">
+                {{ orderDetail.orderType || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.status')">
+                <a-tag :color="ORDER_STATUS_COLORS[orderDetail.status] || 'default'">
+                  {{ formatOrderStatus(orderDetail.status) }}
+                </a-tag>
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.paymentType')">
+                {{ formatOrderPaymentType(orderDetail.paymentType) }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.amount')">
+                {{ formatOrderAmount(orderDetail.amount) }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.wechatTransactionId')">
+                {{ orderDetail.wechatTransactionId || '-' }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.createdAt')">
+                {{ formatOrderDate(orderDetail.createdAt) }}
+              </a-descriptions-item>
+              <a-descriptions-item :label="t('airspace.orderModal.fields.updatedAt')">
+                {{ formatOrderDate(orderDetail.updatedAt) }}
+              </a-descriptions-item>
+            </a-descriptions>
+          </section>
+
+          <section class="detail-section" v-if="normalizedOrderItems.length">
+            <h3>{{ t('airspace.orderModal.sections.items') }}</h3>
+            <div class="order-items">
+              <a-descriptions v-for="item in normalizedOrderItems" :key="item.key" :column="1" bordered
+                size="small" class="order-item">
+                <a-descriptions-item v-for="entry in item.entries" :key="entry.key"
+                  :label="formatOrderItemLabel(entry.label)">
+                  {{ formatOrderItemValue(entry.value) }}
+                </a-descriptions-item>
+              </a-descriptions>
+            </div>
+          </section>
+        </div>
+        <a-empty v-else-if="!orderDetailLoading" :description="t('airspace.orderModal.empty')" />
+      </a-spin>
+    </a-modal>
   </div>
 </template>
 
@@ -519,6 +724,33 @@ watch(
   margin: 4px 0 0;
   color: #6b7280;
   font-size: 0.95rem;
+}
+
+.status-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-detail-link {
+  padding: 0;
+  height: auto;
+}
+
+.order-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-item {
+  width: 100%;
 }
 
 .main-tabs,

@@ -84,6 +84,7 @@
     "table": {
       "columns": {
         "orderNumber": "订单号",
+        "referenceId": "关联ID",
         "featureCode": "功能码",
         "status": "状态",
         "paymentType": "支付方式",
@@ -101,6 +102,7 @@
     "paymentType": {
       "cash": "现金",
       "flp": "FLP",
+      "wechat": "微信",
       "unknown": "未知"
     },
     "messages": {
@@ -215,7 +217,34 @@
       "actions": {
         "close": "关闭",
         "approve": "审核通过",
-        "reject": "驳回"
+        "reject": "驳回",
+        "viewOrder": "查看订单"
+      }
+    },
+    "orderModal": {
+      "title": "关联订单",
+      "close": "关闭",
+      "empty": "未找到关联订单",
+      "sections": {
+        "basic": "订单信息",
+        "items": "订单项"
+      },
+      "fields": {
+        "orderNumber": "订单号",
+        "referenceId": "关联ID",
+        "featureCode": "功能码",
+        "orderType": "订单类型",
+        "status": "状态",
+        "paymentType": "支付方式",
+        "amount": "金额",
+        "wechatTransactionId": "微信单号",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间"
+      },
+      "messages": {
+        "missingReference": "缺少关联 ID，无法查询订单。",
+        "loadFailed": "订单加载失败，请稍后重试。",
+        "notFound": "未找到关联订单。"
       }
     }
   },

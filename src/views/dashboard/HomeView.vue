@@ -26,6 +26,7 @@ const orderPagination = reactive({
 
 const orderColumns = computed(() => [
   { title: t('orders.table.columns.orderNumber'), dataIndex: 'orderNumber', key: 'orderNumber', width: 180 },
+  { title: t('orders.table.columns.referenceId'), dataIndex: 'referenceId', key: 'referenceId', width: 200 },
   { title: t('orders.table.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 140 },
   { title: t('orders.table.columns.status'), dataIndex: 'status', key: 'status', width: 140 },
   { title: t('orders.table.columns.paymentType'), dataIndex: 'paymentType', key: 'paymentType', width: 140 },
@@ -85,6 +86,8 @@ const paymentTypeText = (type) => {
       return t('orders.paymentType.cash')
     case 'FLP':
       return t('orders.paymentType.flp')
+    case 'WECHAT':
+      return t('orders.paymentType.wechat')
     default:
       return t('orders.paymentType.unknown')
   }

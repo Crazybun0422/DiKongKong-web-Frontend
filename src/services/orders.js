@@ -28,6 +28,18 @@ export const fetchOrders = async ({ page = 1, size = 10 } = {}) => {
   }
 }
 
+export const fetchOrderByReference = async (referenceId) => {
+  if (!referenceId) {
+    throw new Error('referenceId is required')
+  }
+
+  const { data } = await http.get(`/orders/reference/${referenceId}`)
+  const payload = data?.data
+
+  return payload ? normalizeOrder(payload) : null
+}
+
 export default {
   fetchOrders,
+  fetchOrderByReference,
 }
