@@ -84,6 +84,7 @@
     "table": {
       "columns": {
         "orderNumber": "Order No.",
+        "referenceId": "Reference ID",
         "featureCode": "Feature code",
         "status": "Status",
         "paymentType": "Payment",
@@ -101,6 +102,7 @@
     "paymentType": {
       "cash": "Cash",
       "flp": "FLP",
+      "wechat": "WeChat",
       "unknown": "Unknown"
     },
     "messages": {
@@ -215,7 +217,34 @@
       "actions": {
         "close": "Close",
         "approve": "Approve",
-        "reject": "Reject"
+        "reject": "Reject",
+        "viewOrder": "View order"
+      }
+    },
+    "orderModal": {
+      "title": "Linked order",
+      "close": "Close",
+      "empty": "No linked order found",
+      "sections": {
+        "basic": "Order info",
+        "items": "Order items"
+      },
+      "fields": {
+        "orderNumber": "Order No.",
+        "referenceId": "Reference ID",
+        "featureCode": "Feature code",
+        "orderType": "Order type",
+        "status": "Status",
+        "paymentType": "Payment",
+        "amount": "Amount",
+        "wechatTransactionId": "WeChat transaction ID",
+        "createdAt": "Created at",
+        "updatedAt": "Updated at"
+      },
+      "messages": {
+        "missingReference": "Reference ID is required to query the order.",
+        "loadFailed": "Failed to load the order. Please try again later.",
+        "notFound": "No linked order found."
       }
     }
   },
