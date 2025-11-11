@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import { fetchAdminUsers } from '../../services/adminUsers'
 import { fetchFlpLogs } from '../../services/flp'
+import { resolveProfileAsset } from '../../services/profile'
 import detailIcon from '../../assets/img/detail.png'
 
 const { t } = useI18n()
@@ -95,7 +96,10 @@ const loadUsers = async ({ sortOverride, pageOverride } = {}) => {
       keyword: searchForm.keyword,
       sortOrder: effectiveSort,
     })
-    tableData.value = content
+    tableData.value = (content || []).map((item) => ({
+      ...item,
+      avatarUrl: resolveProfileAsset(item?.avatarUrl),
+    }))
     pagination.total = totalElements
     pagination.current = page
     pagination.pageSize = size
