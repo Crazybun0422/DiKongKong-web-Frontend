@@ -378,7 +378,7 @@
           "featureCode": "低空号",
           "username": "名称",
           "avatar": "头像",
-          "amount": "TOKEN变动",
+          "amount": "FLP变动",
           "operation": "操作类型",
           "createdAt": "创建时间"
         },
@@ -501,7 +501,7 @@
       "featureCode": "低空号",
       "username": "名称",
       "avatar": "头像",
-      "token": "TOKEN",
+      "token": "FLP",
       "createdAt": "注册时间",
       "actions": "操作"
     },

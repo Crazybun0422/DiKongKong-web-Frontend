@@ -378,7 +378,7 @@
           "featureCode": "Feature code",
           "username": "Username",
           "avatar": "Avatar",
-          "amount": "Token change",
+          "amount": "FLP change",
           "operation": "Operation",
           "createdAt": "Created at"
         },
@@ -501,7 +501,7 @@
       "featureCode": "Feature code",
       "username": "Username",
       "avatar": "Avatar",
-      "token": "TOKEN",
+      "token": "FLP",
       "createdAt": "Registered at",
       "actions": "Actions"
     },
