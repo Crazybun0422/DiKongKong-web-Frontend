@@ -15,6 +15,7 @@ import {
 import { fetchWechatPayConfig, saveWechatPayConfig } from '../../services/wechatPayConfig'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
+import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 
 const { t } = useI18n()
@@ -160,7 +161,15 @@ const loadInviteLogs = async () => {
       size: inviteLogPagination.pageSize,
       featureCode: inviteLogFilters.featureCode.trim() || undefined,
     })
-    inviteLogs.value = content
+    inviteLogs.value = (content || []).map((item) => ({
+      ...item,
+      user: item?.user
+        ? {
+            ...item.user,
+            avatarUrl: resolveProfileAsset(item.user.avatarUrl),
+          }
+        : item?.user ?? null,
+    }))
     inviteLogPagination.total = totalElements
     inviteLogPagination.current = page
     inviteLogPagination.pageSize = size
