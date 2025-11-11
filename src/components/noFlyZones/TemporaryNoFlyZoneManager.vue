@@ -2218,16 +2218,6 @@ const handleSearchClear = () => {
             <template #label>
               <span class="form-item-label form-item-label--required">
                 <span class="form-item-label__asterisk">*</span>
-                {{ t('noFlyZone.form.name') }}
-              </span>
-            </template>
-            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
-              :disabled="disableFormDuringDrawing" />
-          </a-form-item>
-          <a-form-item>
-            <template #label>
-              <span class="form-item-label form-item-label--required">
-                <span class="form-item-label__asterisk">*</span>
                 {{ t('noFlyZone.form.type') }}
               </span>
             </template>
@@ -2300,6 +2290,16 @@ const handleSearchClear = () => {
           <a-form-item :label="t('noFlyZone.form.timeRange')">
             <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
               value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
+          </a-form-item>
+          <a-form-item>
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.name') }}
+              </span>
+            </template>
+            <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.wechatLink')">
             <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')"
