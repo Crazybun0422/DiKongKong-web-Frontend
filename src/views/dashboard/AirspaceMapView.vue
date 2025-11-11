@@ -432,55 +432,55 @@ watch(
         </a-tabs>
         <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
           row-key="id" class="markers-table" @change="handleTableChange">
-        <template #headerCell="{ column }">
-          <template v-if="column.key === 'createdAt'">
-            <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
-              <span>{{ t('airspace.table.columns.createdAt') }}</span>
-              <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
-              <span class="sr-only">{{ sortLabel }}</span>
-            </button>
+          <template #headerCell="{ column }">
+            <template v-if="column.key === 'createdAt'">
+              <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
+                <span>{{ t('airspace.table.columns.createdAt') }}</span>
+                <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
+                <span class="sr-only">{{ sortLabel }}</span>
+              </button>
+            </template>
           </template>
-        </template>
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'name'">
-            <div class="name-cell">
-              <div class="primary-line">
-                <span class="marker-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</span>
-                <span v-if="record.featureCode" class="feature-code">{{ record.featureCode }}</span>
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'name'">
+              <div class="name-cell">
+                <div class="primary-line">
+                  <span class="marker-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</span>
+                  <span v-if="record.featureCode" class="feature-code">{{ record.featureCode }}</span>
+                </div>
+                <div class="secondary-line">
+                  <span>{{ record?.location?.text || t('airspace.table.placeholders.unknownLocation') }}</span>
+                </div>
               </div>
-              <div class="secondary-line">
-                <span>{{ record?.location?.text || t('airspace.table.placeholders.unknownLocation') }}</span>
+            </template>
+            <template v-else-if="column.key === 'createdAt'">
+              {{ formatDateTime(record.createdAt) }}
+            </template>
+            <template v-else-if="column.key === 'status'">
+              <a-tag :color="getStatusDisplay(record).color">
+                {{ getStatusDisplay(record).text }}
+              </a-tag>
+            </template>
+            <template v-else-if="column.key === 'exposureCount'">
+              {{ record.exposureCount ?? 0 }}
+            </template>
+            <template v-else-if="column.key === 'phoneCallCount'">
+              {{ record.phoneCallCount ?? 0 }}
+            </template>
+            <template v-else-if="column.key === 'paid'">
+              <a-tag :color="record.paid ? 'green' : 'orange'">
+                {{ record.paid ? t('airspace.paidStatus.paid') : t('airspace.paidStatus.unpaid') }}
+              </a-tag>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <div class="table-actions">
+                <a-button size="small" type="text" class="detail-button" :title="t('airspace.table.actions.viewDetail')"
+                  :aria-label="t('airspace.table.actions.viewDetail')" @click="openDetail(record)">
+                  <img :src="detailIcon" :alt="t('airspace.table.actions.viewDetail')" class="detail-icon" />
+                </a-button>
               </div>
-            </div>
+            </template>
           </template>
-          <template v-else-if="column.key === 'createdAt'">
-            {{ formatDateTime(record.createdAt) }}
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="getStatusDisplay(record).color">
-              {{ getStatusDisplay(record).text }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'exposureCount'">
-            {{ record.exposureCount ?? 0 }}
-          </template>
-          <template v-else-if="column.key === 'phoneCallCount'">
-            {{ record.phoneCallCount ?? 0 }}
-          </template>
-          <template v-else-if="column.key === 'paid'">
-            <a-tag :color="record.paid ? 'green' : 'orange'">
-              {{ record.paid ? t('airspace.paidStatus.paid') : t('airspace.paidStatus.unpaid') }}
-            </a-tag>
-          </template>
-          <template v-else-if="column.key === 'actions'">
-            <div class="table-actions">
-              <a-button size="small" type="text" class="detail-button" :title="t('airspace.table.actions.viewDetail')"
-                :aria-label="t('airspace.table.actions.viewDetail')" @click="openDetail(record)">
-                <img :src="detailIcon" :alt="t('airspace.table.actions.viewDetail')" class="detail-icon" />
-              </a-button>
-            </div>
-          </template>
-        </template>
         </a-table>
       </template>
       <template v-else>
@@ -525,16 +525,17 @@ watch(
                 <a-tag :color="getStatusDisplay(detailRecord).color">
                   {{ getStatusDisplay(detailRecord).text }}
                 </a-tag>
-                <a-button v-if="detailRecord?.id" type="link" size="small" class="order-detail-link"
-                  @click="handleOpenOrderDetail">
-                  {{ t('airspace.modal.actions.viewOrder') }}
-                </a-button>
+
               </div>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.paid')">
               <a-tag :color="detailRecord.paid ? 'green' : 'orange'">
                 {{ detailRecord.paid ? t('airspace.paidStatus.paid') : t('airspace.paidStatus.unpaid') }}
               </a-tag>
+              <a-button v-if="detailRecord?.id" type="link" size="small" class="order-detail-link"
+                @click="handleOpenOrderDetail">
+                {{ t('airspace.modal.actions.viewOrder') }}
+              </a-button>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.createdAt')">
               {{ formatDateTime(detailRecord.createdAt) }}
@@ -627,8 +628,8 @@ watch(
       </div>
       <a-empty v-else />
     </a-modal>
-    <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px"
-      :destroy-on-close="true" @cancel="closeOrderDetail">
+    <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px" :destroy-on-close="true"
+      @cancel="closeOrderDetail">
       <template #footer>
         <a-button @click="closeOrderDetail">{{ t('airspace.orderModal.close') }}</a-button>
       </template>
@@ -676,8 +677,8 @@ watch(
           <section class="detail-section" v-if="normalizedOrderItems.length">
             <h3>{{ t('airspace.orderModal.sections.items') }}</h3>
             <div class="order-items">
-              <a-descriptions v-for="item in normalizedOrderItems" :key="item.key" :column="1" bordered
-                size="small" class="order-item">
+              <a-descriptions v-for="item in normalizedOrderItems" :key="item.key" :column="1" bordered size="small"
+                class="order-item">
                 <a-descriptions-item v-for="entry in item.entries" :key="entry.key"
                   :label="formatOrderItemLabel(entry.label)">
                   {{ formatOrderItemValue(entry.value) }}
