@@ -8,11 +8,22 @@ const toPageResult = (payload = {}, defaults = {}) => ({
   totalPages: payload.totalPages ?? defaults.totalPages ?? 0,
 })
 
-export const fetchAdminUsers = async ({ page = 1, size = 10, keyword = '', sortOrder = 'DESC' } = {}) => {
+export const fetchAdminUsers = async ({
+  page = 1,
+  size = 10,
+  keyword = '',
+  sortOrder,
+  flp,
+} = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
     size,
-    sortOrder,
+  }
+
+  if (flp) {
+    params.flp = flp
+  } else {
+    params.sortOrder = sortOrder ?? 'DESC'
   }
 
   const hasKeyword = keyword && keyword.trim()

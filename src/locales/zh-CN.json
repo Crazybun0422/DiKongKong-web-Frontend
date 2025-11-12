@@ -514,6 +514,10 @@
     "pagination": {
       "total": "共 {total} 位用户 · 当前 {start}-{end}"
     },
+    "sort": {
+      "ascend": "升序排序",
+      "descend": "降序排序"
+    },
     "messages": {
       "loadFailed": "用户数据加载失败",
       "logLoadFailed": "TOKEN日志加载失败"

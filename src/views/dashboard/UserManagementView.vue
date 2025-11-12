@@ -32,11 +32,20 @@ const detailPagination = reactive({
   total: 0,
 })
 
-const sortOrder = ref('DESC')
-const sortIndicator = computed(() => (sortOrder.value === 'ASC' ? '↑' : '↓'))
-const sortLabel = computed(() =>
-  sortOrder.value === 'ASC' ? t('users.sort.ascend') : t('users.sort.descend'),
-)
+const sortState = reactive({
+  field: 'createdAt',
+  order: 'DESC',
+})
+
+const isSortFieldActive = (field) => sortState.field === field
+const getSortIndicator = (field) =>
+  isSortFieldActive(field) ? (sortState.order === 'ASC' ? '↑' : '↓') : '↕'
+const getSortLabel = (field) => {
+  if (isSortFieldActive(field) && sortState.order === 'ASC') {
+    return t('users.sort.ascend')
+  }
+  return t('users.sort.descend')
+}
 
 const columns = computed(() => [
   { title: t('users.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 160 },
@@ -80,21 +89,26 @@ const formatDateTime = (value) => {
   }
 }
 
-const loadUsers = async ({ sortOverride, pageOverride } = {}) => {
+const loadUsers = async ({ sortField, sortOrder, pageOverride } = {}) => {
   if (typeof pageOverride === 'number') {
     pagination.current = pageOverride
   }
 
   loading.value = true
   try {
-    const effectiveSort = sortOverride ?? sortOrder.value ?? 'DESC'
-    sortOrder.value = effectiveSort
+    if (sortField) {
+      sortState.field = sortField
+    }
+    if (sortOrder) {
+      sortState.order = sortOrder
+    }
 
     const { content, totalElements, page, size } = await fetchAdminUsers({
       page: pagination.current,
       size: pagination.pageSize,
       keyword: searchForm.keyword,
-      sortOrder: effectiveSort,
+      sortOrder: sortState.field === 'createdAt' ? sortState.order : undefined,
+      flp: sortState.field === 'flp' ? sortState.order : undefined,
     })
     tableData.value = (content || []).map((item) => ({
       ...item,
@@ -113,7 +127,7 @@ const loadUsers = async ({ sortOverride, pageOverride } = {}) => {
 
 const handleSearch = () => {
   pagination.current = 1
-  loadUsers({ sortOverride: 'DESC', pageOverride: 1 })
+  loadUsers({ sortField: 'createdAt', sortOrder: 'DESC', pageOverride: 1 })
 }
 
 const handleTableChange = (pager) => {
@@ -123,9 +137,10 @@ const handleTableChange = (pager) => {
   loadUsers({})
 }
 
-const toggleCreatedAtSort = () => {
-  const next = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
-  loadUsers({ sortOverride: next, pageOverride: 1 })
+const toggleSort = (field) => {
+  const isSameField = isSortFieldActive(field)
+  const nextOrder = isSameField && sortState.order === 'ASC' ? 'DESC' : 'ASC'
+  loadUsers({ sortField: field, sortOrder: nextOrder, pageOverride: 1 })
 }
 
 const loadUserLogs = async () => {
@@ -142,7 +157,7 @@ const loadUserLogs = async () => {
       size: detailPagination.pageSize,
       featureCode: detailUser.value.featureCode,
     })
-    detailLogs.value = content
+    detailLogs.value = (content || []).filter((item) => item?.operation === 'INCREASE')
     detailPagination.total = totalElements
     detailPagination.current = page
     detailPagination.pageSize = size
@@ -207,10 +222,25 @@ onMounted(() => {
       >
         <template #headerCell="{ column }">
           <template v-if="column.key === 'createdAt'">
-            <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
+            <button
+              :class="['sort-toggle', { active: isSortFieldActive('createdAt') }]"
+              type="button"
+              @click.stop="toggleSort('createdAt')"
+            >
               <span>{{ t('users.columns.createdAt') }}</span>
-              <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
-              <span class="sr-only">{{ sortLabel }}</span>
+              <span class="sort-indicator" aria-hidden="true">{{ getSortIndicator('createdAt') }}</span>
+              <span class="sr-only">{{ getSortLabel('createdAt') }}</span>
+            </button>
+          </template>
+          <template v-else-if="column.key === 'token'">
+            <button
+              :class="['sort-toggle', { active: isSortFieldActive('flp') }]"
+              type="button"
+              @click.stop="toggleSort('flp')"
+            >
+              <span>{{ t('users.columns.token') }}</span>
+              <span class="sort-indicator" aria-hidden="true">{{ getSortIndicator('flp') }}</span>
+              <span class="sr-only">{{ getSortLabel('flp') }}</span>
             </button>
           </template>
         </template>
@@ -360,9 +390,15 @@ onMounted(() => {
   color: #1d4ed8;
 }
 
+.sort-toggle.active {
+  color: #1d4ed8;
+}
+
 .sort-indicator {
   font-size: 0.9rem;
   line-height: 1;
+  min-width: 1em;
+  text-align: center;
 }
 
 .sr-only {

@@ -161,7 +161,8 @@ const loadInviteLogs = async () => {
       size: inviteLogPagination.pageSize,
       featureCode: inviteLogFilters.featureCode.trim() || undefined,
     })
-    inviteLogs.value = (content || []).map((item) => ({
+    const filteredContent = (content || []).filter((item) => item?.operation === 'INCREASE')
+    inviteLogs.value = filteredContent.map((item) => ({
       ...item,
       user: item?.user
         ? {

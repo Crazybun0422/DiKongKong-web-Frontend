@@ -4,6 +4,15 @@ const PUBLIC_FILE_UPLOAD = '/files/upload'
 
 const apiRoot = API_BASE_URL.replace(/\/$/, '')
 
+const safeDecode = (text) => {
+  if (!text) return ''
+  try {
+    return decodeURIComponent(text)
+  } catch (error) {
+    return text
+  }
+}
+
 export const buildDownloadUrl = (objectName) => {
   if (!objectName) return ''
   if (/^https?:\/\//i.test(objectName)) {
@@ -13,23 +22,37 @@ export const buildDownloadUrl = (objectName) => {
 }
 
 export const extractObjectName = (value) => {
-  if (!value) return ''
-  if (typeof value !== 'string') return ''
+  if (!value || typeof value !== 'string') return ''
 
-  if (value.includes('/files/download/')) {
-    return decodeURIComponent(value.split('/files/download/')[1] || '')
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  const withoutQuery = trimmed.split(/[?#]/)[0]
+
+  if (withoutQuery.includes('/files/download/')) {
+    const objectName = withoutQuery.split('/files/download/').pop() || ''
+    return safeDecode(objectName)
   }
 
-  const storageMatch = value.match(/\/storage\/(.+)$/)
+  const storageMatch = withoutQuery.match(/\/storage\/(.+)$/)
   if (storageMatch) {
-    return decodeURIComponent(storageMatch[1])
+    return safeDecode(storageMatch[1])
   }
 
-  if (/^https?:\/\//i.test(value)) {
-    return ''
+  const looksLikePath =
+    withoutQuery.startsWith('/') ||
+    withoutQuery.startsWith('./') ||
+    withoutQuery.startsWith('../') ||
+    /^[a-z]+:\/\//i.test(withoutQuery) ||
+    withoutQuery.includes('\\')
+
+  if (looksLikePath) {
+    const segments = withoutQuery.split(/[\\/]/).filter(Boolean)
+    const lastSegment = segments[segments.length - 1] || ''
+    return safeDecode(lastSegment)
   }
 
-  return value.replace(/^\/+/, '')
+  return safeDecode(withoutQuery.replace(/^\/+/, ''))
 }
 
 const deriveFileName = (value) => {

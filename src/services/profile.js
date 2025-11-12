@@ -1,4 +1,5 @@
 import http, { API_BASE_URL } from './http'
+import { extractObjectName } from './files'
 
 const PROFILE_BASE = '/auth/profile'
 const FILE_UPLOAD = '/files/upload'
@@ -8,21 +9,6 @@ const apiRoot = API_BASE_URL.replace(/\/$/, '')
 const buildDownloadUrl = (objectName) => {
   if (!objectName) return ''
   return `${apiRoot}/files/download/${encodeURIComponent(objectName)}`
-}
-
-const extractObjectName = (value) => {
-  if (!value) return ''
-  if (value.includes('/files/download/')) {
-    return decodeURIComponent(value.split('/files/download/')[1] || '')
-  }
-  const storageMatch = value.match(/\/storage\/(.+)$/)
-  if (storageMatch) {
-    return decodeURIComponent(storageMatch[1])
-  }
-  if (/^https?:\/\//i.test(value)) {
-    return ''
-  }
-  return value.replace(/^\/+/, '')
 }
 
 const normalizeAvatar = (value) => {
