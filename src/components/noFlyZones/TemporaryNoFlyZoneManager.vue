@@ -22,6 +22,8 @@ const PATH_TYPE = 'PATH'
 const LEGACY_CORRIDOR_TYPE = 'CORRIDOR'
 const LEGACY_POLYLINE_TYPE = 'POLYLINE'
 const PATH_DEFAULT_DISTANCE = 200
+const POLYGON_CLOSE_HITBOX_PX = 28
+const DEFAULT_CLOSE_HIT_METERS = 30
 
 const { t } = useI18n()
 
@@ -31,6 +33,8 @@ const drawingPolyline = ref(null)
 const drawingPolygon = ref(null)
 const drawingCircle = ref(null)
 const drawingMarkerLayer = ref(null)
+const polygonCloseHintCircle = ref(null)
+const polygonCloseHintLayer = ref(null)
 // 2D API additional refs
 const qqListeners = ref([]) // qq.maps.event listener tokens
 const searchMarker = ref(null) // qq.maps.Marker
@@ -54,6 +58,7 @@ const mapMouseMoveHandler = ref(null)
 const mapMouseUpHandler = ref(null)
 const mapDblClickHandler = ref(null)
 const mapRightClickHandler = ref(null)
+const mapZoomChangedHandler = ref(null)
 const searchMarkerLayer = ref(null)
 const searchQuery = ref('')
 const searchLoading = ref(false)
@@ -241,24 +246,34 @@ const searchOptions = computed(() =>
 
 const highlightStyle = {
   polygon: {
-    fillColor: 'rgba(255, 77, 79, 0.25)',
+    fillColor: 'rgba(255, 77, 79, 0.12)',
+    fillOpacity: 0.12,
     strokeColor: '#ff4d4f',
-    strokeWidth: 2,
+    strokeWidth: 1,
   },
   circle: {
-    fillColor: 'rgba(255, 77, 79, 0.25)',
+    fillColor: 'rgba(255, 77, 79, 0.12)',
+    fillOpacity: 0.12,
     strokeColor: '#ff4d4f',
-    strokeWidth: 2,
+    strokeWidth: 1,
   },
   polyline: {
     color: '#ff4d4f',
-    width: 2,
+    width: 1,
   },
   dashed: {
     color: '#ff4d4f',
     width: 1,
     dashArray: [10, 6],
   },
+}
+
+const polygonCloseHintStyle = {
+  strokeColor: '#00c853',
+  strokeWeight: 2,
+  strokeDashStyle: 'dash',
+  fillColor: 'rgba(76, 175, 80, 0.18)',
+  fillOpacity: 0.18,
 }
 
 // Helper: convert css color + alpha to qq.maps.Color when available
@@ -285,14 +300,29 @@ const toRgb = (color) => {
   return { r, g, b }
 }
 
+const clampAlpha = (value, fallback = 1) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return fallback
+  if (num <= 0) return 0
+  if (num >= 1) return 1
+  return num
+}
+
 const toQqColor = (color, alpha = 1) => {
+  const { r, g, b } = toRgb(color)
+  const resolvedAlpha = clampAlpha(alpha, 1)
   try {
     if (window.qq && window.qq.maps && typeof window.qq.maps.Color === 'function') {
-      const { r, g, b } = toRgb(color)
-      return new window.qq.maps.Color(r, g, b, alpha)
+      return new window.qq.maps.Color(r, g, b, resolvedAlpha)
     }
   } catch (_) { }
-  return normalizeHex(color)
+  if (resolvedAlpha < 1) {
+    return `rgba(${r}, ${g}, ${b}, ${resolvedAlpha})`
+  }
+  const raw = String(color || '').trim()
+  if (!raw) return `rgb(${r}, ${g}, ${b})`
+  if (/^rgba?\(/i.test(raw)) return raw
+  return normalizeHex(raw)
 }
 
 const formatCoordinatePoint = (point) => {
@@ -324,6 +354,24 @@ const unprojectFromMercator = ({ x, y }) => ({
   lat: toDegrees(2 * Math.atan(Math.exp(y / EARTH_RADIUS_METERS)) - Math.PI / 2),
   lng: toDegrees(x / EARTH_RADIUS_METERS),
 })
+
+const metersPerPixelAtLatitude = (latitude, zoom) => {
+  const lat = Number(latitude)
+  const level = Number(zoom)
+  if (!Number.isFinite(lat) || !Number.isFinite(level)) return null
+  const latRad = toRadians(lat)
+  const scale = Math.pow(2, level)
+  if (!Number.isFinite(scale) || scale <= 0) return null
+  return (Math.cos(latRad) * 2 * Math.PI * EARTH_RADIUS_METERS) / (256 * scale)
+}
+
+const pixelsToMetersAtLatitude = (latitude, zoom, pixels) => {
+  const px = Number(pixels)
+  if (!Number.isFinite(px) || px <= 0) return null
+  const metersPerPixel = metersPerPixelAtLatitude(latitude, zoom)
+  if (!Number.isFinite(metersPerPixel)) return null
+  return metersPerPixel * px
+}
 
 const toPlainCoordinate = (point) => {
   if (!point) return null
@@ -437,7 +485,10 @@ const updatePathPreview = (points = drawingPoints.value) => {
         path: latLngs,
         strokeWeight: highlightStyle.polygon.strokeWidth,
         strokeColor: '#ff4d4f',
-        fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+        fillColor: toQqColor(
+          highlightStyle.polygon.fillColor,
+          highlightStyle.polygon.fillOpacity ?? 1,
+        ),
         clickable: false,
       })
     } else {
@@ -535,7 +586,7 @@ const displayedCircleRadius = computed(() => {
 const createSvgDataUrl = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 
 const DRAW_VERTEX_ICON = createSvgDataUrl(
-  "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='8' cy='8' r='5' fill='%23ff4d4f' stroke='%23ffffff' stroke-width='2'/></svg>",
+  "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='8' cy='8' r='5' fill='%23000000' stroke='%23ffffff' stroke-width='2'/></svg>",
 )
 
 const SEARCH_MARKER_ICON = createSvgDataUrl(
@@ -807,6 +858,20 @@ const createSearchMarkerLayer = (TMap) =>
     geometries: [],
   })
 
+const createPolygonCloseHintLayer = (TMap) =>
+  new TMap.MultiCircle({
+    map: mapInstance.value,
+    styles: {
+      hint: new TMap.CircleStyle({
+        color: polygonCloseHintStyle.fillColor,
+        borderColor: polygonCloseHintStyle.strokeColor,
+        borderWidth: polygonCloseHintStyle.strokeWeight,
+        dashArray: [6, 6],
+      }),
+    },
+    geometries: [],
+  })
+
 const ensureDrawingLayers = (TMap) => {
   if (!drawingPolyline.value) {
     drawingPolyline.value = createPolylineLayer(TMap)
@@ -840,6 +905,26 @@ const ensureSearchLayer = (TMap) => {
   }
 }
 
+const ensurePolygonCloseHintLayer = (TMap) => {
+  if (!polygonCloseHintLayer.value) {
+    polygonCloseHintLayer.value = createPolygonCloseHintLayer(TMap)
+  }
+}
+
+const hidePolygonCloseHint = () => {
+  try {
+    if (polygonCloseHintCircle.value && typeof polygonCloseHintCircle.value.setMap === 'function') {
+      polygonCloseHintCircle.value.setMap(null)
+    }
+  } catch (_) { }
+  polygonCloseHintCircle.value = null
+  if (polygonCloseHintLayer.value && typeof polygonCloseHintLayer.value.setGeometries === 'function') {
+    try {
+      polygonCloseHintLayer.value.setGeometries([])
+    } catch (_) { }
+  }
+}
+
 const clearDrawingOverlays = () => {
   try {
     if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
@@ -863,12 +948,14 @@ const clearDrawingOverlays = () => {
   drawingPoints.value = []
   drawingStartPoint.value = null
   drawingCenter.value = null
+  hidePolygonCloseHint()
 }
 
 const stopDrawing = () => {
   detachMapListeners()
   isDrawing.value = false
   currentDrawingMode.value = formState.type
+  hidePolygonCloseHint()
 }
 
 const resetFormGeometry = () => {
@@ -884,12 +971,14 @@ const detachMapListeners = () => {
     if (mapInstance.value && mapMouseUpHandler.value) mapInstance.value.off('mouseup', mapMouseUpHandler.value)
     if (mapInstance.value && mapDblClickHandler.value) mapInstance.value.off('dblclick', mapDblClickHandler.value)
     if (mapInstance.value && mapRightClickHandler.value) mapInstance.value.off('rightclick', mapRightClickHandler.value)
+    if (mapInstance.value && mapZoomChangedHandler.value) mapInstance.value.off('zoom_changed', mapZoomChangedHandler.value)
   } catch (_) { }
   mapClickHandler.value = null
   mapMouseMoveHandler.value = null
   mapMouseUpHandler.value = null
   mapDblClickHandler.value = null
   mapRightClickHandler.value = null
+  mapZoomChangedHandler.value = null
   // 2D path
   if (Array.isArray(qqListeners.value)) {
     qqListeners.value.forEach((token) => {
@@ -918,6 +1007,49 @@ const normalizeLatLngPoint = (point) => {
     }
   }
   return null
+}
+
+const syncPolygonCloseHintOverlay = () => {
+  if (!mapInstance.value || drawingPoints.value.length === 0) return
+  const firstPoint = drawingPoints.value[0]
+  const latLng = normalizeLatLngPoint(firstPoint)
+  if (!latLng) return
+  const radius = Math.max(getPolygonCloseHitRadiusMeters(firstPoint), 1)
+  if (window.qq && window.qq.maps) {
+    if (!polygonCloseHintCircle.value || typeof polygonCloseHintCircle.value.setCenter !== 'function') {
+      polygonCloseHintCircle.value = new window.qq.maps.Circle({
+        map: mapInstance.value,
+        center: latLng,
+        radius,
+        strokeColor: polygonCloseHintStyle.strokeColor,
+        strokeWeight: polygonCloseHintStyle.strokeWeight,
+        strokeDashStyle: polygonCloseHintStyle.strokeDashStyle,
+        fillColor: toQqColor(
+          polygonCloseHintStyle.fillColor,
+          polygonCloseHintStyle.fillOpacity ?? 1,
+        ),
+        clickable: false,
+        zIndex: 999,
+      })
+    } else {
+      polygonCloseHintCircle.value.setCenter(latLng)
+      polygonCloseHintCircle.value.setRadius(radius)
+      polygonCloseHintCircle.value.setMap(mapInstance.value)
+    }
+    return
+  }
+  if (typeof window !== 'undefined' && window.TMap) {
+    ensurePolygonCloseHintLayer(window.TMap)
+    try {
+      polygonCloseHintLayer.value.setGeometries([
+        { id: 'polygon-close-hint', styleId: 'hint', center: latLng, radius },
+      ])
+    } catch (_) { }
+  }
+}
+
+const showPolygonCloseHint = () => {
+  syncPolygonCloseHintOverlay()
 }
 
 const updateVertexMarkers = (points = drawingPoints.value) => {
@@ -976,15 +1108,12 @@ const setupPolygonDrawing = () => {
         drawingPoints.value.push(point)
         if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
         updateVertexMarkers()
+        showPolygonCloseHint()
         return
       }
-      if (drawingPoints.value.length >= POLYGON_MIN_POINTS) {
-        const firstPoint = drawingPoints.value[0]
-        const distanceToStart = calculateDistanceMeters(firstPoint, point)
-        if (distanceToStart < 20) {
-          finalizePolygonDrawing()
-          return
-        }
+      if (shouldClosePolygon(point)) {
+        finalizePolygonDrawing()
+        return
       }
       drawingPoints.value.push(point)
       updatePolylinePreview()
@@ -998,6 +1127,10 @@ const setupPolygonDrawing = () => {
     qqListeners.value.push(moveListener)
     const dblListener = window.qq.maps.event.addListener(mapInstance.value, 'dblclick', () => finalizePolygonDrawing())
     qqListeners.value.push(dblListener)
+    const zoomListener = window.qq.maps.event.addListener(mapInstance.value, 'zoom_changed', () =>
+      syncPolygonCloseHintOverlay(),
+    )
+    qqListeners.value.push(zoomListener)
     return
   }
 
@@ -1009,15 +1142,12 @@ const setupPolygonDrawing = () => {
       drawingPoints.value.push(point)
       drawingPolyline.value.setGeometries([])
       updateVertexMarkers()
+      showPolygonCloseHint()
       return
     }
-    if (drawingPoints.value.length >= POLYGON_MIN_POINTS) {
-      const firstPoint = drawingPoints.value[0]
-      const distanceToStart = calculateDistanceMeters(firstPoint, point)
-      if (distanceToStart < 20) {
-        finalizePolygonDrawing(TMap)
-        return
-      }
+    if (shouldClosePolygon(point)) {
+      finalizePolygonDrawing(TMap)
+      return
     }
     drawingPoints.value.push(point)
     updatePolylinePreview()
@@ -1035,6 +1165,10 @@ const setupPolygonDrawing = () => {
   }
   mapInstance.value.on('mousemove', mapMouseMoveHandler.value)
   mapInstance.value.on('dblclick', mapDblClickHandler.value)
+  mapZoomChangedHandler.value = () => {
+    syncPolygonCloseHintOverlay()
+  }
+  mapInstance.value.on('zoom_changed', mapZoomChangedHandler.value)
 }
 
 const setupPathDrawing = () => {
@@ -1126,7 +1260,10 @@ const finalizePolygonDrawing = (TMap) => {
         path: drawingPoints.value,
         strokeWeight: highlightStyle.polygon.strokeWidth,
         strokeColor: '#ff4d4f',
-        fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+        fillColor: toQqColor(
+          highlightStyle.polygon.fillColor,
+          highlightStyle.polygon.fillOpacity ?? 1,
+        ),
         clickable: false,
       })
     } else {
@@ -1248,7 +1385,10 @@ const setupRectangleDrawing = (TMap) => {
           path: bounds,
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.polygon.strokeWidth,
-          fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+          fillColor: toQqColor(
+            highlightStyle.polygon.fillColor,
+            highlightStyle.polygon.fillOpacity ?? 1,
+          ),
           clickable: false,
         })
       } else {
@@ -1361,7 +1501,10 @@ const updateCirclePreview = (TMap = window.TMap) => {
         radius: drawingRadius.value,
         strokeColor: '#ff4d4f',
         strokeWeight: highlightStyle.circle.strokeWidth,
-        fillColor: toQqColor(highlightStyle.circle.fillColor, 1),
+        fillColor: toQqColor(
+          highlightStyle.circle.fillColor,
+          highlightStyle.circle.fillOpacity ?? 1,
+        ),
         clickable: false,
       })
     } else {
@@ -1661,8 +1804,21 @@ const editZone = (zone) => {
         }
         updatePathPreview(paths)
       } else {
-        if (!drawingPolygon.value) drawingPolygon.value = new window.qq.maps.Polygon({ map: mapInstance.value, path: paths, strokeColor: '#ff4d4f', strokeWeight: highlightStyle.polygon.strokeWidth, fillColor: toQqColor(highlightStyle.polygon.fillColor, 1) })
-        else { drawingPolygon.value.setPath(paths); drawingPolygon.value.setMap(mapInstance.value) }
+        if (!drawingPolygon.value) {
+          drawingPolygon.value = new window.qq.maps.Polygon({
+            map: mapInstance.value,
+            path: paths,
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.polygon.strokeWidth,
+            fillColor: toQqColor(
+              highlightStyle.polygon.fillColor,
+              highlightStyle.polygon.fillOpacity ?? 1,
+            ),
+          })
+        } else {
+          drawingPolygon.value.setPath(paths)
+          drawingPolygon.value.setMap(mapInstance.value)
+        }
       }
     } else {
       ensureDrawingLayers(window.TMap)
@@ -1771,7 +1927,10 @@ const renderZonesOnMap = () => {
           radius: zone.circle.radiusMeters,
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.circle.strokeWidth,
-          fillColor: toQqColor(highlightStyle.circle.fillColor, 1),
+          fillColor: toQqColor(
+            highlightStyle.circle.fillColor,
+            highlightStyle.circle.fillOpacity ?? 1,
+          ),
           clickable: false,
         })
         zoneCircleOverlays.value.push(circle)
@@ -1784,7 +1943,10 @@ const renderZonesOnMap = () => {
           path: pathPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.polygon.strokeWidth,
-          fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+          fillColor: toQqColor(
+            highlightStyle.polygon.fillColor,
+            highlightStyle.polygon.fillOpacity ?? 1,
+          ),
           clickable: false,
         })
         zonePolygonOverlays.value.push(polygon)
@@ -1796,7 +1958,10 @@ const renderZonesOnMap = () => {
           path: zone.coordinates.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.polygon.strokeWidth,
-          fillColor: toQqColor(highlightStyle.polygon.fillColor, 1),
+          fillColor: toQqColor(
+            highlightStyle.polygon.fillColor,
+            highlightStyle.polygon.fillOpacity ?? 1,
+          ),
           clickable: false,
         })
         zonePolygonOverlays.value.push(polygon)
@@ -1851,6 +2016,30 @@ const calculateDistanceMeters = (pointA, pointB) => {
     Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
+}
+
+const getPolygonCloseHitRadiusMeters = (referencePoint = drawingPoints.value[0]) => {
+  const fallback = DEFAULT_CLOSE_HIT_METERS
+  if (!referencePoint) return fallback
+  const latLng = formatCoordinatePoint(referencePoint)
+  if (!latLng) return fallback
+  const map = mapInstance.value
+  if (!map || typeof map.getZoom !== 'function') return fallback
+  const zoomLevel = Number(map.getZoom())
+  if (!Number.isFinite(zoomLevel)) return fallback
+  const meters = pixelsToMetersAtLatitude(latLng.latitude, zoomLevel, POLYGON_CLOSE_HITBOX_PX)
+  if (!Number.isFinite(meters) || meters <= 0) {
+    return fallback
+  }
+  return meters
+}
+
+const shouldClosePolygon = (point) => {
+  if (!point || drawingPoints.value.length < POLYGON_MIN_POINTS) return false
+  const threshold = getPolygonCloseHitRadiusMeters()
+  if (!Number.isFinite(threshold) || threshold <= 0) return false
+  const firstPoint = drawingPoints.value[0]
+  return calculateDistanceMeters(firstPoint, point) <= threshold
 }
 
 const createRectangleBounds = (startPoint, endPoint) => {
@@ -2004,6 +2193,7 @@ watch(
       updatePathPreview([])
     }
   },
+  { flush: 'sync' },
 )
 
 onMounted(() => {
