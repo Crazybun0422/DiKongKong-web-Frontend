@@ -24,6 +24,10 @@ const LEGACY_POLYLINE_TYPE = 'POLYLINE'
 const PATH_DEFAULT_DISTANCE = 200
 const POLYGON_CLOSE_HITBOX_PX = 28
 const DEFAULT_CLOSE_HIT_METERS = 30
+const LATITUDE_MIN = -90
+const LATITUDE_MAX = 90
+const LONGITUDE_MIN = -180
+const LONGITUDE_MAX = 180
 
 const { t } = useI18n()
 
@@ -223,6 +227,17 @@ const hasDrawnGeometry = computed(() => {
 
 const isCircleMode = computed(() => formState.type === 'CIRCLE')
 const isPathMode = computed(() => formState.type === PATH_TYPE)
+const circleCenterLatitude = computed({
+  get: () => (formState.circle?.latitude ?? null),
+  set: (value) => updateCircleCenterField('latitude', value),
+})
+const circleCenterLongitude = computed({
+  get: () => (formState.circle?.longitude ?? null),
+  set: (value) => updateCircleCenterField('longitude', value),
+})
+const manualCoordinateEditingEnabled = computed(
+  () => formState.type !== 'CIRCLE' && !isDrawing.value,
+)
 
 const drawButtonDisabled = computed(() => !mapReady.value || isDrawing.value)
 
@@ -340,6 +355,16 @@ const formatCoordinatePoint = (point) => {
 
 const formatCoordinateValue = (value) =>
   Number.isFinite(value) ? Number(value).toFixed(6) : '-'
+
+const clampLatitude = (value) => {
+  if (!Number.isFinite(value)) return null
+  return Math.min(Math.max(value, LATITUDE_MIN), LATITUDE_MAX)
+}
+
+const clampLongitude = (value) => {
+  if (!Number.isFinite(value)) return null
+  return Math.min(Math.max(value, LONGITUDE_MIN), LONGITUDE_MAX)
+}
 
 const EARTH_RADIUS_METERS = 6378137
 const toRadians = (degrees) => (degrees * Math.PI) / 180
@@ -528,6 +553,11 @@ const coordinateColumns = computed(() => [
     dataIndex: 'longitude',
     key: 'longitude',
   },
+  {
+    title: t('noFlyZone.form.coordinateActions'),
+    key: 'actions',
+    width: 120,
+  },
 ])
 
 const displayedCoordinates = computed(() => {
@@ -543,16 +573,15 @@ const displayedCoordinates = computed(() => {
       {
         key: 'center',
         label: t('noFlyZone.form.circleCenter'),
-        latitude: formatCoordinateValue(center.latitude),
-        longitude: formatCoordinateValue(center.longitude),
+        latitude: center.latitude,
+        longitude: center.longitude,
+        editable: false,
       },
     ]
   }
 
-  const sourcePoints =
-    isDrawing.value && drawingPoints.value.length
-      ? drawingPoints.value
-      : formState.coordinates ?? []
+  const usingDrawingPoints = isDrawing.value && drawingPoints.value.length
+  const sourcePoints = usingDrawingPoints ? drawingPoints.value : formState.coordinates ?? []
 
   if (!Array.isArray(sourcePoints)) {
     return []
@@ -565,12 +594,20 @@ const displayedCoordinates = computed(() => {
       return {
         key: `${index}`,
         label: t('noFlyZone.form.vertexLabel', { index: index + 1 }),
-        latitude: formatCoordinateValue(coordinate.latitude),
-        longitude: formatCoordinateValue(coordinate.longitude),
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        editable: !usingDrawingPoints,
+        index,
       }
     })
     .filter((item) => item !== null)
 })
+
+const coordinateManualHintText = computed(() =>
+  manualCoordinateEditingEnabled.value
+    ? t('noFlyZone.form.coordinateManualHint')
+    : t('noFlyZone.form.coordinateManualHintDisabled'),
+)
 
 const displayedCircleRadius = computed(() => {
   if (formState.type !== 'CIRCLE') return null
@@ -582,6 +619,214 @@ const displayedCircleRadius = computed(() => {
   }
   return null
 })
+
+const getDefaultCoordinate = () => {
+  if (mapInstance.value && typeof mapInstance.value.getCenter === 'function') {
+    try {
+      const center = mapInstance.value.getCenter()
+      const formatted = formatCoordinatePoint(center)
+      if (formatted) {
+        return formatted
+      }
+    } catch (_) { }
+  }
+  return { latitude: MAP_DEFAULT_CENTER.latitude, longitude: MAP_DEFAULT_CENTER.longitude }
+}
+
+const updateCircleCenterField = (field, rawValue) => {
+  if (formState.type !== 'CIRCLE') return
+  if (rawValue === null || rawValue === undefined || rawValue === '') {
+    if (formState.circle) {
+      formState.circle[field] = null
+    }
+    return
+  }
+  const numeric = Number(rawValue)
+  if (!Number.isFinite(numeric)) return
+  const clamped = field === 'latitude' ? clampLatitude(numeric) : clampLongitude(numeric)
+  if (clamped == null) return
+  if (!formState.circle) {
+    const fallback = getDefaultCoordinate()
+    formState.circle = {
+      latitude: field === 'latitude' ? clamped : fallback.latitude,
+      longitude: field === 'longitude' ? clamped : fallback.longitude,
+      radiusMeters: drawingRadius.value || CIRCLE_MIN_RADIUS,
+    }
+  } else {
+    formState.circle[field] = clamped
+    if (!Number.isFinite(formState.circle.radiusMeters)) {
+      formState.circle.radiusMeters = drawingRadius.value || CIRCLE_MIN_RADIUS
+    }
+  }
+  syncCirclePreviewFromForm()
+}
+
+const handleManualCoordinateChange = (index, field, rawValue) => {
+  if (!manualCoordinateEditingEnabled.value) return
+  if (!Array.isArray(formState.coordinates) || !formState.coordinates[index]) return
+  if (rawValue === null || rawValue === undefined || rawValue === '') {
+    formState.coordinates[index][field] = null
+    return
+  }
+  const numeric = Number(rawValue)
+  if (!Number.isFinite(numeric)) return
+  const clamped = field === 'latitude' ? clampLatitude(numeric) : clampLongitude(numeric)
+  if (clamped == null) return
+  formState.coordinates[index][field] = clamped
+  renderFormGeometryOnMap()
+}
+
+const addManualCoordinate = () => {
+  if (!manualCoordinateEditingEnabled.value) return
+  if (!Array.isArray(formState.coordinates)) {
+    formState.coordinates = []
+  }
+  const center = getDefaultCoordinate()
+  formState.coordinates.push({ latitude: center.latitude, longitude: center.longitude })
+  renderFormGeometryOnMap()
+}
+
+const removeManualCoordinate = (index) => {
+  if (!manualCoordinateEditingEnabled.value) return
+  if (!Array.isArray(formState.coordinates)) return
+  if (index < 0 || index >= formState.coordinates.length) return
+  formState.coordinates.splice(index, 1)
+  renderFormGeometryOnMap()
+}
+
+const syncCirclePreviewFromForm = () => {
+  if (
+    !mapReady.value ||
+    formState.type !== 'CIRCLE' ||
+    !formState.circle ||
+    isDrawing.value
+  ) {
+    return
+  }
+  const { latitude, longitude } = formState.circle
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return
+  }
+  const resolvedRadius = Math.max(
+    Number(formState.circle.radiusMeters) || drawingRadius.value || CIRCLE_MIN_RADIUS,
+    CIRCLE_MIN_RADIUS,
+  )
+  drawingRadius.value = resolvedRadius
+  if (window.qq && window.qq.maps) {
+    drawingCenter.value = new window.qq.maps.LatLng(latitude, longitude)
+    updateCirclePreview()
+  } else if (window.TMap) {
+    ensureDrawingLayers(window.TMap)
+    drawingCenter.value = new window.TMap.LatLng(latitude, longitude)
+    updateCirclePreview(window.TMap)
+  }
+  updateVertexMarkers([drawingCenter.value])
+}
+
+const renderFormGeometryOnMap = () => {
+  if (!mapReady.value || isDrawing.value) return
+  if (formState.type === 'CIRCLE') {
+    syncCirclePreviewFromForm()
+    return
+  }
+  if (!Array.isArray(formState.coordinates) || !formState.coordinates.length) {
+    drawingPoints.value = []
+    if (window.qq && window.qq.maps) {
+      try {
+        if (drawingPolygon.value && drawingPolygon.value.setMap) drawingPolygon.value.setMap(null)
+      } catch (_) { }
+      try {
+        if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
+      } catch (_) { }
+    } else if (drawingPolygon.value && drawingPolygon.value.setGeometries) {
+      try { drawingPolygon.value.setGeometries([]) } catch (_) { }
+      if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
+        try { drawingPolyline.value.setGeometries([]) } catch (_) { }
+      }
+    }
+    updateVertexMarkers([])
+    if (formState.type === PATH_TYPE) {
+      updatePathPreview([])
+    }
+    return
+  }
+  const paths = formState.coordinates
+    .map((coord) => normalizeLatLngPoint(coord))
+    .filter((point) => point)
+  if (!paths.length) {
+    drawingPoints.value = []
+    if (window.qq && window.qq.maps) {
+      try {
+        if (drawingPolygon.value && drawingPolygon.value.setMap) drawingPolygon.value.setMap(null)
+      } catch (_) { }
+      try {
+        if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
+      } catch (_) { }
+    } else if (drawingPolygon.value && drawingPolygon.value.setGeometries) {
+      try { drawingPolygon.value.setGeometries([]) } catch (_) { }
+      if (drawingPolyline.value && drawingPolyline.value.setGeometries) {
+        try { drawingPolyline.value.setGeometries([]) } catch (_) { }
+      }
+    }
+    updateVertexMarkers([])
+    if (formState.type === PATH_TYPE) {
+      updatePathPreview([])
+    }
+    return
+  }
+  drawingPoints.value = paths
+  if (window.qq && window.qq.maps) {
+    if (formState.type === PATH_TYPE) {
+      if (!drawingPolyline.value) {
+        drawingPolyline.value = new window.qq.maps.Polyline({
+          map: mapInstance.value,
+          path: paths,
+          strokeColor: '#ff4d4f',
+          strokeWeight: highlightStyle.dashed.width,
+          strokeDashStyle: 'dash',
+        })
+      } else {
+        drawingPolyline.value.setPath(paths)
+        drawingPolyline.value.setMap(mapInstance.value)
+        try {
+          if (typeof drawingPolyline.value.setOptions === 'function') {
+            drawingPolyline.value.setOptions({
+              strokeColor: '#ff4d4f',
+              strokeWeight: highlightStyle.dashed.width,
+              strokeDashStyle: 'dash',
+            })
+          }
+        } catch (_) { }
+      }
+      updatePathPreview(paths)
+    } else {
+      if (!drawingPolygon.value) {
+        drawingPolygon.value = new window.qq.maps.Polygon({
+          map: mapInstance.value,
+          path: paths,
+          strokeColor: '#ff4d4f',
+          strokeWeight: highlightStyle.polygon.strokeWidth,
+          fillColor: toQqColor(
+            highlightStyle.polygon.fillColor,
+            highlightStyle.polygon.fillOpacity ?? 1,
+          ),
+        })
+      } else {
+        drawingPolygon.value.setPath(paths)
+        drawingPolygon.value.setMap(mapInstance.value)
+      }
+    }
+  } else if (window.TMap) {
+    ensureDrawingLayers(window.TMap)
+    if (formState.type === PATH_TYPE) {
+      drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'dashed', paths }])
+      updatePathPreview(paths)
+    } else {
+      drawingPolygon.value.setGeometries([{ id: 'drawing', styleId: 'zone', paths }])
+    }
+  }
+  updateVertexMarkers(paths)
+}
 
 const createSvgDataUrl = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 
@@ -1761,76 +2006,10 @@ const editZone = (zone) => {
   formState.timeRange = range.every((value) => value === null) ? [] : range
   if (zoneType === 'CIRCLE' && zone.circle) {
     formState.circle = { ...zone.circle }
-    if (window.qq && window.qq.maps) {
-      drawingCenter.value = new window.qq.maps.LatLng(zone.circle.latitude, zone.circle.longitude)
-      drawingRadius.value = zone.circle.radiusMeters
-      updateCirclePreview()
-    } else {
-      drawingCenter.value = new window.TMap.LatLng(zone.circle.latitude, zone.circle.longitude)
-      drawingRadius.value = zone.circle.radiusMeters
-      ensureDrawingLayers(window.TMap)
-      drawingCircle.value.setGeometries([
-        { id: 'drawing', styleId: 'zone', center: drawingCenter.value, radius: drawingRadius.value },
-      ])
-    }
-    drawingPoints.value = []
-    updateVertexMarkers([drawingCenter.value])
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
     formState.coordinates = zone.coordinates.map((coord) => ({ ...coord }))
-    const paths = zone.coordinates.map((coord) => normalizeLatLngPoint(coord)).filter(Boolean)
-    drawingPoints.value = paths
-    if (window.qq && window.qq.maps) {
-      if (zoneType === PATH_TYPE) {
-        if (!drawingPolyline.value) {
-          drawingPolyline.value = new window.qq.maps.Polyline({
-            map: mapInstance.value,
-            path: paths,
-            strokeColor: '#ff4d4f',
-            strokeWeight: highlightStyle.dashed.width,
-            strokeDashStyle: 'dash',
-          })
-        } else {
-          drawingPolyline.value.setPath(paths)
-          drawingPolyline.value.setMap(mapInstance.value)
-          try {
-            if (typeof drawingPolyline.value.setOptions === 'function') {
-              drawingPolyline.value.setOptions({
-                strokeColor: '#ff4d4f',
-                strokeWeight: highlightStyle.dashed.width,
-                strokeDashStyle: 'dash',
-              })
-            }
-          } catch (_) { }
-        }
-        updatePathPreview(paths)
-      } else {
-        if (!drawingPolygon.value) {
-          drawingPolygon.value = new window.qq.maps.Polygon({
-            map: mapInstance.value,
-            path: paths,
-            strokeColor: '#ff4d4f',
-            strokeWeight: highlightStyle.polygon.strokeWidth,
-            fillColor: toQqColor(
-              highlightStyle.polygon.fillColor,
-              highlightStyle.polygon.fillOpacity ?? 1,
-            ),
-          })
-        } else {
-          drawingPolygon.value.setPath(paths)
-          drawingPolygon.value.setMap(mapInstance.value)
-        }
-      }
-    } else {
-      ensureDrawingLayers(window.TMap)
-      if (zoneType === PATH_TYPE) {
-        drawingPolyline.value.setGeometries([{ id: 'drawing', styleId: 'dashed', paths }])
-        updatePathPreview(paths)
-      } else {
-        drawingPolygon.value.setGeometries([{ id: 'drawing', styleId: 'zone', paths }])
-      }
-    }
-    updateVertexMarkers(paths)
   }
+  renderFormGeometryOnMap()
   focusZoneOnMap(zone)
 }
 
@@ -2233,8 +2412,11 @@ const initializeMap2D = async () => {
   }
 }
 
-watch(drawingRadius, () => {
+watch(drawingRadius, (radius) => {
   if (!mapReady.value || formState.type !== 'CIRCLE') return
+  if (!isDrawing.value && formState.circle) {
+    formState.circle.radiusMeters = radius
+  }
   updateCirclePreview()
 })
 
@@ -2446,6 +2628,23 @@ const handleSearchClear = () => {
               :addon-after="t('noFlyZone.form.radiusUnit')" :disabled="disableFormDuringDrawing && !isCircleMode" />
             <p class="form-hint">{{ t('noFlyZone.form.circleHint') }}</p>
           </a-form-item>
+          <a-form-item v-if="isCircleMode">
+            <template #label>
+              <span class="form-item-label form-item-label--required">
+                <span class="form-item-label__asterisk">*</span>
+                {{ t('noFlyZone.form.circleCenter') }}
+              </span>
+            </template>
+            <div class="circle-center-inputs">
+              <a-input-number v-model:value="circleCenterLatitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX"
+                :precision="6" :step="0.000001" class="coordinate-input"
+                :placeholder="t('noFlyZone.form.latitudePlaceholder')" :disabled="disableFormDuringDrawing" />
+              <a-input-number v-model:value="circleCenterLongitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX"
+                :precision="6" :step="0.000001" class="coordinate-input"
+                :placeholder="t('noFlyZone.form.longitudePlaceholder')" :disabled="disableFormDuringDrawing" />
+            </div>
+            <p class="form-hint">{{ t('noFlyZone.form.circleCenterHint') }}</p>
+          </a-form-item>
           <div class="drawing-actions">
             <a-space>
               <a-button type="primary" :disabled="drawButtonDisabled" @click="startDrawing">
@@ -2472,7 +2671,43 @@ const handleSearchClear = () => {
             <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
             <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
               :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
-              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }" />
+              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }">
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'latitude'">
+                  <template v-if="record.editable">
+                    <a-input-number :value="record.latitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX" :precision="6"
+                      :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                      @update:value="(value) => handleManualCoordinateChange(record.index, 'latitude', value)" />
+                  </template>
+                  <template v-else>
+                    {{ formatCoordinateValue(record.latitude) }}
+                  </template>
+                </template>
+                <template v-else-if="column.key === 'longitude'">
+                  <template v-if="record.editable">
+                    <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX" :precision="6"
+                      :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                      @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
+                  </template>
+                  <template v-else>
+                    {{ formatCoordinateValue(record.longitude) }}
+                  </template>
+                </template>
+                <template v-else-if="column.key === 'actions'">
+                  <a-button v-if="record.editable" type="text" danger size="small"
+                    :disabled="!manualCoordinateEditingEnabled" @click="removeManualCoordinate(record.index)">
+                    {{ t('noFlyZone.form.removeCoordinate') }}
+                  </a-button>
+                </template>
+              </template>
+            </a-table>
+            <div v-if="!isCircleMode" class="coordinate-actions">
+              <a-button size="small" type="dashed" :disabled="!manualCoordinateEditingEnabled"
+                @click="addManualCoordinate">
+                {{ t('noFlyZone.form.addCoordinate') }}
+              </a-button>
+            </div>
+            <p v-if="!isCircleMode" class="form-hint coordinate-hint">{{ coordinateManualHintText }}</p>
             <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
               {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
             </div>
@@ -2622,6 +2857,26 @@ const handleSearchClear = () => {
 
 .radius-input {
   width: 100%;
+}
+
+.circle-center-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.coordinate-input {
+  width: 100%;
+}
+
+.coordinate-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.coordinate-hint {
+  margin-top: 4px;
 }
 
 .form-hint {
