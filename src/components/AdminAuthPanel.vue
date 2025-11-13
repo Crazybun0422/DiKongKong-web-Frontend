@@ -110,7 +110,7 @@ const applyLoginSuccess = (responseData) => {
   }
   message.success(t('auth.loginSuccess'))
   clearLoginForm()
-  router.push({ name: 'home' }).catch(() => {})
+  router.push({ name: 'home' }).catch(() => { })
 }
 
 const shouldTriggerCaptcha = (msg = '') =>
@@ -185,50 +185,31 @@ watch(
     <a-card class="auth-card" bordered="false">
       <a-tabs v-model:activeKey="activeTabKey" centered size="large">
         <a-tab-pane :key="'login'" :tab="t('auth.loginTab')">
-          <a-form
-            ref="loginFormRef"
-            :model="loginForm"
-            :rules="loginRules"
-            layout="vertical"
-            autocomplete="off"
-            @finish="handleLogin"
-          >
+          <a-form ref="loginFormRef" :model="loginForm" :rules="loginRules" layout="vertical" autocomplete="off"
+            @finish="handleLogin">
             <a-form-item :label="t('auth.adminAccount')" name="username">
-              <a-input
-                v-model:value="loginForm.username"
-                size="large"
-                :placeholder="t('auth.adminAccountPlaceholder')"
-              >
+              <a-input v-model:value="loginForm.username" size="large" :placeholder="t('auth.adminAccountPlaceholder')">
                 <template #prefix>
                   <UserOutlined />
                 </template>
               </a-input>
             </a-form-item>
             <a-form-item :label="t('auth.password')" name="password">
-              <a-input-password
-                v-model:value="loginForm.password"
-                size="large"
-                :placeholder="t('auth.passwordPlaceholder')"
-              >
+              <a-input-password v-model:value="loginForm.password" size="large"
+                :placeholder="t('auth.passwordPlaceholder')">
                 <template #prefix>
                   <LockOutlined />
                 </template>
               </a-input-password>
             </a-form-item>
             <a-form-item>
-              <a-button
-                block
-                html-type="submit"
-                size="large"
-                type="primary"
-                :loading="loginLoading"
-              >
+              <a-button block html-type="submit" size="large" type="primary" :loading="loginLoading">
                 {{ t('auth.submitLogin') }}
               </a-button>
             </a-form-item>
           </a-form>
         </a-tab-pane>
-        <a-tab-pane :key="'register'" :tab="t('auth.registerTab')">
+        <!-- <a-tab-pane :key="'register'" :tab="t('auth.registerTab')">
           <a-form
             ref="registerFormRef"
             :model="registerForm"
@@ -293,15 +274,11 @@ watch(
               </a-button>
             </a-form-item>
           </a-form>
-        </a-tab-pane>
+        </a-tab-pane> -->
       </a-tabs>
     </a-card>
-    <CaptchaDialog
-      v-model:visible="captchaVisible"
-      :username="pendingLogin.username"
-      :password="pendingLogin.password"
-      @login-success="handleCaptchaLoginSuccess"
-    />
+    <CaptchaDialog v-model:visible="captchaVisible" :username="pendingLogin.username" :password="pendingLogin.password"
+      @login-success="handleCaptchaLoginSuccess" />
   </section>
 </template>
 
