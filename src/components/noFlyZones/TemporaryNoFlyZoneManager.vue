@@ -544,19 +544,13 @@ const coordinateColumns = computed(() => [
     width: 140,
   },
   {
-    title: t('noFlyZone.form.latitude'),
-    dataIndex: 'latitude',
-    key: 'latitude',
-  },
-  {
-    title: t('noFlyZone.form.longitude'),
-    dataIndex: 'longitude',
-    key: 'longitude',
+    title: t('noFlyZone.form.coordinateValueColumn'),
+    key: 'values',
   },
   {
     title: t('noFlyZone.form.coordinateActions'),
     key: 'actions',
-    width: 120,
+    width: 90,
   },
 ])
 
@@ -2428,6 +2422,19 @@ watch(
   },
 )
 
+watch(
+  () => ({
+    type: formState.type,
+    coordinates: formState.coordinates,
+    circle: formState.circle,
+  }),
+  () => {
+    if (!mapReady.value || isDrawing.value) return
+    renderFormGeometryOnMap()
+  },
+  { deep: true },
+)
+
 const clearSearchMarker = () => {
   try {
     if (searchMarker.value && typeof searchMarker.value.setMap === 'function') {
@@ -2673,25 +2680,33 @@ const handleSearchClear = () => {
               :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
               :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }">
               <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'latitude'">
-                  <template v-if="record.editable">
-                    <a-input-number :value="record.latitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX" :precision="6"
-                      :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
-                      @update:value="(value) => handleManualCoordinateChange(record.index, 'latitude', value)" />
-                  </template>
-                  <template v-else>
-                    {{ formatCoordinateValue(record.latitude) }}
-                  </template>
-                </template>
-                <template v-else-if="column.key === 'longitude'">
-                  <template v-if="record.editable">
-                    <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX" :precision="6"
-                      :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
-                      @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
-                  </template>
-                  <template v-else>
-                    {{ formatCoordinateValue(record.longitude) }}
-                  </template>
+                <template v-if="column.key === 'values'">
+                  <div class="coordinate-value">
+                    <span class="coordinate-value__label">{{ t('noFlyZone.form.latitude') }}</span>
+                    <div class="coordinate-value__control">
+                      <template v-if="record.editable">
+                        <a-input-number :value="record.latitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX" :precision="6"
+                          :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                          @update:value="(value) => handleManualCoordinateChange(record.index, 'latitude', value)" />
+                      </template>
+                      <template v-else>
+                        {{ formatCoordinateValue(record.latitude) }}
+                      </template>
+                    </div>
+                  </div>
+                  <div class="coordinate-value">
+                    <span class="coordinate-value__label">{{ t('noFlyZone.form.longitude') }}</span>
+                    <div class="coordinate-value__control">
+                      <template v-if="record.editable">
+                        <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX" :precision="6"
+                          :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                          @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
+                      </template>
+                      <template v-else>
+                        {{ formatCoordinateValue(record.longitude) }}
+                      </template>
+                    </div>
+                  </div>
                 </template>
                 <template v-else-if="column.key === 'actions'">
                   <a-button v-if="record.editable" type="text" danger size="small"
@@ -2867,6 +2882,31 @@ const handleSearchClear = () => {
 
 .coordinate-input {
   width: 100%;
+}
+
+.coordinate-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.coordinate-value + .coordinate-value {
+  margin-top: 4px;
+}
+
+.coordinate-value__label {
+  flex-shrink: 0;
+  width: 56px;
+  color: #6b7280;
+}
+
+.coordinate-value__control {
+  flex: 1;
+}
+
+:deep(.coordinate-table .ant-table-cell) {
+  vertical-align: top;
 }
 
 .coordinate-actions {
