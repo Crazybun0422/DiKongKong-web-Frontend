@@ -267,6 +267,7 @@
       "coordinatesHint": "Click on the map to add vertices and preview their latitude and longitude here.",
       "coordinatesEmpty": "Draw a no-fly zone on the map to view coordinates.",
       "coordinateLabel": "Label",
+      "coordinateValueColumn": "Lat & Lng",
       "latitude": "Latitude",
       "latitudePlaceholder": "Enter latitude (-90 ~ 90)",
       "longitude": "Longitude",
