@@ -541,7 +541,7 @@ const coordinateColumns = computed(() => [
     title: t('noFlyZone.form.coordinateLabel'),
     dataIndex: 'label',
     key: 'label',
-    width: 140,
+    width: 70,
   },
   {
     title: t('noFlyZone.form.coordinateValueColumn'),
@@ -550,7 +550,7 @@ const coordinateColumns = computed(() => [
   {
     title: t('noFlyZone.form.coordinateActions'),
     key: 'actions',
-    width: 90,
+    width: 72,
   },
 ])
 
@@ -2613,15 +2613,9 @@ const handleSearchClear = () => {
                 {{ t('noFlyZone.form.edgeDistance') }}
               </span>
             </template>
-            <a-input-number
-              v-model:value="formState.pathDistanceMeters"
-              :min="10"
-              :step="10"
-              :disabled="disableFormDuringDrawing"
-              :addon-after="t('noFlyZone.form.radiusUnit')"
-              :placeholder="t('noFlyZone.form.edgeDistancePlaceholder')"
-              class="radius-input"
-            />
+            <a-input-number v-model:value="formState.pathDistanceMeters" :min="10" :step="10"
+              :disabled="disableFormDuringDrawing" :addon-after="t('noFlyZone.form.radiusUnit')"
+              :placeholder="t('noFlyZone.form.edgeDistancePlaceholder')" class="radius-input" />
             <p class="form-hint">{{ t('noFlyZone.form.edgeDistanceHint') }}</p>
           </a-form-item>
           <a-form-item v-if="isCircleMode">
@@ -2698,8 +2692,9 @@ const handleSearchClear = () => {
                     <span class="coordinate-value__label">{{ t('noFlyZone.form.longitude') }}</span>
                     <div class="coordinate-value__control">
                       <template v-if="record.editable">
-                        <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX" :precision="6"
-                          :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                        <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX"
+                          :precision="6" :step="0.000001" class="coordinate-input"
+                          :disabled="!manualCoordinateEditingEnabled"
                           @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
                       </template>
                       <template v-else>
@@ -2759,17 +2754,9 @@ const handleSearchClear = () => {
       <a-card class="map-panel" :bordered="false">
         <div ref="mapContainer" class="map-container">
           <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
-            <a-auto-complete
-              v-model:value="searchQuery"
-              :options="searchOptions"
-              :loading="searchLoading"
-              :disabled="!mapReady"
-              allow-clear
-              class="map-search-input"
-              @search="handleSearchInput"
-              @select="handleSelectSearchOption"
-              @clear="handleSearchClear"
-            >
+            <a-auto-complete v-model:value="searchQuery" :options="searchOptions" :loading="searchLoading"
+              :disabled="!mapReady" allow-clear class="map-search-input" @search="handleSearchInput"
+              @select="handleSelectSearchOption" @clear="handleSearchClear">
               <template #default>
                 <a-input :placeholder="t('noFlyZone.search.placeholder')" @pressEnter="handleSearchEnter" />
               </template>
@@ -2887,22 +2874,24 @@ const handleSearchClear = () => {
 .coordinate-value {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
 }
 
-.coordinate-value + .coordinate-value {
+.coordinate-value+.coordinate-value {
   margin-top: 4px;
 }
 
 .coordinate-value__label {
-  flex-shrink: 0;
-  width: 56px;
+  flex: 0 0 auto;
+  min-width: 25px;
   color: #6b7280;
+  white-space: nowrap;
 }
 
 .coordinate-value__control {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 :deep(.coordinate-table .ant-table-cell) {
