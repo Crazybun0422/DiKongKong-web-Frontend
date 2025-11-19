@@ -499,6 +499,42 @@ const computePathBufferPolygon = (points, distanceMeters) => {
   })
 }
 
+const coordinatesAlmostEqual = (a, b, epsilon = 1e-6) => {
+  if (!a || !b) return false
+  const latA = Number(a.latitude ?? a.lat)
+  const lngA = Number(a.longitude ?? a.lng)
+  const latB = Number(b.latitude ?? b.lat)
+  const lngB = Number(b.longitude ?? b.lng)
+  if (
+    !Number.isFinite(latA) ||
+    !Number.isFinite(lngA) ||
+    !Number.isFinite(latB) ||
+    !Number.isFinite(lngB)
+  ) {
+    return false
+  }
+  return Math.abs(latA - latB) <= epsilon && Math.abs(lngA - lngB) <= epsilon
+}
+
+const ensureClosedPolygon = (points) => {
+  if (!Array.isArray(points) || points.length === 0) return []
+  const sanitized = points
+    .map((point) => {
+      const latitude = Number(point.latitude ?? point.lat)
+      const longitude = Number(point.longitude ?? point.lng)
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+      return { latitude, longitude }
+    })
+    .filter(Boolean)
+  if (!sanitized.length) return []
+  const first = sanitized[0]
+  const last = sanitized[sanitized.length - 1]
+  if (!coordinatesAlmostEqual(first, last)) {
+    sanitized.push({ ...first })
+  }
+  return sanitized
+}
+
 const updatePathPreview = (points = drawingPoints.value) => {
   if (!mapInstance.value) return
   const pathPolygon = computePathBufferPolygon(points, formState.pathDistanceMeters)
@@ -1542,7 +1578,8 @@ const finalizePolygonDrawing = (TMap) => {
     message.warning(t('noFlyZone.messages.rectangleInvalid'))
     return
   }
-  formState.coordinates = paths
+  const closedPaths = ensureClosedPolygon(paths)
+  formState.coordinates = closedPaths
   if (window.qq && window.qq.maps) {
     if (!drawingPolygon.value || !drawingPolygon.value.setPath) {
       drawingPolygon.value = new window.qq.maps.Polygon({
