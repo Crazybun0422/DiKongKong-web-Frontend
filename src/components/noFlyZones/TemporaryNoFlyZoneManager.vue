@@ -38,6 +38,7 @@ const drawingPolygon = ref(null)
 const drawingCircle = ref(null)
 const drawingMarkerLayer = ref(null)
 const polygonCloseHintCircle = ref(null)
+const polygonCloseHintRadar = ref(null)
 const polygonCloseHintLayer = ref(null)
 // 2D API additional refs
 const qqListeners = ref([]) // qq.maps.event listener tokens
@@ -291,8 +292,15 @@ const polygonCloseHintStyle = {
   fillOpacity: 0.18,
 }
 
+const POLYGON_CLOSE_RADAR_SIZE_PX = 96
+const POLYGON_CLOSE_RADAR_CORE_PX = 12
+
 const POLYGON_CLOSE_HINT_RADAR_HTML = `
-  <div class="polygon-close-radar" aria-hidden="true">
+  <div
+    class="polygon-close-radar"
+    style="--polygon-close-radar-size: ${POLYGON_CLOSE_RADAR_SIZE_PX}px; --polygon-close-radar-core-size: ${POLYGON_CLOSE_RADAR_CORE_PX}px;"
+    aria-hidden="true"
+  >
     <span class="polygon-close-radar__ring"></span>
     <span class="polygon-close-radar__ring polygon-close-radar__ring--delay"></span>
     <span class="polygon-close-radar__ring polygon-close-radar__ring--delay2"></span>
@@ -1166,6 +1174,12 @@ const hidePolygonCloseHint = () => {
     }
   } catch (_) { }
   polygonCloseHintCircle.value = null
+  try {
+    if (polygonCloseHintRadar.value && typeof polygonCloseHintRadar.value.setMap === 'function') {
+      polygonCloseHintRadar.value.setMap(null)
+    }
+  } catch (_) { }
+  polygonCloseHintRadar.value = null
   if (polygonCloseHintLayer.value && typeof polygonCloseHintLayer.value.setGeometries === 'function') {
     try {
       polygonCloseHintLayer.value.setGeometries([])
@@ -1266,6 +1280,23 @@ const syncPolygonCloseHintOverlay = () => {
   if (window.qq && window.qq.maps) {
     const { maps } = window.qq
     if (!polygonCloseHintCircle.value) {
+      polygonCloseHintCircle.value = new window.qq.maps.Circle({
+        map: mapInstance.value,
+        center: latLng,
+        radius,
+        strokeColor: polygonCloseHintStyle.strokeColor,
+        strokeWeight: polygonCloseHintStyle.strokeWeight,
+        strokeDashStyle: polygonCloseHintStyle.strokeDashStyle,
+        fillColor: toQqColor(polygonCloseHintStyle.fillColor, polygonCloseHintStyle.fillOpacity ?? 1),
+        fillOpacity: polygonCloseHintStyle.fillOpacity ?? 0.18,
+        clickable: false,
+      })
+    } else {
+      try { polygonCloseHintCircle.value.setCenter(latLng) } catch (_) { }
+      try { polygonCloseHintCircle.value.setRadius(radius) } catch (_) { }
+      try { polygonCloseHintCircle.value.setMap(mapInstance.value) } catch (_) { }
+    }
+    if (!polygonCloseHintRadar.value) {
       const labelOptions = {
         map: mapInstance.value,
         position: latLng,
@@ -1274,25 +1305,27 @@ const syncPolygonCloseHintOverlay = () => {
         content: POLYGON_CLOSE_HINT_RADAR_HTML,
       }
       if (typeof maps.Size === 'function') {
-        labelOptions.offset = new maps.Size(0, 0)
+        const offset = Math.round(POLYGON_CLOSE_RADAR_SIZE_PX / 2)
+        labelOptions.offset = new maps.Size(-offset, -offset)
       }
-      polygonCloseHintCircle.value = new maps.Label(labelOptions)
-      if (typeof polygonCloseHintCircle.value.setStyle === 'function') {
-        polygonCloseHintCircle.value.setStyle({
+      polygonCloseHintRadar.value = new maps.Label(labelOptions)
+      if (typeof polygonCloseHintRadar.value.setStyle === 'function') {
+        polygonCloseHintRadar.value.setStyle({
           border: 'none',
           backgroundColor: 'transparent',
           boxShadow: 'none',
+          pointerEvents: 'none',
         })
       }
     } else {
-      if (typeof polygonCloseHintCircle.value.setPosition === 'function') {
-        polygonCloseHintCircle.value.setPosition(latLng)
+      if (typeof polygonCloseHintRadar.value.setPosition === 'function') {
+        polygonCloseHintRadar.value.setPosition(latLng)
       }
-      if (typeof polygonCloseHintCircle.value.setContent === 'function') {
-        polygonCloseHintCircle.value.setContent(POLYGON_CLOSE_HINT_RADAR_HTML)
+      if (typeof polygonCloseHintRadar.value.setContent === 'function') {
+        polygonCloseHintRadar.value.setContent(POLYGON_CLOSE_HINT_RADAR_HTML)
       }
-      if (typeof polygonCloseHintCircle.value.setMap === 'function') {
-        polygonCloseHintCircle.value.setMap(mapInstance.value)
+      if (typeof polygonCloseHintRadar.value.setMap === 'function') {
+        polygonCloseHintRadar.value.setMap(mapInstance.value)
       }
     }
     return
@@ -3004,11 +3037,10 @@ const handleSearchClear = () => {
 <style>
 .polygon-close-radar {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 64px;
-  height: 64px;
-  transform: translate(-50%, -50%);
+  left: 0;
+  top: 0;
+  width: var(--polygon-close-radar-size, 96px);
+  height: var(--polygon-close-radar-size, 96px);
   pointer-events: none;
 }
 
@@ -3016,12 +3048,13 @@ const handleSearchClear = () => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 16px;
-  height: 16px;
+  width: calc(var(--polygon-close-radar-size, 96px) * 0.55);
+  height: calc(var(--polygon-close-radar-size, 96px) * 0.55);
   border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0.3);
-  background: rgba(76, 175, 80, 0.35);
-  border: 1px solid #00c853;
+  transform: translate(-50%, -50%) scale(0.35);
+  background: radial-gradient(circle, rgba(76, 175, 80, 0.45) 0%, rgba(76, 175, 80, 0.05) 65%);
+  border: 1px solid rgba(0, 200, 83, 0.9);
+  box-shadow: 0 0 12px rgba(0, 200, 83, 0.35);
   opacity: 0;
   animation: polygon-close-radar-pulse 2.4s linear infinite;
 }
@@ -3038,24 +3071,24 @@ const handleSearchClear = () => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 8px;
-  height: 8px;
+  width: var(--polygon-close-radar-core-size, 12px);
+  height: var(--polygon-close-radar-core-size, 12px);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background-color: #00c853;
-  box-shadow: 0 0 12px rgba(0, 200, 83, 0.6);
+  box-shadow: 0 0 16px rgba(0, 200, 83, 0.65);
 }
 
 @keyframes polygon-close-radar-pulse {
   0% {
-    transform: translate(-50%, -50%) scale(0.3);
-    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 0.85;
   }
-  60% {
-    opacity: 0.25;
+  70% {
+    opacity: 0.3;
   }
   100% {
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1.4);
     opacity: 0;
   }
 }
