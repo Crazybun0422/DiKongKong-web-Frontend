@@ -292,7 +292,7 @@ const polygonCloseHintStyle = {
   fillOpacity: 0.18,
 }
 
-const POLYGON_CLOSE_RADAR_SIZE_PX = 96
+const POLYGON_CLOSE_RADAR_SIZE_PX = 48
 const POLYGON_CLOSE_RADAR_CORE_PX = 12
 
 const POLYGON_CLOSE_HINT_RADAR_HTML = `
@@ -302,8 +302,6 @@ const POLYGON_CLOSE_HINT_RADAR_HTML = `
     aria-hidden="true"
   >
     <span class="polygon-close-radar__ring"></span>
-    <span class="polygon-close-radar__ring polygon-close-radar__ring--delay"></span>
-    <span class="polygon-close-radar__ring polygon-close-radar__ring--delay2"></span>
     <span class="polygon-close-radar__core"></span>
   </div>
 `
@@ -3039,8 +3037,8 @@ const handleSearchClear = () => {
   position: absolute;
   left: 0;
   top: 0;
-  width: var(--polygon-close-radar-size, 96px);
-  height: var(--polygon-close-radar-size, 96px);
+  width: var(--polygon-close-radar-size, 48px);
+  height: var(--polygon-close-radar-size, 48px);
   pointer-events: none;
 }
 
@@ -3048,23 +3046,23 @@ const handleSearchClear = () => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: calc(var(--polygon-close-radar-size, 96px) * 0.55);
-  height: calc(var(--polygon-close-radar-size, 96px) * 0.55);
+  width: calc(var(--polygon-close-radar-size, 48px) * 0.55);
+  height: calc(var(--polygon-close-radar-size, 48px) * 0.55);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0.35);
   background: radial-gradient(circle, rgba(76, 175, 80, 0.45) 0%, rgba(76, 175, 80, 0.05) 65%);
-  border: 1px solid rgba(0, 200, 83, 0.9);
+  border: 8px solid rgba(0, 200, 83, 0.9);
   box-shadow: 0 0 12px rgba(0, 200, 83, 0.35);
   opacity: 0;
-  animation: polygon-close-radar-pulse 2.4s linear infinite;
+  animation: polygon-close-radar-pulse 1.2s linear infinite;
 }
 
 .polygon-close-radar__ring--delay {
-  animation-delay: 0.6s;
+  animation-delay: 1.8s;
 }
 
 .polygon-close-radar__ring--delay2 {
-  animation-delay: 1.2s;
+  animation-delay: 3.6s;
 }
 
 .polygon-close-radar__core {
@@ -3084,9 +3082,11 @@ const handleSearchClear = () => {
     transform: translate(-50%, -50%) scale(0.35);
     opacity: 0.85;
   }
+
   70% {
     opacity: 0.3;
   }
+
   100% {
     transform: translate(-50%, -50%) scale(1.4);
     opacity: 0;
