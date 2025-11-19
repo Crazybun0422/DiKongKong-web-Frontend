@@ -291,6 +291,15 @@ const polygonCloseHintStyle = {
   fillOpacity: 0.18,
 }
 
+const POLYGON_CLOSE_HINT_RADAR_HTML = `
+  <div class="polygon-close-radar" aria-hidden="true">
+    <span class="polygon-close-radar__ring"></span>
+    <span class="polygon-close-radar__ring polygon-close-radar__ring--delay"></span>
+    <span class="polygon-close-radar__ring polygon-close-radar__ring--delay2"></span>
+    <span class="polygon-close-radar__core"></span>
+  </div>
+`
+
 // Helper: convert css color + alpha to qq.maps.Color when available
 const normalizeHex = (h) => {
   const s = String(h || '').trim()
@@ -1255,25 +1264,36 @@ const syncPolygonCloseHintOverlay = () => {
   if (!latLng) return
   const radius = Math.max(getPolygonCloseHitRadiusMeters(firstPoint), 1)
   if (window.qq && window.qq.maps) {
-    if (!polygonCloseHintCircle.value || typeof polygonCloseHintCircle.value.setCenter !== 'function') {
-      polygonCloseHintCircle.value = new window.qq.maps.Circle({
+    const { maps } = window.qq
+    if (!polygonCloseHintCircle.value) {
+      const labelOptions = {
         map: mapInstance.value,
-        center: latLng,
-        radius,
-        strokeColor: polygonCloseHintStyle.strokeColor,
-        strokeWeight: polygonCloseHintStyle.strokeWeight,
-        strokeDashStyle: polygonCloseHintStyle.strokeDashStyle,
-        fillColor: toQqColor(
-          polygonCloseHintStyle.fillColor,
-          polygonCloseHintStyle.fillOpacity ?? 1,
-        ),
+        position: latLng,
         clickable: false,
         zIndex: 999,
-      })
+        content: POLYGON_CLOSE_HINT_RADAR_HTML,
+      }
+      if (typeof maps.Size === 'function') {
+        labelOptions.offset = new maps.Size(0, 0)
+      }
+      polygonCloseHintCircle.value = new maps.Label(labelOptions)
+      if (typeof polygonCloseHintCircle.value.setStyle === 'function') {
+        polygonCloseHintCircle.value.setStyle({
+          border: 'none',
+          backgroundColor: 'transparent',
+          boxShadow: 'none',
+        })
+      }
     } else {
-      polygonCloseHintCircle.value.setCenter(latLng)
-      polygonCloseHintCircle.value.setRadius(radius)
-      polygonCloseHintCircle.value.setMap(mapInstance.value)
+      if (typeof polygonCloseHintCircle.value.setPosition === 'function') {
+        polygonCloseHintCircle.value.setPosition(latLng)
+      }
+      if (typeof polygonCloseHintCircle.value.setContent === 'function') {
+        polygonCloseHintCircle.value.setContent(POLYGON_CLOSE_HINT_RADAR_HTML)
+      }
+      if (typeof polygonCloseHintCircle.value.setMap === 'function') {
+        polygonCloseHintCircle.value.setMap(mapInstance.value)
+      }
     }
     return
   }
@@ -2964,6 +2984,8 @@ const handleSearchClear = () => {
   background: linear-gradient(135deg, rgba(219, 234, 254, 0.35), rgba(254, 243, 199, 0.35));
 }
 
+/* radar animation styles moved to global block below */
+
 :deep(.ant-table-tbody > tr > td) {
   vertical-align: middle;
 }
@@ -2975,6 +2997,66 @@ const handleSearchClear = () => {
 
   .map-container {
     height: 420px;
+  }
+}
+</style>
+
+<style>
+.polygon-close-radar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.polygon-close-radar__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.3);
+  background: rgba(76, 175, 80, 0.35);
+  border: 1px solid #00c853;
+  opacity: 0;
+  animation: polygon-close-radar-pulse 2.4s linear infinite;
+}
+
+.polygon-close-radar__ring--delay {
+  animation-delay: 0.6s;
+}
+
+.polygon-close-radar__ring--delay2 {
+  animation-delay: 1.2s;
+}
+
+.polygon-close-radar__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #00c853;
+  box-shadow: 0 0 12px rgba(0, 200, 83, 0.6);
+}
+
+@keyframes polygon-close-radar-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.7;
+  }
+  60% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
   }
 }
 </style>
