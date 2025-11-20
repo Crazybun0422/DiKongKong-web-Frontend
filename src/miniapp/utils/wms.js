@@ -150,13 +150,8 @@ function toQuery(params) {
     .join("&");
 }
 
-const exportsObject = {
+module.exports = {
   buildWmsOverlay,
   WMS_MIN_ZOOM,
   WMS_MAX_ZOOM
 };
-
-module.exports = exportsObject;
-
-export { buildWmsOverlay, WMS_MIN_ZOOM, WMS_MAX_ZOOM };
-export default exportsObject;
