@@ -3,6 +3,8 @@ import { tileXYToBBOX3857, mercatorToLonLat, wgs84ToGcj02, lonLatToMercator, gcj
 const WMS_MIN_ZOOM = 5
 const WMS_MAX_ZOOM = 18
 const CAAC_TOKEN = '1e4b78fc-06bd-45be-8af7-cabd802ea9a8'
+const CAAC_BASE = 'https://uom.caac.gov.cn/map/airspace/wms'
+const WMS_PROXY_PREFIX = 'https://api.allorigins.win/raw?url='
 
 const lonLatToTile = (lng, lat, zoom) => {
   const scale = Math.pow(2, zoom)
@@ -27,10 +29,54 @@ const buildProvinceLayers = () => {
   return { layers, styles }
 }
 
+export const createWmsMapType = (qqGlobal) => {
+  if (!qqGlobal?.maps?.ImageMapType || !qqGlobal?.maps?.Size) return null
+  const { layers, styles } = buildProvinceLayers()
+  return new qqGlobal.maps.ImageMapType({
+    name: 'UOM',
+    tileSize: new qqGlobal.maps.Size(256, 256),
+    isPng: true,
+    getTileUrl: (tileCoord, zoom) => {
+      const { x, y } = tileCoord
+      if (zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) return ''
+      const bbox = tileXYToBBOX3857(x, y, zoom)
+      const center = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
+      const centerLL = mercatorToLonLat(center[0], center[1])
+      const gcjLL = wgs84ToGcj02(centerLL.lng, centerLL.lat)
+
+      let dx = 0
+      let dy = 0
+      if (gcjLL) {
+        const mWgs = lonLatToMercator(centerLL.lng, centerLL.lat)
+        const mGcj = lonLatToMercator(gcjLL.lng, gcjLL.lat)
+        dx = mGcj.x - mWgs.x
+        dy = mGcj.y - mWgs.y
+      }
+
+      const reqBBox = [bbox[0] - dx, bbox[1] - dy, bbox[2] - dx, bbox[3] - dy]
+      const params = new URLSearchParams({
+        token: CAAC_TOKEN,
+        service: 'WMS',
+        request: 'GetMap',
+        layers,
+        styles,
+        format: 'image/png8',
+        transparent: 'true',
+        version: '1.1.0',
+        srs: 'EPSG:3857',
+        width: '256',
+        height: '256',
+        bbox: reqBBox.join(','),
+      })
+      const directUrl = `${CAAC_BASE}?${params.toString()}`
+      return `${WMS_PROXY_PREFIX}${encodeURIComponent(directUrl)}`
+    },
+  })
+}
+
 export const buildWmsOverlay = (center, zoom, region) => {
   if (!center || zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) return []
 
-  const base = 'https://uom.caac.gov.cn/map/airspace/wms'
   const { layers, styles } = buildProvinceLayers()
   const tiles = []
 
@@ -93,9 +139,12 @@ export const buildWmsOverlay = (center, zoom, region) => {
       const gcjSW = wgs84ToGcj02(wgsSW.lng, wgsSW.lat)
       const gcjNE = wgs84ToGcj02(wgsNE.lng, wgsNE.lat)
 
+      const directUrl = `${CAAC_BASE}?${q}`
+      const proxiedUrl = `${WMS_PROXY_PREFIX}${encodeURIComponent(directUrl)}`
+
       tiles.push({
         id: `${zoom}-${x}-${y}`,
-        src: `${base}?${q}`,
+        src: proxiedUrl,
         bounds: {
           southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
           northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
@@ -114,6 +163,7 @@ export { WMS_MIN_ZOOM, WMS_MAX_ZOOM }
 
 export default {
   buildWmsOverlay,
+  createWmsMapType,
   WMS_MIN_ZOOM,
   WMS_MAX_ZOOM,
 }
