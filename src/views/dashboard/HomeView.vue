@@ -298,8 +298,12 @@ const renderUomOverlays = (tiles = []) => {
     const ne = new window.qq.maps.LatLng(tile.bounds.northeast.latitude, tile.bounds.northeast.longitude)
     const bounds = new window.qq.maps.LatLngBounds(sw, ne)
     const overlay = new window.qq.maps.GroundOverlay(bounds, tile.src)
+    const opacity = tile.opacity ?? tile.alpha ?? 0.65
     if (typeof overlay.setOpacity === 'function') {
-      overlay.setOpacity(tile.opacity ?? tile.alpha ?? 0.65)
+      overlay.setOpacity(opacity)
+    }
+    if (typeof overlay.setZIndex === 'function' && tile.zIndex != null) {
+      overlay.setZIndex(tile.zIndex)
     }
     overlay.setMap(mapInstance.value)
     uomOverlays.value.push(overlay)
