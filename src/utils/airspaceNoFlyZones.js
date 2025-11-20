@@ -1,4 +1,4 @@
-import { lonLatToMercator, mercatorToLonLat, wgs84ToGcj02 } from './coords'
+import { lonLatToMercator, mercatorToLonLat } from './coords'
 
 const DEFAULT_COLOR = '#DE4329'
 const FILL_OPACITY = 0.3
@@ -125,19 +125,8 @@ const toGcjPoint = (lng, lat) => {
   const latitude = Number(lat)
   const longitude = Number(lng)
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
-  const gcj = wgs84ToGcj02(longitude, latitude)
-  const gcjLng = Number.isFinite(gcj?.lng) ? gcj.lng : longitude
-  const gcjLat = Number.isFinite(gcj?.lat) ? gcj.lat : latitude
-  return { latitude: gcjLat, longitude: gcjLng }
+  return { latitude, longitude }
 }
-
-const toGcjRing = (ring) =>
-  Array.isArray(ring)
-    ? ring
-        .map((pt) => toGcjPoint(pt[0], pt[1]))
-        .filter(Boolean)
-        .map((pt) => [pt.longitude, pt.latitude])
-    : []
 
 export const buildNoFlyZoneGraphics = (zones = []) => {
   const polygons = []
@@ -163,7 +152,7 @@ export const buildNoFlyZoneGraphics = (zones = []) => {
             fillColor: colorWithAlpha(DEFAULT_COLOR, FILL_OPACITY),
             strokeWidth: STROKE_WIDTH,
           })
-          shapes.push({ type: 'circle', center: { lng: gcj.longitude, lat: gcj.latitude }, radius, zone })
+          shapes.push({ type: 'circle', center, radius, zone })
         }
       }
       return
@@ -172,15 +161,15 @@ export const buildNoFlyZoneGraphics = (zones = []) => {
     if (type === 'PATH') {
       const ring = buildPathRing(zone?.coordinates, zone?.pathDistanceMeters)
       if (ring && ring.length >= 3) {
-        const gcjRing = toGcjRing(ring)
-        if (gcjRing.length >= 3) {
+        const gcjPoints = ring.map((pt) => toGcjPoint(pt[0], pt[1])).filter(Boolean)
+        if (gcjPoints.length >= 3) {
           polygons.push({
-            points: gcjRing.map((pt) => ({ longitude: pt[0], latitude: pt[1] })),
+            points: gcjPoints,
             strokeColor: colorWithAlpha(DEFAULT_COLOR, STROKE_OPACITY),
             fillColor: colorWithAlpha(DEFAULT_COLOR, FILL_OPACITY),
             strokeWidth: STROKE_WIDTH,
           })
-          shapes.push({ type: 'polygon', rings: [gcjRing], zone })
+          shapes.push({ type: 'polygon', rings: [ring], zone })
         }
       }
       return
@@ -189,20 +178,17 @@ export const buildNoFlyZoneGraphics = (zones = []) => {
     const rings = buildPolygonRings(zone?.coordinates)
     if (rings.length) {
       rings.forEach((ring) => {
-        const gcjRing = toGcjRing(ring)
-        if (gcjRing.length >= 3) {
+        const gcjPoints = ring.map((pt) => toGcjPoint(pt[0], pt[1])).filter(Boolean)
+        if (gcjPoints.length >= 3) {
           polygons.push({
-            points: gcjRing.map((pt) => ({ longitude: pt[0], latitude: pt[1] })),
+            points: gcjPoints,
             strokeColor: colorWithAlpha(DEFAULT_COLOR, STROKE_OPACITY),
             fillColor: colorWithAlpha(DEFAULT_COLOR, FILL_OPACITY),
             strokeWidth: STROKE_WIDTH,
           })
         }
       })
-      const gcjRings = rings
-        .map((ring) => toGcjRing(ring))
-        .filter((ring) => Array.isArray(ring) && ring.length >= 3)
-      shapes.push({ type: 'polygon', rings: gcjRings.length ? gcjRings : rings, zone })
+      shapes.push({ type: 'polygon', rings, zone })
     }
   })
 
