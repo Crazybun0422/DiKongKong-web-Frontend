@@ -155,16 +155,40 @@ const parseColorWithOpacity = (value, fallbackOpacity = 1) => {
   if (typeof value !== 'string') return { color: '#DE4329', opacity: fallbackOpacity }
   const normalized = value.trim().replace('#', '')
   if (normalized.length === 8) {
-    const r = parseInt(normalized.slice(0, 2), 16)
-    const g = parseInt(normalized.slice(2, 4), 16)
-    const b = parseInt(normalized.slice(4, 6), 16)
-    const a = parseInt(normalized.slice(6, 8), 16) / 255
-    return { color: `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, a))})`, opacity: 1 }
+    const a = Math.max(0, Math.min(1, parseInt(normalized.slice(6, 8), 16) / 255))
+    return { color: `#${normalized.slice(0, 6)}`, opacity: a }
   }
   if (normalized.length === 6) {
     return { color: `#${normalized}`, opacity: fallbackOpacity }
   }
   return { color: value, opacity: fallbackOpacity }
+}
+
+const toQqColor = (value, opacity = 1) => {
+  const toRgb = (input) => {
+    if (typeof input !== 'string') return null
+    const hex = input.trim().replace('#', '')
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16),
+      }
+    }
+    const m = input.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+    if (m) {
+      return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) }
+    }
+    return null
+  }
+
+  const rgb = toRgb(value)
+  if (window.qq?.maps?.Color && rgb) {
+    const clamp = (v) => Math.max(0, Math.min(255, Number.isFinite(v) ? v : 0))
+    const a = Math.max(0, Math.min(1, Number(opacity)))
+    return new window.qq.maps.Color(clamp(rgb.r), clamp(rgb.g), clamp(rgb.b), a)
+  }
+  return value
 }
 
 const formatDateTime = (value) => {
@@ -222,8 +246,8 @@ const renderDjiOverlays = (polygons = [], circles = []) => {
     const overlay = new window.qq.maps.Polygon({
       map: mapInstance.value,
       path: poly.points.map((pt) => toLatLng(pt)),
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: poly.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.4,
@@ -239,8 +263,8 @@ const renderDjiOverlays = (polygons = [], circles = []) => {
       map: mapInstance.value,
       center: new window.qq.maps.LatLng(circle.latitude, circle.longitude),
       radius: circle.radius,
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: circle.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.4,
@@ -261,8 +285,8 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
     const overlay = new window.qq.maps.Polygon({
       map: mapInstance.value,
       path: poly.points.map((pt) => toLatLng(pt)),
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: poly.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.3,
@@ -278,8 +302,8 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
       map: mapInstance.value,
       center: new window.qq.maps.LatLng(circle.latitude, circle.longitude),
       radius: circle.radius,
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: circle.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.3,
