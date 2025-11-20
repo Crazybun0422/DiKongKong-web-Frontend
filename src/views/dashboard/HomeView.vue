@@ -155,11 +155,8 @@ const parseColorWithOpacity = (value, fallbackOpacity = 1) => {
   if (typeof value !== 'string') return { color: '#DE4329', opacity: fallbackOpacity }
   const normalized = value.trim().replace('#', '')
   if (normalized.length === 8) {
-    const r = parseInt(normalized.slice(0, 2), 16)
-    const g = parseInt(normalized.slice(2, 4), 16)
-    const b = parseInt(normalized.slice(4, 6), 16)
-    const a = parseInt(normalized.slice(6, 8), 16) / 255
-    return { color: `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, a))})`, opacity: 1 }
+    const a = Math.max(0, Math.min(1, parseInt(normalized.slice(6, 8), 16) / 255))
+    return { color: `#${normalized.slice(0, 6)}`, opacity: a }
   }
   if (normalized.length === 6) {
     return { color: `#${normalized}`, opacity: fallbackOpacity }
