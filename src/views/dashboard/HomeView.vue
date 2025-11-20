@@ -17,7 +17,7 @@ import {
   ringContains,
   normalizedAreaLevel,
 } from '../../utils/airspaceDji'
-import { buildWmsOverlay, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
+import { buildWmsOverlay, createWmsMapType, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
 import { buildNoFlyZoneGraphics } from '../../utils/airspaceNoFlyZones'
 import { searchPlaces } from '../../utils/tencentMap'
 import { DRONES } from '../../utils/drones'
@@ -112,6 +112,8 @@ const nfzCircleOverlays = ref([])
 const uomOverlays = ref([])
 const uomTileMasks = new Map()
 const currentWmsTiles = ref([])
+let uomMapType = null
+let uomMapTypeIndex = -1
 
 const lastDjiAreas = ref(undefined)
 const noFlyZoneShapes = ref([])
@@ -155,16 +157,40 @@ const parseColorWithOpacity = (value, fallbackOpacity = 1) => {
   if (typeof value !== 'string') return { color: '#DE4329', opacity: fallbackOpacity }
   const normalized = value.trim().replace('#', '')
   if (normalized.length === 8) {
-    const r = parseInt(normalized.slice(0, 2), 16)
-    const g = parseInt(normalized.slice(2, 4), 16)
-    const b = parseInt(normalized.slice(4, 6), 16)
-    const a = parseInt(normalized.slice(6, 8), 16) / 255
-    return { color: `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, a))})`, opacity: 1 }
+    const a = Math.max(0, Math.min(1, parseInt(normalized.slice(6, 8), 16) / 255))
+    return { color: `#${normalized.slice(0, 6)}`, opacity: a }
   }
   if (normalized.length === 6) {
     return { color: `#${normalized}`, opacity: fallbackOpacity }
   }
   return { color: value, opacity: fallbackOpacity }
+}
+
+const toQqColor = (value, opacity = 1) => {
+  const toRgb = (input) => {
+    if (typeof input !== 'string') return null
+    const hex = input.trim().replace('#', '')
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16),
+      }
+    }
+    const m = input.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+    if (m) {
+      return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) }
+    }
+    return null
+  }
+
+  const rgb = toRgb(value)
+  if (window.qq?.maps?.Color && rgb) {
+    const clamp = (v) => Math.max(0, Math.min(255, Number.isFinite(v) ? v : 0))
+    const a = Math.max(0, Math.min(1, Number(opacity)))
+    return new window.qq.maps.Color(clamp(rgb.r), clamp(rgb.g), clamp(rgb.b), a)
+  }
+  return value
 }
 
 const formatDateTime = (value) => {
@@ -222,8 +248,8 @@ const renderDjiOverlays = (polygons = [], circles = []) => {
     const overlay = new window.qq.maps.Polygon({
       map: mapInstance.value,
       path: poly.points.map((pt) => toLatLng(pt)),
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: poly.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.4,
@@ -239,8 +265,8 @@ const renderDjiOverlays = (polygons = [], circles = []) => {
       map: mapInstance.value,
       center: new window.qq.maps.LatLng(circle.latitude, circle.longitude),
       radius: circle.radius,
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: circle.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.4,
@@ -261,8 +287,8 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
     const overlay = new window.qq.maps.Polygon({
       map: mapInstance.value,
       path: poly.points.map((pt) => toLatLng(pt)),
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: poly.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.3,
@@ -278,8 +304,8 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
       map: mapInstance.value,
       center: new window.qq.maps.LatLng(circle.latitude, circle.longitude),
       radius: circle.radius,
-      strokeColor: stroke.color,
-      fillColor: fill.color,
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
       strokeWeight: circle.strokeWidth || 1,
       strokeOpacity: stroke.opacity,
       fillOpacity: fill.opacity ?? 0.3,
@@ -290,24 +316,33 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
 }
 
 const renderUomOverlays = (tiles = []) => {
+  // Deprecated: kept for compatibility with the UOM mask parser. We now rely on
+  // a map type overlay for display, so only clear previously rendered ground
+  // overlays if any remain.
   clearOverlays(uomOverlays)
-  if (!mapInstance.value || !window.qq?.maps) return
+  currentWmsTiles.value = tiles
+}
 
-  tiles.forEach((tile) => {
-    const sw = new window.qq.maps.LatLng(tile.bounds.southwest.latitude, tile.bounds.southwest.longitude)
-    const ne = new window.qq.maps.LatLng(tile.bounds.northeast.latitude, tile.bounds.northeast.longitude)
-    const bounds = new window.qq.maps.LatLngBounds(sw, ne)
-    const overlay = new window.qq.maps.GroundOverlay(bounds, tile.src)
-    const opacity = tile.opacity ?? tile.alpha ?? 0.65
-    if (typeof overlay.setOpacity === 'function') {
-      overlay.setOpacity(opacity)
+const ensureUomMapType = () => {
+  if (!mapInstance.value || !window.qq?.maps) return null
+  if (!uomMapType) {
+    uomMapType = createWmsMapType(window.qq)
+  }
+  return uomMapType
+}
+
+const setUomLayerVisible = (visible) => {
+  if (!mapInstance.value || !window.qq?.maps) return
+  const layer = ensureUomMapType()
+  if (!layer) return
+  if (visible) {
+    if (uomMapTypeIndex === -1) {
+      uomMapTypeIndex = mapInstance.value.overlayMapTypes.push(layer) - 1
     }
-    if (typeof overlay.setZIndex === 'function' && tile.zIndex != null) {
-      overlay.setZIndex(tile.zIndex)
-    }
-    overlay.setMap(mapInstance.value)
-    uomOverlays.value.push(overlay)
-  })
+  } else if (uomMapTypeIndex > -1) {
+    mapInstance.value.overlayMapTypes.removeAt(uomMapTypeIndex)
+    uomMapTypeIndex = -1
+  }
 }
 
 const clearMarkers = () => clearOverlays(markerOverlays)
@@ -701,8 +736,10 @@ const refreshData = (force = false) => {
   loadNoFlyZones(center, radiusKm)
   loadDjiAreas(center, radiusMeters, bounds)
   if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
+    setUomLayerVisible(true)
     refreshUom(center, zoom, bounds)
   } else {
+    setUomLayerVisible(false)
     clearOverlays(uomOverlays)
     currentWmsTiles.value = []
   }
@@ -897,6 +934,7 @@ onBeforeUnmount(() => {
   clearOverlays(nfzPolygonOverlays)
   clearOverlays(nfzCircleOverlays)
   clearOverlays(uomOverlays)
+  setUomLayerVisible(false)
   if (refreshTimer) clearTimeout(refreshTimer)
   if (mapInstance.value && typeof mapInstance.value.destroy === 'function') {
     mapInstance.value.destroy()

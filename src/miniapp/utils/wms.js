@@ -7,6 +7,9 @@ const {
 } = require("./coords");
 const { CAAC_TOKEN } = require("./config");
 
+const CAAC_BASE = "https://uom.caac.gov.cn/map/airspace/wms";
+const WMS_PROXY_PREFIX = "https://api.allorigins.win/raw?url=";
+
 const WMS_MIN_ZOOM = 5;
 const WMS_MAX_ZOOM = 18;
 
@@ -29,7 +32,6 @@ function buildWmsOverlay(center, zoom, region) {
     return [];
   }
   // compute tile range: if region provided, use it; else build a 3x3 grid around center
-  const base = "https://uom.caac.gov.cn/map/airspace/wms";
   const { layers, styles } = buildProvinceLayers();
   const tiles = [];
   let xMin, xMax, yMin, yMax;
@@ -90,9 +92,12 @@ function buildWmsOverlay(center, zoom, region) {
       const gcjSW = wgs84ToGcj02(wgsSW.lng, wgsSW.lat);
       const gcjNE = wgs84ToGcj02(wgsNE.lng, wgsNE.lat);
 
+      const directUrl = `${CAAC_BASE}?${q}`;
+      const proxiedUrl = `${WMS_PROXY_PREFIX}${encodeURIComponent(directUrl)}`;
+
       tiles.push({
         id: `${zoom}-${x}-${y}`,
-        src: `${base}?${q}`,
+        src: proxiedUrl,
         bounds: {
           southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
           northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat }
