@@ -1,4 +1,4 @@
-const DRONES = [
+export const DRONES = [
   { name: "DJI Mini 3 Pro", slug: "dji-mini-3-pro" },
   { name: "Mavic Mini", slug: "mavic-mini" },
   { name: "Phantom 3 4K", slug: "phantom-3-4K" },
@@ -64,6 +64,8 @@ const DRONES = [
   { name: "Phantom 4 Pro V2/V2+", slug: "phantom-4-pro-v2" },
   { name: "Mavic Pro", slug: "mavic-pro" }
 ];
+
+export default DRONES;
 
 module.exports = {
   DRONES
