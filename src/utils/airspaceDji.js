@@ -9,7 +9,7 @@ const NFZ_STROKE_OPACITY = 0.95
 const NFZ_DEFAULT_COLOR = '#DE4329'
 
 const NFZ_PALETTE = {
-  1: '#000000',
+  1: '#1088F2',
   2: '#DE4329',
   3: '#EE8815',
   4: '#FFCC00',
@@ -116,7 +116,7 @@ export const buildAreaGraphics = (areas) => {
     const baseStyle = styleForLevel(Number(area.level))
     if (Array.isArray(area.sub_areas) && area.sub_areas.length) {
       const subStyle = { ...baseStyle, fillAlphaScale: NFZ_SUBAREA_ALPHA_SCALE }
-      area.sub_areas.forEach((sub) => drawSingleArea(sub, subStyle, polygons, circles, true))
+      area.sub_areas.forEach((sub) => drawSingleArea(sub, subStyle, polygons, circles, false))
     } else {
       drawSingleArea(area, baseStyle, polygons, circles, false)
     }
