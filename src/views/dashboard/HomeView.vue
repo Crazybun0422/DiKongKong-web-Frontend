@@ -17,7 +17,7 @@ import {
   ringContains,
   normalizedAreaLevel,
 } from '../../utils/airspaceDji'
-import { buildWmsOverlay, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
+import { buildWmsOverlay, createWmsMapType, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
 import { buildNoFlyZoneGraphics } from '../../utils/airspaceNoFlyZones'
 import { searchPlaces } from '../../utils/tencentMap'
 import { DRONES } from '../../utils/drones'
@@ -112,6 +112,8 @@ const nfzCircleOverlays = ref([])
 const uomOverlays = ref([])
 const uomTileMasks = new Map()
 const currentWmsTiles = ref([])
+let uomMapType = null
+let uomMapTypeIndex = -1
 
 const lastDjiAreas = ref(undefined)
 const noFlyZoneShapes = ref([])
@@ -314,24 +316,33 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
 }
 
 const renderUomOverlays = (tiles = []) => {
+  // Deprecated: kept for compatibility with the UOM mask parser. We now rely on
+  // a map type overlay for display, so only clear previously rendered ground
+  // overlays if any remain.
   clearOverlays(uomOverlays)
-  if (!mapInstance.value || !window.qq?.maps) return
+  currentWmsTiles.value = tiles
+}
 
-  tiles.forEach((tile) => {
-    const sw = new window.qq.maps.LatLng(tile.bounds.southwest.latitude, tile.bounds.southwest.longitude)
-    const ne = new window.qq.maps.LatLng(tile.bounds.northeast.latitude, tile.bounds.northeast.longitude)
-    const bounds = new window.qq.maps.LatLngBounds(sw, ne)
-    const overlay = new window.qq.maps.GroundOverlay(bounds, tile.src)
-    const opacity = tile.opacity ?? tile.alpha ?? 0.65
-    if (typeof overlay.setOpacity === 'function') {
-      overlay.setOpacity(opacity)
+const ensureUomMapType = () => {
+  if (!mapInstance.value || !window.qq?.maps) return null
+  if (!uomMapType) {
+    uomMapType = createWmsMapType(window.qq)
+  }
+  return uomMapType
+}
+
+const setUomLayerVisible = (visible) => {
+  if (!mapInstance.value || !window.qq?.maps) return
+  const layer = ensureUomMapType()
+  if (!layer) return
+  if (visible) {
+    if (uomMapTypeIndex === -1) {
+      uomMapTypeIndex = mapInstance.value.overlayMapTypes.push(layer) - 1
     }
-    if (typeof overlay.setZIndex === 'function' && tile.zIndex != null) {
-      overlay.setZIndex(tile.zIndex)
-    }
-    overlay.setMap(mapInstance.value)
-    uomOverlays.value.push(overlay)
-  })
+  } else if (uomMapTypeIndex > -1) {
+    mapInstance.value.overlayMapTypes.removeAt(uomMapTypeIndex)
+    uomMapTypeIndex = -1
+  }
 }
 
 const clearMarkers = () => clearOverlays(markerOverlays)
@@ -725,8 +736,10 @@ const refreshData = (force = false) => {
   loadNoFlyZones(center, radiusKm)
   loadDjiAreas(center, radiusMeters, bounds)
   if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
+    setUomLayerVisible(true)
     refreshUom(center, zoom, bounds)
   } else {
+    setUomLayerVisible(false)
     clearOverlays(uomOverlays)
     currentWmsTiles.value = []
   }
@@ -921,6 +934,7 @@ onBeforeUnmount(() => {
   clearOverlays(nfzPolygonOverlays)
   clearOverlays(nfzCircleOverlays)
   clearOverlays(uomOverlays)
+  setUomLayerVisible(false)
   if (refreshTimer) clearTimeout(refreshTimer)
   if (mapInstance.value && typeof mapInstance.value.destroy === 'function') {
     mapInstance.value.destroy()
