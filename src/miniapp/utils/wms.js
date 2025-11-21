@@ -93,11 +93,10 @@ function buildWmsOverlay(center, zoom, region) {
       const gcjNE = wgs84ToGcj02(wgsNE.lng, wgsNE.lat);
 
       const directUrl = `${CAAC_BASE}?${q}`;
-      const proxiedUrl = `${WMS_PROXY_PREFIX}${encodeURIComponent(directUrl)}`;
 
       tiles.push({
         id: `${zoom}-${x}-${y}`,
-        src: proxiedUrl,
+        src: directUrl,
         bounds: {
           southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
           northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat }

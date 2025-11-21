@@ -4,6 +4,8 @@ import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import locationIcon from '../../assets/img/location.png'
+import searchIcon from '../../assets/img/search.png'
+import centerPinIcon from '../../assets/img/position.png'
 import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones } from '../../services/airspaceMap'
 import {
   buildAreaGraphics,
@@ -38,6 +40,7 @@ const mapContainer = ref(null)
 const mapInstance = ref(null)
 const mapReady = ref(false)
 const mapListeners = []
+const statusCenter = ref(DEFAULT_CENTER)
 
 const searchKeyword = ref('')
 const searchResults = ref([])
@@ -529,7 +532,7 @@ const pointCoveredByUomMask = (point, bounds, mask) => {
 }
 
 const describeUomStatus = () => {
-  const center = getCurrentCenter()
+  const center = statusCenter.value
   if (!center) return { status: '评估中', tone: 'neutral' }
   const tile = findUomTileForPoint(center)
   if (!tile) return { status: '非适飞空域', tone: 'alert' }
@@ -576,7 +579,7 @@ const findNoFlyZoneAtPoint = (lng, lat) => {
 const describeTemporaryNoFlyStatus = () => {
   if (!noFlyZonesReady.value) return { zoneInfo: null, text: '评估中', tone: 'neutral' }
   if (noFlyZonesError.value) return { zoneInfo: null, text: '临时禁飞数据不可用', tone: 'warn' }
-  const center = getCurrentCenter()
+  const center = statusCenter.value
   if (!center || !Number.isFinite(center.longitude) || !Number.isFinite(center.latitude)) {
     return { zoneInfo: null, text: '评估中', tone: 'neutral' }
   }
@@ -594,7 +597,7 @@ const describeDjiStatus = () => {
   if (typeof areas === 'undefined') return { status: '评估中', extra: '', tone: 'neutral', color: '' }
   if (areas === null) return { status: '空域数据加载失败', extra: '', tone: 'warn', color: '' }
   if (!Array.isArray(areas) || !areas.length) return { status: '不在限制区', extra: '', tone: 'safe', color: '' }
-  const center = getCurrentCenter()
+  const center = statusCenter.value
   if (!center) return fallback
   const wgs = gcj02ToWgs84(center.longitude, center.latitude)
   if (!wgs) return fallback
@@ -727,6 +730,7 @@ const refreshData = (force = false) => {
     refreshTimer = null
   }
   const center = getCurrentCenter()
+  statusCenter.value = center
   const bounds = getCurrentBounds()
   const radiusMeters = clampRadius(estimateVisibleRadiusMeters())
   const radiusKm = Math.max(0.5, Math.round((radiusMeters / 1000) * 10) / 10)
@@ -759,6 +763,8 @@ const initializeMap = () => {
     zoomControl: true,
   })
   mapReady.value = true
+  mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'center_changed', scheduleRefresh))
+  mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'idle', scheduleRefresh))
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'dragend', scheduleRefresh))
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'zoom_changed', scheduleRefresh))
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'tilesloaded', () => refreshData()))
@@ -917,7 +923,7 @@ const goToPendingMarkers = () => {
       name: 'airspace',
       query: { status: MARKER_REVIEW_STATUS.PENDING },
     })
-    .catch(() => {})
+    .catch(() => { })
 }
 
 onMounted(() => {
@@ -945,79 +951,69 @@ onBeforeUnmount(() => {
 <template>
   <div class="map-page">
     <div ref="mapContainer" class="map-canvas">
+      <div class="map-center-pin" :class="{ 'is-ready': mapReady }" aria-hidden="true">
+        <img :src="centerPinIcon" alt="中心锚点" />
+      </div>
       <div v-if="!mapReady" class="map-placeholder">地图加载中...</div>
     </div>
 
-    <div class="dashboard-card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">飞前安全准备</div>
-          <div class="card-subtitle">与小程序同步的飞行前检查面板</div>
+    <div class="map-overlays">
+      <div class="dashboard-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">飞前安全准备</div>
+          </div>
         </div>
-        <div class="drone-picker">
-          <span class="picker-label">执飞机型：</span>
-          <a-select
-            v-model:value="selectedDroneIndex"
-            class="picker-select"
-            size="small"
+        <div class="status-row">
+          <span class="status-label">执飞机型：</span>
+          <a-select v-model:value="selectedDroneIndex" class="picker-select" size="small"
             :options="DRONES.map((item, index) => ({ label: item.name, value: index }))"
-            @change="refreshData(true)"
-          />
+            :get-popup-container="(triggerNode) => triggerNode?.parentNode || document.body"
+            dropdown-match-select-width="false" @change="refreshData(true)" />
         </div>
-      </div>
-
-      <div class="status-row">
-        <span class="status-label">临时禁飞区：</span>
-        <span :class="['status-value', toneClass(statusPanel.temporaryTone)]">{{ statusPanel.temporaryText }}</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">位于UOM划分：</span>
-        <span :class="['status-value', toneClass(statusPanel.uomTone)]">{{ statusPanel.uomStatus }}</span>
-      </div>
-      <div class="status-row">
-        <span class="status-label">位于大疆划分：</span>
-        <span :class="['status-value', toneClass(statusPanel.djiTone)]" :style="{ color: statusPanel.djiColor || undefined }">
-          {{ statusPanel.djiStatus }}
-        </span>
-      </div>
-      <div v-if="statusPanel.djiStatusExtra" class="status-extra">{{ statusPanel.djiStatusExtra }}</div>
-
-      <div class="search-box">
-        <input
-          v-model="searchKeyword"
-          class="search-input"
-          type="text"
-          placeholder="搜索位置或商户"
-          @keyup.enter="submitSearch"
-        />
-        <a-button type="primary" size="small" :loading="searchLoading" @click="submitSearch">搜索</a-button>
-      </div>
-      <div v-if="searchResults.length" class="search-results">
-        <div
-          v-for="item in searchResults"
-          :key="item.id"
-          class="search-result-item"
-          @click="applySearchResult(item)"
-        >
-          <div class="result-title">{{ item.title }}</div>
-          <div class="result-address">{{ item.address }}</div>
+        <div class="status-row">
+          <span class="status-label">临时禁飞区：</span>
+          <span :class="['status-value', toneClass(statusPanel.temporaryTone)]">{{ statusPanel.temporaryText }}</span>
         </div>
-      </div>
-
-      <div class="summary-cards">
-        <button class="summary-card" type="button" @click="goToPendingMarkers">
-          <span class="summary-value">{{ pendingLoading ? '...' : pendingCount }}</span>
-          <span class="summary-label">
-            {{ t('dashboard.pending') }}
-            <span aria-hidden="true"> ></span>
+        <div class="status-row">
+          <span class="status-label">位于UOM划分：</span>
+          <span :class="['status-value', toneClass(statusPanel.uomTone)]">{{ statusPanel.uomStatus }}</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">位于大疆划分：</span>
+          <span :class="['status-value', toneClass(statusPanel.djiTone)]"
+            :style="{ color: statusPanel.djiColor || undefined }">
+            {{ statusPanel.djiStatus }}
           </span>
+        </div>
+        <div v-if="statusPanel.djiStatusExtra" class="status-extra">{{ statusPanel.djiStatusExtra }}</div>
+
+        <div class="search-box">
+          <div class="search-pill">
+            <input v-model="searchKeyword" class="search-input" type="text" placeholder="搜索位置或商户"
+              @keyup.enter="submitSearch" />
+            <button class="search-btn" type="button" :disabled="searchLoading" @click="submitSearch">
+              <img :src="searchIcon" alt="搜索" />
+            </button>
+          </div>
+        </div>
+        <div v-if="searchResults.length" class="search-results">
+          <div v-for="item in searchResults" :key="item.id" class="search-result-item" @click="applySearchResult(item)">
+            <div class="result-title">{{ item.title }}</div>
+            <div class="result-address">{{ item.address }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-board summary-board--standalone">
+        <button class="board-item board-item--pending" type="button" @click="goToPendingMarkers">
+          <span class="board-label">{{ t('dashboard.pending') }} ></span>
+          <span class="board-value">{{ pendingLoading ? '...' : pendingCount }}</span>
         </button>
-        <button class="summary-card" type="button" @click="openOrdersModal">
-          <span class="summary-value">{{ orderSummaryLoading ? '...' : orderCount }}</span>
-          <span class="summary-label">
-            {{ t('orders.summary.title') }}
-            <span aria-hidden="true"> ></span>
-          </span>
+        <div class="board-divider" aria-hidden="true"></div>
+        <button class="board-item board-item--orders" type="button" @click="openOrdersModal">
+          <span class="board-value">{{ orderSummaryLoading ? '...' : orderCount }}</span>
+          <span class="board-label">{{ t('orders.summary.title') }} ></span>
         </button>
       </div>
     </div>
@@ -1028,13 +1024,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <a-drawer
-      :open="markerDrawerVisible"
-      :width="420"
-      placement="right"
-      title="商户详情"
-      @close="handleDrawerClose"
-    >
+    <a-drawer :open="markerDrawerVisible" :width="420" placement="right" title="商户详情" @close="handleDrawerClose">
       <a-spin :spinning="markerDrawerLoading">
         <div v-if="markerDetail" class="marker-detail">
           <div class="detail-title">{{ markerDetail.name || '未命名商户' }}</div>
@@ -1055,26 +1045,14 @@ onBeforeUnmount(() => {
       </a-spin>
     </a-drawer>
 
-    <a-modal
-      :destroy-on-close="true"
-      :open="ordersVisible"
-      :title="t('orders.modal.title')"
-      width="960px"
-      @cancel="closeOrdersModal"
-    >
+    <a-modal :destroy-on-close="true" :open="ordersVisible" :title="t('orders.modal.title')" width="960px"
+      @cancel="closeOrdersModal">
       <template #footer>
         <a-button @click="closeOrdersModal">{{ t('orders.modal.close') }}</a-button>
       </template>
 
-      <a-table
-        :columns="orderColumns"
-        :data-source="ordersTableData"
-        :loading="ordersLoading"
-        :pagination="orderPaginationConfig"
-        class="orders-table"
-        row-key="id"
-        @change="handleOrdersTableChange"
-      >
+      <a-table :columns="orderColumns" :data-source="ordersTableData" :loading="ordersLoading"
+        :pagination="orderPaginationConfig" class="orders-table" row-key="id" @change="handleOrdersTableChange">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="orderStatusColors[record.status] || 'default'">
@@ -1102,19 +1080,21 @@ onBeforeUnmount(() => {
 <style scoped>
 .map-page {
   position: relative;
-  min-height: calc(100vh - 200px);
-  border-radius: 16px;
+  min-height: calc(100vh - 140px);
+  border-radius: 18px;
   overflow: hidden;
   background: #0c0c0f;
 }
 
 .map-canvas {
   width: 100%;
-  height: 78vh;
-  min-height: 640px;
-  border-radius: 12px;
+  height: 88vh;
+  min-height: 720px;
+  border-radius: 16px;
   background: #0c0c0f;
   position: relative;
+  z-index: 1;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
 }
 
 .map-placeholder {
@@ -1128,18 +1108,64 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #0f1015 0%, #111726 100%);
 }
 
-.dashboard-card {
+.map-center-pin {
   position: absolute;
-  top: 18px;
-  left: 18px;
-  width: 420px;
-  background: rgba(18, 20, 28, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  border-radius: 16px;
-  padding: 18px 20px;
-  color: #f4f6f8;
-  backdrop-filter: blur(12px);
+  left: 50%;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -100%);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.map-center-pin img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(0);
+  opacity: 0.92;
+  transition: opacity 0.2s ease;
+}
+
+.map-center-pin:not(.is-ready) img {
+  opacity: 0.4;
+}
+
+.map-overlays {
+  position: absolute;
+  top: 24px;
+  left: 20px;
+  width: 470px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.map-overlays>* {
+  pointer-events: auto;
+}
+
+.dashboard-card {
+  position: relative;
+  width: 100%;
+  padding: 26px 26px 18px;
+  color: #f7fbff;
+}
+
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  right: -120px;
+  border-radius: 20px 0 0 20px;
+  background: rgba(12, 18, 32, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.35);
+  clip-path: polygon(0 0, 82% 0, 100% 50%, 82% 100%, 0 100%);
+  z-index: -1;
 }
 
 .card-header {
@@ -1151,14 +1177,15 @@ onBeforeUnmount(() => {
 }
 
 .card-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
 .card-subtitle {
   font-size: 12px;
-  color: #9aa1ad;
+  color: #a8b5c7;
   margin-top: 4px;
+  opacity: 0.92;
 }
 
 .drone-picker {
@@ -1179,23 +1206,23 @@ onBeforeUnmount(() => {
 .status-row {
   display: flex;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .status-label {
-  width: 120px;
-  color: #a8b0be;
+  width: 132px;
+  color: #c8d3e1;
   font-size: 13px;
 }
 
 .status-value {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .status-extra {
   margin-top: 6px;
-  color: #cdd5e3;
+  color: #dfe7f4;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1216,85 +1243,165 @@ onBeforeUnmount(() => {
   color: #cfd6e0;
 }
 
+.status-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .search-box {
+  margin-top: 16px;
+}
+
+.search-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 10px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 10px 22px rgba(0, 0, 0, 0.32);
 }
 
 .search-input {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: #f4f6f8;
+  min-width: 0;
+  padding: 10px 4px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #f8fbff;
+  font-size: 15px;
+}
+
+.search-input:focus {
+  outline: none;
 }
 
 .search-input::placeholder {
-  color: #9aa1ad;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.search-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.search-btn img {
+  width: 18px;
+  height: 18px;
+  filter: brightness(0) invert(1);
+}
+
+.search-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.search-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.search-btn:not(:disabled):active {
+  transform: scale(0.94);
 }
 
 .search-results {
-  margin-top: 10px;
-  max-height: 220px;
+  margin-top: 12px;
+  max-height: 240px;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.35);
+  border-radius: 14px;
+  background: rgba(5, 12, 24, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
 }
 
-.summary-cards {
-  margin-top: 16px;
+.summary-board {
+  content: '';
+  margin-top: 18px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 
-.summary-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.35);
-  border-radius: 12px;
-  padding: 12px 14px;
-  color: #e7ebf3;
+.summary-board--standalone {
+  width: 100%;
+  margin-top: 0;
+}
+
+.board-item {
+  padding: 12px 16px 14px;
+  background: transparent;
+  border: none;
+  color: #f8fbff;
+  width: 100%;
+  height: 100%;
+  text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: background-color 0.18s ease, transform 0.18s ease;
 }
 
-.summary-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-1px);
+.board-item:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.summary-card:focus-visible {
+.board-item:focus-visible {
   outline: 2px solid #4f8bfd;
 }
 
-.summary-value {
-  font-size: 32px;
-  font-weight: 700;
+.board-label {
+  font-size: 13px;
+  letter-spacing: 0.4px;
 }
 
-.summary-label {
-  font-size: 14px;
-  color: #aab3c4;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.board-value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.board-divider {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.72) 50%, rgba(255, 255, 255, 0.2) 100%);
+  transform: skew(-10deg);
+  pointer-events: none;
 }
 
 .search-result-item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .search-result-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .result-title {
@@ -1310,30 +1417,44 @@ onBeforeUnmount(() => {
 
 .map-actions {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  top: 140px;
+  right: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  z-index: 8;
+  pointer-events: none;
 }
 
 .floating-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: auto;
   cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
 .floating-btn img {
   width: 26px;
   height: 26px;
   object-fit: contain;
+  filter: brightness(0) saturate(100%);
+}
+
+.floating-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
+}
+
+.floating-btn:active {
+  transform: scale(0.96);
 }
 
 .marker-detail {
@@ -1374,10 +1495,18 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1100px) {
-  .dashboard-card {
-    width: calc(100% - 36px);
+  .map-overlays {
+    width: calc(100% - 32px);
     left: 12px;
-    right: 12px;
+  }
+
+  .dashboard-card {
+    top: 0;
+  }
+
+  .map-actions {
+    top: 120px;
+    right: 14px;
   }
 }
 </style>
