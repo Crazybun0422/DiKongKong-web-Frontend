@@ -604,12 +604,11 @@ const describeDjiStatus = () => {
   const hits = []
   const visitArea = (area, parent, polygonOnly) => {
     if (!area) return
-    if (Array.isArray(area.sub_areas) && area.sub_areas.length) {
-      area.sub_areas.forEach((sub) => visitArea(sub, area, true))
-      return
-    }
     if (areaContainsWgsPoint(area, wgs.lng, wgs.lat, { polygonOnly })) {
       hits.push({ area, parent })
+    }
+    if (Array.isArray(area.sub_areas) && area.sub_areas.length) {
+      area.sub_areas.forEach((sub) => visitArea(sub, area, true))
     }
   }
   areas.forEach((area) => visitArea(area, null, false))
