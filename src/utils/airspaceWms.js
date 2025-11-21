@@ -4,7 +4,6 @@ const WMS_MIN_ZOOM = 5
 const WMS_MAX_ZOOM = 18
 const CAAC_TOKEN = '1e4b78fc-06bd-45be-8af7-cabd802ea9a8'
 const CAAC_BASE = 'https://uom.caac.gov.cn/map/airspace/wms'
-const WMS_PROXY_PREFIX = 'https://api.allorigins.win/raw?url='
 
 const lonLatToTile = (lng, lat, zoom) => {
   const scale = Math.pow(2, zoom)
@@ -69,7 +68,7 @@ export const createWmsMapType = (qqGlobal) => {
         bbox: reqBBox.join(','),
       })
       const directUrl = `${CAAC_BASE}?${params.toString()}`
-      return `${WMS_PROXY_PREFIX}${encodeURIComponent(directUrl)}`
+      return directUrl;
     },
   })
 }
