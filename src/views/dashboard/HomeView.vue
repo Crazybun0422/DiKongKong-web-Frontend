@@ -124,6 +124,10 @@ const noFlyZonesReady = ref(false)
 const noFlyZonesError = ref(false)
 
 let refreshTimer = null
+// 每次刷新都会递增 refreshToken，异步请求返回时对比 token 防止旧响应覆盖最新的中心点状态
+let refreshToken = 0
+const nextRefreshToken = () => ++refreshToken
+const isStaleToken = (token) => token !== refreshToken
 
 const toneClass = (tone) => {
   if (tone === 'safe') return 'tone-safe'
@@ -602,16 +606,16 @@ const describeDjiStatus = () => {
   const wgs = gcj02ToWgs84(center.longitude, center.latitude)
   if (!wgs) return fallback
   const hits = []
-  const visitArea = (area, parent, polygonOnly) => {
+  const visitArea = (area, parent) => {
     if (!area) return
-    if (areaContainsWgsPoint(area, wgs.lng, wgs.lat, { polygonOnly })) {
+    if (areaContainsWgsPoint(area, wgs.lng, wgs.lat)) {
       hits.push({ area, parent })
     }
     if (Array.isArray(area.sub_areas) && area.sub_areas.length) {
-      area.sub_areas.forEach((sub) => visitArea(sub, area, true))
+      area.sub_areas.forEach((sub) => visitArea(sub, area))
     }
   }
-  areas.forEach((area) => visitArea(area, null, false))
+  areas.forEach((area) => visitArea(area, null))
   if (!hits.length) return { status: '不在限制区', extra: '', tone: 'safe', color: '' }
   hits.sort((a, b) => severityRank(a.area) - severityRank(b.area))
   const target = hits[0]
@@ -648,13 +652,14 @@ const updateStatusPanel = () => {
   statusPanel.temporaryZone = temporary.zoneInfo
 }
 
-const loadNearbyMarkers = async (center, radiusKm) => {
+const loadNearbyMarkers = async (center, radiusKm, token) => {
   try {
     const markers = await fetchNearbyMarkers({
       latitude: center.latitude,
       longitude: center.longitude,
       radiusInKilometers: radiusKm,
     })
+    if (isStaleToken(token)) return
     const normalized = markers.map((item) => ({
       id: item.id,
       name: item.name || '未命名商户',
@@ -670,7 +675,7 @@ const loadNearbyMarkers = async (center, radiusKm) => {
   }
 }
 
-const loadNoFlyZones = async (center, radiusKm) => {
+const loadNoFlyZones = async (center, radiusKm, token) => {
   try {
     const wgs = gcj02ToWgs84(center.longitude, center.latitude)
     const zones = await fetchNearbyNoFlyZones({
@@ -678,6 +683,7 @@ const loadNoFlyZones = async (center, radiusKm) => {
       longitude: Number.isFinite(wgs?.lng) ? wgs.lng : center.longitude,
       radiusInKilometers: radiusKm,
     })
+    if (isStaleToken(token)) return
     const graphics = buildNoFlyZoneGraphics(zones)
     noFlyZoneShapes.value = graphics.shapes || []
     noFlyZonesReady.value = true
@@ -685,32 +691,35 @@ const loadNoFlyZones = async (center, radiusKm) => {
     renderNoFlyOverlays(graphics.polygons || [], graphics.circles || [])
   } catch (error) {
     console.error('加载临时禁飞区失败', error)
+    if (isStaleToken(token)) return
     noFlyZonesReady.value = true
     noFlyZonesError.value = true
     noFlyZoneShapes.value = []
     clearOverlays(nfzCircleOverlays)
     clearOverlays(nfzPolygonOverlays)
   } finally {
-    updateStatusPanel()
+    if (!isStaleToken(token)) updateStatusPanel()
   }
 }
 
-const loadDjiAreas = async (center, radiusMeters, region) => {
+const loadDjiAreas = async (center, radiusMeters, region, token) => {
   try {
     const rect = buildBoundsRect(region, center, radiusMeters)
     const wgsRect = gcjRectToWgs(rect)
     if (!wgsRect) throw new Error('坐标转换失败')
     const areas = await fetchDjiAreas({ rect: wgsRect, levels: '2,6,1,4,3,7,8,10', drone: selectedDrone.value?.slug })
+    if (isStaleToken(token)) return
     lastDjiAreas.value = areas
     const graphics = buildAreaGraphics(areas)
     renderDjiOverlays(graphics.polygons || [], graphics.circles || [])
   } catch (error) {
     console.error('DJI 空域加载失败', error)
+    if (isStaleToken(token)) return
     lastDjiAreas.value = null
     clearOverlays(djiPolygonOverlays)
     clearOverlays(djiCircleOverlays)
   } finally {
-    updateStatusPanel()
+    if (!isStaleToken(token)) updateStatusPanel()
   }
 }
 
@@ -722,22 +731,27 @@ const refreshUom = (center, zoom, region) => {
   updateStatusPanel()
 }
 
-const refreshData = (force = false) => {
+const refreshData = (force = false, providedToken = null) => {
   if (!mapInstance.value || !mapReady.value) return
   if (refreshTimer) {
     clearTimeout(refreshTimer)
     refreshTimer = null
   }
+  const token = providedToken === null ? nextRefreshToken() : providedToken
+  refreshToken = token
   const center = getCurrentCenter()
   statusCenter.value = center
+  lastDjiAreas.value = undefined
+  noFlyZonesReady.value = false
+  updateStatusPanel()
   const bounds = getCurrentBounds()
   const radiusMeters = clampRadius(estimateVisibleRadiusMeters())
   const radiusKm = Math.max(0.5, Math.round((radiusMeters / 1000) * 10) / 10)
   const zoom = typeof mapInstance.value.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
 
-  loadNearbyMarkers(center, radiusKm)
-  loadNoFlyZones(center, radiusKm)
-  loadDjiAreas(center, radiusMeters, bounds)
+  loadNearbyMarkers(center, radiusKm, token)
+  loadNoFlyZones(center, radiusKm, token)
+  loadDjiAreas(center, radiusMeters, bounds, token)
   if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
     setUomLayerVisible(true)
     refreshUom(center, zoom, bounds)
@@ -750,7 +764,8 @@ const refreshData = (force = false) => {
 
 const scheduleRefresh = () => {
   if (refreshTimer) clearTimeout(refreshTimer)
-  refreshTimer = setTimeout(() => refreshData(), 300)
+  const token = nextRefreshToken()
+  refreshTimer = setTimeout(() => refreshData(false, token), 300)
 }
 
 const initializeMap = () => {
