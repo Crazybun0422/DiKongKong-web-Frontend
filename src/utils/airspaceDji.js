@@ -1,4 +1,4 @@
-import { gcj02ToWgs84, wgs84ToGcj02 } from './coords'
+import { gcj02ToWgs84, wgs84ToGcj02, haversineMeters } from './coords'
 
 const DEFAULT_LEVELS = '2,6,1,4,3,7,8,10'
 const DEFAULT_DRONE = 'spark'
@@ -234,19 +234,38 @@ export const areaContainsWgsPoint = (area, lng, lat, { polygonOnly = false } = {
 }
 
 const polygonPointsContain = (poly, lng, lat) => {
-  if (!Array.isArray(poly) || !poly.length) return false
+  const polygons = normalizePolygon(poly)
+  if (!polygons.length) return false
+  return polygons.some((rings) => polygonRingsContain(rings, lng, lat))
+}
+
+const polygonRingsContain = (rings, lng, lat) => {
+  if (!Array.isArray(rings) || !rings.length) return false
+  const [outer, ...holes] = rings
+  if (!ringContains(outer, lng, lat)) return false
+  return !holes.some((hole) => ringContains(hole, lng, lat))
+}
+
+const normalizePolygon = (poly) => {
+  if (!Array.isArray(poly) || !poly.length) return []
+
+  // MultiPolygon: [[[ [lng, lat]... ], [hole]...], ...]
   if (Array.isArray(poly[0]) && Array.isArray(poly[0][0]) && Array.isArray(poly[0][0][0])) {
-    return poly.some((single) => {
-      const outer = Array.isArray(single[0]) ? single[0] : single
-      const ring = Array.isArray(outer[0]) ? outer[0] : outer
-      return ringContains(ring, lng, lat)
-    })
+    return poly
+      .map((single) => normalizePolygon(single))
+      .filter((p) => Array.isArray(p))
+      .flat()
+      .filter((rings) => Array.isArray(rings) && rings.length)
   }
+
+  // Polygon with rings: [[ [lng, lat]... ], [hole]...]
   if (Array.isArray(poly[0]) && Array.isArray(poly[0][0])) {
-    const ring = Array.isArray(poly[0]) ? poly[0] : poly
-    return ringContains(ring, lng, lat)
+    const rings = poly.filter((ring) => Array.isArray(ring) && ring.length)
+    return rings.length ? [rings] : []
   }
-  return ringContains(poly, lng, lat)
+
+  // Single ring: [ [lng, lat], ... ]
+  return [Array.isArray(poly) && poly.length ? [poly] : []].filter((rings) => rings.length)
 }
 
 const circleContainsArea = (area, lng, lat) => {
@@ -259,7 +278,7 @@ const circleContainsArea = (area, lng, lat) => {
   const centerLat = Number(area.lat)
   if (!Number.isFinite(radius) || radius <= 0) return false
   if (!Number.isFinite(centerLng) || !Number.isFinite(centerLat)) return false
-  const dist = Math.hypot(lng - centerLng, lat - centerLat)
+  const dist = haversineMeters(lat, lng, centerLat, centerLng)
   return Number.isFinite(dist) && dist <= radius
 }
 
