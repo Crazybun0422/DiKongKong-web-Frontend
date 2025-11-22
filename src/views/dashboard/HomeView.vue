@@ -6,7 +6,9 @@ import { useI18n } from 'vue-i18n'
 import locationIcon from '../../assets/img/location.png'
 import searchIcon from '../../assets/img/search.png'
 import centerPinIcon from '../../assets/img/position.png'
+import droneIcon from '../../assets/img/drone.png'
 import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones } from '../../services/airspaceMap'
+import { buildDownloadUrl, extractObjectName, normalizeFileList } from '../../services/files'
 import {
   buildAreaGraphics,
   fetchDjiAreas,
@@ -34,13 +36,14 @@ const DEFAULT_CENTER = { latitude: 39.908823, longitude: 116.39747 }
 const DEFAULT_DRONE_INDEX = Math.max(DRONES.findIndex((d) => d.slug === 'dji-mavic-3'), 0)
 const DEFAULT_MAP_ZOOM = 11
 const UOM_SAFE_STATUS_TEXT = '适飞空域（限高120m）'
-const DRONE_ICON_PATH = '/assets/img/drone.png'
+const DRONE_ICON_PATH = droneIcon
 
 const mapContainer = ref(null)
 const mapInstance = ref(null)
 const mapReady = ref(false)
 const mapListeners = []
 const statusCenter = ref(DEFAULT_CENTER)
+const userLocation = ref(null)
 
 const searchKeyword = ref('')
 const searchResults = ref([])
@@ -92,7 +95,37 @@ const markerDrawerVisible = ref(false)
 const markerDrawerLoading = ref(false)
 const activeMarker = ref(null)
 const markerDetail = ref(null)
-
+// const markerCoordsText = computed(() => {
+//   const detail = markerDetail.value || {}
+//   const lat = Number(detail.latitude ?? detail.location?.latitude ?? detail.location?.lat)
+//   const lng = Number(detail.longitude ?? detail.location?.longitude ?? detail.location?.lng)
+//   if (Number.isFinite(lat) && Number.isFinite(lng)) {
+//     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+//   }
+//   return ''
+// })
+const markerAddressText = computed(
+  () => markerDetail.value?.address || markerDetail.value?.detailAddress || markerDetail.value?.location?.text || '',
+)
+const markerDistanceText = computed(() => {
+  const markerLoc = markerDetail.value?.location
+  const userLoc = userLocation.value
+  if (!markerLoc || !Number.isFinite(markerLoc.latitude) || !Number.isFinite(markerLoc.longitude)) return ''
+  if (!userLoc || !Number.isFinite(userLoc.latitude) || !Number.isFinite(userLoc.longitude)) return '未定位'
+  const meters = haversineMeters(userLoc.latitude, userLoc.longitude, markerLoc.latitude, markerLoc.longitude)
+  if (!Number.isFinite(meters)) return ''
+  if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`
+  return `${Math.round(meters)} m`
+})
+const markerCoordsText = computed(() => {
+  const detail = markerDetail.value || {}
+  const lat = Number(detail.latitude ?? detail.location?.latitude ?? detail.location?.lat)
+  const lng = Number(detail.longitude ?? detail.location?.longitude ?? detail.location?.lng)
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+  }
+  return ''
+})
 const pendingCount = ref(0)
 const pendingLoading = ref(false)
 
@@ -244,6 +277,49 @@ const paymentTypeText = (type) => {
 
 const toLatLng = (point) => new window.qq.maps.LatLng(Number(point.latitude), Number(point.longitude))
 
+const resolveAssetUrl = (value) => {
+  if (!value) return ''
+  const objectName = extractObjectName(value)
+  return buildDownloadUrl(objectName || value)
+}
+
+const normalizeMarkerDetailPayload = (detail) => {
+  if (!detail) return detail
+  const normalizedImages = normalizeFileList(detail.images || []).map((item) => item.url)
+  const normalizedQrs = normalizeFileList(detail.qrCodeUrls || []).map((item) => item.url)
+  const normalizedAttachments = normalizeFileList(detail.attachmentUrls || []).map((item) => item.url)
+  const licenseUrl = resolveAssetUrl(detail.businessLicense)
+  const normalizedLocation = normalizeMarkerLocation(detail)
+  return {
+    ...detail,
+    images: normalizedImages,
+    qrCodeUrls: normalizedQrs,
+    attachmentUrls: normalizedAttachments,
+    businessLicense: licenseUrl,
+    location: normalizedLocation || detail.location || null,
+  }
+}
+
+const pickNumber = (...values) => {
+  for (const value of values) {
+    const num = Number(value)
+    if (Number.isFinite(num)) return num
+  }
+  return null
+}
+
+const normalizeMarkerLocation = (item) => {
+  if (!item) return null
+  const lat = pickNumber(item?.location?.latitude, item?.location?.lat, item?.latitude, item?.lat)
+  const lng = pickNumber(item?.location?.longitude, item?.location?.lng, item?.longitude, item?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  const gcj = wgs84ToGcj02(lng, lat)
+  return {
+    latitude: Number.isFinite(gcj?.lat) ? gcj.lat : lat,
+    longitude: Number.isFinite(gcj?.lng) ? gcj.lng : lng,
+  }
+}
+
 const renderDjiOverlays = (polygons = [], circles = []) => {
   clearOverlays(djiPolygonOverlays)
   clearOverlays(djiCircleOverlays)
@@ -374,10 +450,35 @@ const renderMarkers = (markers = []) => {
     const overlay = new window.qq.maps.Marker({
       map: mapInstance.value,
       position: new window.qq.maps.LatLng(latitude, longitude),
-      title: marker.name || '商户',
+      title: marker.name || '未命名商户',
       icon: markerImage,
       zIndex: 5,
     })
+    const labelText = marker.name || '未命名商户'
+    const labelWidth = Math.min(140, Math.max(70, labelText.length * 11))
+    if (labelText) {
+      const label = new window.qq.maps.Label({
+        map: mapInstance.value,
+        position: overlay.getPosition(),
+        content: labelText,
+        offset: new window.qq.maps.Size(-(labelWidth / 2), -44),
+      })
+      label.setZIndex(6)
+      label.setStyle({
+        backgroundColor: '#ffffff',
+        color: '#111827',
+        padding: '6px 10px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '700',
+        border: '1px solid rgba(0, 0, 0, 0.2)',
+        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.25)',
+        whiteSpace: 'nowrap',
+        minWidth: `${labelWidth}px`,
+        textAlign: 'center',
+      })
+      markerOverlays.value.push(label)
+    }
     window.qq.maps.event.addListener(overlay, 'click', () => openMarkerDetail(marker))
     markerOverlays.value.push(overlay)
   })
@@ -488,7 +589,7 @@ const ensureUomMask = (tile) => {
       entry.data = imageData.data
       updateStatusPanel()
     } catch (err) {
-      console.error('解析 UOM 瓦片失败', err)
+      console.error('??????', err)
       entry.status = 'error'
     }
   }
@@ -660,18 +761,24 @@ const loadNearbyMarkers = async (center, radiusKm, token) => {
       radiusInKilometers: radiusKm,
     })
     if (isStaleToken(token)) return
-    const normalized = markers.map((item) => ({
-      id: item.id,
-      name: item.name || '未命名商户',
-      address: item.address || item.detailAddress || '',
-      contact: item.contactName || item.contact || '',
-      phone: item.phone || item.mobile || '',
-      location: { latitude: Number(item.latitude ?? item.lat), longitude: Number(item.longitude ?? item.lng) },
-    }))
+    const normalized = markers
+      .map((item) => {
+        const location = normalizeMarkerLocation(item)
+        if (!location) return null
+        return {
+          id: item.id,
+          name: item.name || '未命名商户',
+          address: item.address || item.detailAddress || item.location?.text || '',
+          contact: item.contactName || item.contact || '',
+          phone: item.phone || item.mobile || '',
+          location,
+        }
+      })
+      .filter(Boolean)
     renderMarkers(normalized)
   } catch (error) {
     console.error('加载商户失败', error)
-    message.error('加载附近商户失败')
+    message.error('?????????')
   }
 }
 
@@ -774,7 +881,8 @@ const initializeMap = () => {
     center: new window.qq.maps.LatLng(DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude),
     zoom: DEFAULT_MAP_ZOOM,
     mapTypeControl: false,
-    zoomControl: true,
+    zoomControl: false,
+    panControl: false,
   })
   mapReady.value = true
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'center_changed', scheduleRefresh))
@@ -806,11 +914,11 @@ const openMarkerDetail = (marker) => {
   markerDrawerLoading.value = true
   fetchMarkerDetail(marker.id)
     .then((detail) => {
-      markerDetail.value = detail || marker
+      markerDetail.value = normalizeMarkerDetailPayload(detail || marker)
     })
     .catch((error) => {
       console.error('加载商户详情失败', error)
-      markerDetail.value = marker
+      markerDetail.value = normalizeMarkerDetailPayload(marker)
     })
     .finally(() => {
       markerDrawerLoading.value = false
@@ -832,6 +940,7 @@ const locateUser = () => {
     (pos) => {
       const { latitude, longitude } = pos.coords
       const gcj = wgs84ToGcj02(longitude, latitude)
+      userLocation.value = { latitude: gcj.lat, longitude: gcj.lng }
       if (mapInstance.value) {
         mapInstance.value.setCenter(new window.qq.maps.LatLng(gcj.lat, gcj.lng))
         mapInstance.value.setZoom(Math.max(DEFAULT_MAP_ZOOM, 13))
@@ -1038,27 +1147,97 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <a-drawer :open="markerDrawerVisible" :width="420" placement="right" title="商户详情" @close="handleDrawerClose">
+    <a-drawer :open="markerDrawerVisible" :width="460" placement="right" title="商户详情" @close="handleDrawerClose">
       <a-spin :spinning="markerDrawerLoading">
         <div v-if="markerDetail" class="marker-detail">
-          <div class="detail-title">{{ markerDetail.name || '未命名商户' }}</div>
-          <div class="detail-row">
-            <span class="detail-label">地址：</span>
-            <span class="detail-value">{{ markerDetail.address || markerDetail.detailAddress || '暂无地址' }}</span>
+          <div class="detail-header">
+            <div>
+              <div class="detail-title">{{ markerDetail.name || '未命名商户' }}</div>
+              <div v-if="markerAddressText" class="detail-sub">{{ markerAddressText }}</div>
+            </div>
+            <span v-if="markerDetail.reviewStatus" class="detail-chip">{{ markerDetail.reviewStatus }}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">联系人：</span>
-            <span class="detail-value">{{ markerDetail.contactName || markerDetail.contact || '未提供' }}</span>
+
+          <div class="detail-grid">
+            <div class="detail-row">
+              <span class="detail-label">联系人</span>
+              <span class="detail-value">{{ markerDetail.contactName || markerDetail.contact || '未提供' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">电话</span>
+              <span class="detail-value">{{ markerDetail.phone || markerDetail.mobile || '未提供' }}</span>
+            </div>
+            <div v-if="markerCoordsText" class="detail-row">
+              <span class="detail-label">坐标</span>
+              <span class="detail-value">{{ markerCoordsText }}</span>
+            </div>
+            <div v-if="markerDistanceText" class="detail-row">
+              <span class="detail-label">距我</span>
+              <span class="detail-value">{{ markerDistanceText }}</span>
+            </div>
+            <div v-if="markerDetail.featureCode" class="detail-row">
+              <span class="detail-label">Feature Code</span>
+              <span class="detail-value">{{ markerDetail.featureCode }}</span>
+            </div>
+            <div v-if="markerDetail.reviewStatus" class="detail-row">
+              <span class="detail-label">审核</span>
+              <span class="detail-value">{{ markerDetail.reviewStatus }}</span>
+            </div>
+            <div v-if="markerDetail.createdAt" class="detail-row">
+              <span class="detail-label">创建时间</span>
+              <span class="detail-value">{{ formatDateTime(markerDetail.createdAt) }}</span>
+            </div>
+            <div v-if="markerDetail.updatedAt" class="detail-row">
+              <span class="detail-label">更新时间</span>
+              <span class="detail-value">{{ formatDateTime(markerDetail.updatedAt) }}</span>
+            </div>
           </div>
-          <div class="detail-row">
-            <span class="detail-label">电话：</span>
-            <span class="detail-value">{{ markerDetail.phone || markerDetail.mobile || '未提供' }}</span>
+
+          <div v-if="markerDetail.description" class="detail-section">
+            <div class="detail-section-title">描述</div>
+            <p class="detail-paragraph">{{ markerDetail.description }}</p>
+          </div>
+
+          <div v-if="markerDetail.industryHonorTags?.length" class="detail-section">
+            <div class="detail-section-title">行业荣誉</div>
+            <div class="detail-chip-list">
+              <span v-for="tag in markerDetail.industryHonorTags" :key="tag" class="detail-chip">{{ tag }}</span>
+            </div>
+          </div>
+
+          <div v-if="markerDetail.images?.length" class="detail-section">
+            <div class="detail-section-title">图片</div>
+            <div class="detail-gallery">
+              <img v-for="(img, idx) in markerDetail.images" :key="img || idx" class="detail-img" :src="img"
+                alt="标记图片" />
+            </div>
+          </div>
+
+          <div v-if="markerDetail.businessLicense" class="detail-section">
+            <div class="detail-section-title">营业执照</div>
+            <img class="detail-img detail-img--single" :src="markerDetail.businessLicense" alt="营业执照" />
+          </div>
+
+          <div v-if="markerDetail.attachmentUrls?.length" class="detail-section">
+            <div class="detail-section-title">附件</div>
+            <ul class="detail-list">
+              <li v-for="(url, idx) in markerDetail.attachmentUrls" :key="url || idx" class="detail-list-item">
+                <a :href="url" target="_blank" rel="noreferrer">附件{{ idx + 1 }}</a>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="markerDetail.qrCodeUrls?.length" class="detail-section">
+            <div class="detail-section-title">二维码</div>
+            <div class="detail-gallery">
+              <img v-for="(img, idx) in markerDetail.qrCodeUrls" :key="img || idx" class="detail-img detail-img--qr"
+                :src="img" alt="二维码" />
+            </div>
           </div>
         </div>
-        <div v-else class="empty-detail">暂无详情</div>
+        <div v-else class="empty-detail">正在加载...</div>
       </a-spin>
     </a-drawer>
-
     <a-modal :destroy-on-close="true" :open="ordersVisible" :title="t('orders.modal.title')" width="960px"
       @cancel="closeOrdersModal">
       <template #footer>
@@ -1474,28 +1653,130 @@ onBeforeUnmount(() => {
 .marker-detail {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .detail-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
+}
+
+.detail-sub {
+  margin-top: 4px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.detail-chip {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(29, 78, 216, 0.2);
 }
 
 .detail-row {
   display: flex;
   gap: 8px;
-  color: #444;
+  align-items: center;
+  color: #1f2937;
+  padding: 6px 0;
 }
 
 .detail-label {
-  width: 64px;
+  width: 90px;
   color: #6b7280;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .detail-value {
   flex: 1;
   color: #111;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  border: 1px solid #e5e7eb;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-section-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #111827;
+}
+
+.detail-paragraph {
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.detail-img {
+  width: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.detail-img--single {
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.detail-img--qr {
+  background: #fff;
+  padding: 10px;
+  object-fit: contain;
+}
+
+.detail-list {
+  margin: 0;
+  padding-left: 16px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.detail-list-item a {
+  color: #1d4ed8;
 }
 
 .empty-detail {

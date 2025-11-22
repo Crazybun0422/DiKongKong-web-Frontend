@@ -224,48 +224,39 @@ export const effectiveHeight = (area, parent) => {
   return null
 }
 
+
+const resolvePolygonCoords = (area, polygonOnly) => {
+  if (!area) return null;
+  if (polygonOnly) return area.polygon_points;
+  return area.polygon_points || area.points || area.polygon || (area.geometry && area.geometry.coordinates);
+}
 export const areaContainsWgsPoint = (area, lng, lat, { polygonOnly = false } = {}) => {
   if (!area) return false
-  const poly = polygonOnly ? area?.polygon_points : area?.polygon_points || area?.points || area?.polygon || area?.geometry?.coordinates
+  const poly = resolvePolygonCoords(area, polygonOnly);
   if (Array.isArray(poly) && poly.length > 0) {
     return polygonPointsContain(poly, lng, lat)
   }
   return circleContainsArea(area, lng, lat)
 }
 
+
+const hasPolygonCoords = (poly) => {
+  return Array.isArray(poly) && poly.length > 0;
+}
 const polygonPointsContain = (poly, lng, lat) => {
-  const polygons = normalizePolygon(poly)
-  if (!polygons.length) return false
-  return polygons.some((rings) => polygonRingsContain(rings, lng, lat))
-}
-
-const polygonRingsContain = (rings, lng, lat) => {
-  if (!Array.isArray(rings) || !rings.length) return false
-  const [outer, ...holes] = rings
-  if (!ringContains(outer, lng, lat)) return false
-  return !holes.some((hole) => ringContains(hole, lng, lat))
-}
-
-const normalizePolygon = (poly) => {
-  if (!Array.isArray(poly) || !poly.length) return []
-
-  // MultiPolygon: [[[ [lng, lat]... ], [hole]...], ...]
+  if (!hasPolygonCoords(poly)) return false
   if (Array.isArray(poly[0]) && Array.isArray(poly[0][0]) && Array.isArray(poly[0][0][0])) {
-    return poly
-      .map((single) => normalizePolygon(single))
-      .filter((p) => Array.isArray(p))
-      .flat()
-      .filter((rings) => Array.isArray(rings) && rings.length)
+    return poly.some((single) => {
+      const outer = Array.isArray(single[0]) ? single[0] : single
+      const ring = Array.isArray(outer[0]) ? outer[0] : outer
+      return ringContains(ring, lng, lat)
+    })
   }
-
-  // Polygon with rings: [[ [lng, lat]... ], [hole]...]
   if (Array.isArray(poly[0]) && Array.isArray(poly[0][0])) {
-    const rings = poly.filter((ring) => Array.isArray(ring) && ring.length)
-    return rings.length ? [rings] : []
+    const ring = Array.isArray(poly[0]) ? poly[0] : poly
+    return ringContains(ring, lng, lat)
   }
-
-  // Single ring: [ [lng, lat], ... ]
-  return [Array.isArray(poly) && poly.length ? [poly] : []].filter((rings) => rings.length)
+  return ringContains(poly, lng, lat)
 }
 
 const circleContainsArea = (area, lng, lat) => {
@@ -278,22 +269,21 @@ const circleContainsArea = (area, lng, lat) => {
   const centerLat = Number(area.lat)
   if (!Number.isFinite(radius) || radius <= 0) return false
   if (!Number.isFinite(centerLng) || !Number.isFinite(centerLat)) return false
-  const dist = haversineMeters(lat, lng, centerLat, centerLng)
+  const dist = haversineMeters(lat, lng, centerLat, centerLng);
   return Number.isFinite(dist) && dist <= radius
 }
 
 export const ringContains = (ring, lng, lat) => {
-  if (!Array.isArray(ring) || ring.length === 0) return false
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i += 1) {
-    const xi = Number(ring[i][0])
-    const yi = Number(ring[i][1])
-    const xj = Number(ring[j][0])
-    const yj = Number(ring[j][1])
-    const intersect = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi
-    if (intersect) inside = !inside
+  if (!Array.isArray(ring) || ring.length === 0) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = Number(ring[i][0]), yi = Number(ring[i][1]);
+    const xj = Number(ring[j][0]), yj = Number(ring[j][1]);
+    const intersect = ((yi > lat) !== (yj > lat)) &&
+      (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+    if (intersect) inside = !inside;
   }
-  return inside
+  return inside;
 }
 
 export default {
