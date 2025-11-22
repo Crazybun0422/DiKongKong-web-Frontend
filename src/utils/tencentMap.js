@@ -63,14 +63,23 @@ export const searchPlaces = async (keyword, location) => {
     return []
   }
 
-  return data.data.map((item) => ({
-    id: item.id || `${item.latlng?.lng ?? 0}-${item.latlng?.lat ?? 0}`,
-    title: item.title || '',
-    address: item.address || '',
-    location: item.latlng
-      ? { latitude: Number(item.latlng.lat), longitude: Number(item.latlng.lng) }
-      : null,
-  }))
+  return data.data.map((item, index) => {
+    const loc = item.location || item.latlng || item.latLng
+    const lat = Number(loc?.lat ?? loc?.latitude)
+    const lng = Number(loc?.lng ?? loc?.longitude)
+    const location =
+      Number.isFinite(lat) && Number.isFinite(lng) ? { latitude: lat, longitude: lng } : null
+    const fallbackId = location
+      ? `${location.longitude}-${location.latitude}`
+      : `poi-${Date.now()}-${index}`
+
+    return {
+      id: item.id || fallbackId,
+      title: item.title || '',
+      address: item.address || '',
+      location,
+    }
+  })
 }
 
 export default { searchPlaces }

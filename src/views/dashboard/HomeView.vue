@@ -95,6 +95,22 @@ const markerDrawerVisible = ref(false)
 const markerDrawerLoading = ref(false)
 const activeMarker = ref(null)
 const markerDetail = ref(null)
+const nearbyMarkers = ref([])
+const MARKER_LABEL_WIDTH = 120
+const normalizePoint = (value) => {
+  const pick = (...vals) => {
+    for (const v of vals) {
+      const num = Number(v)
+      if (Number.isFinite(num)) return num
+    }
+    return null
+  }
+  if (!value) return null
+  const lat = pick(value?.latitude, value?.lat, value?.location?.latitude, value?.location?.lat)
+  const lng = pick(value?.longitude, value?.lng, value?.location?.longitude, value?.location?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { latitude: lat, longitude: lng }
+}
 // const markerCoordsText = computed(() => {
 //   const detail = markerDetail.value || {}
 //   const lat = Number(detail.latitude ?? detail.location?.latitude ?? detail.location?.lat)
@@ -445,7 +461,8 @@ const renderMarkers = (markers = []) => {
 
   markers.forEach((marker) => {
     if (!marker?.location) return
-    const { latitude, longitude } = marker.location
+    const latitude = Number(marker.location.latitude)
+    const longitude = Number(marker.location.longitude)
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return
     const overlay = new window.qq.maps.Marker({
       map: mapInstance.value,
@@ -455,13 +472,13 @@ const renderMarkers = (markers = []) => {
       zIndex: 5,
     })
     const labelText = marker.name || '未命名商户'
-    const labelWidth = Math.min(140, Math.max(70, labelText.length * 11))
     if (labelText) {
       const label = new window.qq.maps.Label({
         map: mapInstance.value,
         position: overlay.getPosition(),
         content: labelText,
-        offset: new window.qq.maps.Size(-(labelWidth / 2), -44),
+        // Anchor the label bottom to the marker point; wrapping grows upward instead of covering the marker.
+        offset: new window.qq.maps.Size(0, -20),
       })
       label.setZIndex(6)
       label.setStyle({
@@ -473,9 +490,19 @@ const renderMarkers = (markers = []) => {
         fontWeight: '700',
         border: '1px solid rgba(0, 0, 0, 0.2)',
         boxShadow: '0 8px 16px rgba(0, 0, 0, 0.25)',
-        whiteSpace: 'nowrap',
-        minWidth: `${labelWidth}px`,
+        display: '-webkit-box',
+        WebkitLineClamp: '3',
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'normal',
+        wordBreak: 'break-word',
+        width: `${MARKER_LABEL_WIDTH}px`,
+        maxWidth: `${MARKER_LABEL_WIDTH}px`,
         textAlign: 'center',
+        lineHeight: '1.2',
+        transform: 'translate(-50%, -100%)',
+        left: '50%',
       })
       markerOverlays.value.push(label)
     }
@@ -589,7 +616,7 @@ const ensureUomMask = (tile) => {
       entry.data = imageData.data
       updateStatusPanel()
     } catch (err) {
-      console.error('??????', err)
+      console.error('解析 UOM 瓦片失败', err)
       entry.status = 'error'
     }
   }
@@ -775,10 +802,11 @@ const loadNearbyMarkers = async (center, radiusKm, token) => {
         }
       })
       .filter(Boolean)
+    nearbyMarkers.value = normalized
     renderMarkers(normalized)
   } catch (error) {
     console.error('加载商户失败', error)
-    message.error('?????????')
+    message.error('加载附近商户失败')
   }
 }
 
@@ -961,8 +989,32 @@ const submitSearch = async () => {
   searchLoading.value = true
   try {
     const center = getCurrentCenter()
-    const results = await searchPlaces(keyword, center)
-    searchResults.value = results
+    const keywordLower = keyword.toLowerCase()
+    const markerMatches = nearbyMarkers.value
+      .map((m) => ({
+        id: `marker-${m.id}`,
+        title: m.name || '未命名商户',
+        address: m.address || '',
+        location: normalizePoint(m.location),
+        source: 'marker',
+        markerId: m.id,
+      }))
+      .filter(
+        (m) =>
+          m.location &&
+          ((m.title || '').toLowerCase().includes(keywordLower) || (m.address || '').toLowerCase().includes(keywordLower)),
+      )
+
+    const placeResults = await searchPlaces(keyword, center)
+    const mappedPlaces = placeResults
+      .map((item) => ({
+        ...item,
+        location: normalizePoint(item.location || item),
+        source: 'place',
+      }))
+      .filter((item) => item.location)
+
+    searchResults.value = [...markerMatches, ...mappedPlaces]
   } catch (error) {
     console.error('搜索失败', error)
     message.error('搜索失败，请稍后重试')
@@ -972,12 +1024,27 @@ const submitSearch = async () => {
 }
 
 const applySearchResult = (item) => {
-  if (!item?.location || !mapInstance.value) return
-  mapInstance.value.setCenter(new window.qq.maps.LatLng(item.location.latitude, item.location.longitude))
-  mapInstance.value.setZoom(15)
+  if (!mapInstance.value) return
+  const point = normalizePoint(item?.location || item)
+  if (!point) return
+  const target = new window.qq.maps.LatLng(point.latitude, point.longitude)
+  try {
+    if (typeof mapInstance.value.setCenter === 'function') {
+      mapInstance.value.setCenter(target)
+    }
+    if (typeof mapInstance.value.panTo === 'function') {
+      mapInstance.value.panTo(target)
+    }
+    if (typeof mapInstance.value.setZoom === 'function') {
+      mapInstance.value.setZoom(item.source === 'marker' ? 17 : 15)
+    }
+  } catch (err) {
+    console.error('地图跳转失败', err)
+  }
   searchResults.value = []
   searchKeyword.value = item.title
-  refreshData(true)
+  // 在下一帧再刷新，确保中心已更新
+  requestAnimationFrame(() => refreshData(true))
 }
 
 const loadPendingCount = async () => {
@@ -1092,7 +1159,7 @@ onBeforeUnmount(() => {
           <a-select v-model:value="selectedDroneIndex" class="picker-select" size="small"
             :options="DRONES.map((item, index) => ({ label: item.name, value: index }))"
             :get-popup-container="(triggerNode) => triggerNode?.parentNode || document.body"
-            dropdown-match-select-width="false" @change="refreshData(true)" />
+            :dropdownMatchSelectWidth="false" @change="refreshData(true)" />
         </div>
         <div class="status-row">
           <span class="status-label">临时禁飞区：</span>
@@ -1121,9 +1188,12 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div v-if="searchResults.length" class="search-results">
-          <div v-for="item in searchResults" :key="item.id" class="search-result-item" @click="applySearchResult(item)">
-            <div class="result-title">{{ item.title }}</div>
-            <div class="result-address">{{ item.address }}</div>
+          <div v-for="item in searchResults" :key="item.id" class="search-result-item"
+            :class="{ 'search-result-item--marker': item.source === 'marker' }" @click="applySearchResult(item)">
+            <div class="result-title" :class="{ 'result-title--marker': item.source === 'marker' }">
+              {{ item.title }}<span v-if="item.source === 'marker'" class="result-tag">（低空星球）</span>
+            </div>
+            <div class="result-address">{{ item.address || '无详细地址' }}</div>
           </div>
         </div>
       </div>
@@ -1310,6 +1380,7 @@ onBeforeUnmount(() => {
   transform: translate(-50%, -100%);
   z-index: 12;
   pointer-events: none;
+  user-select: none;
 }
 
 .map-center-pin img {
@@ -1346,6 +1417,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 26px 26px 18px;
   color: #f7fbff;
+  user-select: none;
 }
 
 .dashboard-card::before {
@@ -1512,13 +1584,41 @@ onBeforeUnmount(() => {
 
 .search-results {
   margin-top: 12px;
-  max-height: 240px;
+  max-height: 260px;
   overflow-y: auto;
   border-radius: 14px;
-  background: rgba(5, 12, 24, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(10px);
+  background: rgba(7, 10, 18, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+.search-result-item {
+  padding: 12px 14px;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.search-result-item+.search-result-item {
+  margin-top: 6px;
+}
+
+.search-result-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+
+.search-result-item--marker .result-title {
+  color: #16a34a;
+}
+
+.search-result-item--marker .result-tag {
+  color: #16a34a;
+  font-weight: 700;
 }
 
 .summary-board {
@@ -1538,6 +1638,10 @@ onBeforeUnmount(() => {
 .summary-board--standalone {
   width: 100%;
   margin-top: 0;
+}
+
+.summary-board {
+  user-select: none;
 }
 
 .board-item {
@@ -1574,6 +1678,14 @@ onBeforeUnmount(() => {
   font-size: 30px;
   font-weight: 800;
   line-height: 1;
+}
+
+/* Allow selection inside controls even when parent disables selection */
+.dashboard-card input,
+.dashboard-card textarea,
+.dashboard-card select,
+.dashboard-card button {
+  user-select: text;
 }
 
 .board-divider {
