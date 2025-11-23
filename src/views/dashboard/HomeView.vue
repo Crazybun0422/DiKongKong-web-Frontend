@@ -1412,7 +1412,7 @@ onBeforeUnmount(() => {
 
 .map-canvas {
   width: 100%;
-  height: 88vh;
+  height: 89vh;
   min-height: 720px;
   border-radius: 16px;
   background: #0c0c0f;
@@ -1508,7 +1508,7 @@ onBeforeUnmount(() => {
   background: #e5edf9;
   border-radius: 2px;
   transform: translateY(-50%);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0);
 }
 
 .map-scale-tick-start {
@@ -1521,12 +1521,12 @@ onBeforeUnmount(() => {
 
 .map-overlays {
   position: absolute;
-  top: 18px;
-  left: 16px;
-  width: 360px;
+  top: 14px;
+  left: 12px;
+  width: 260px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   z-index: 7;
   pointer-events: none;
 }
@@ -1538,7 +1538,7 @@ onBeforeUnmount(() => {
 .dashboard-card {
   position: relative;
   width: 100%;
-  padding: 18px 18px 12px;
+  padding: 12px 12px 8px;
   color: #f7fbff;
   user-select: none;
 }
@@ -1551,7 +1551,7 @@ onBeforeUnmount(() => {
   border-radius: 20px 0 0 20px;
   background: rgba(12, 18, 32, 0.58);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.35);
+
   clip-path: polygon(0 0, 82% 0, 100% 50%, 82% 100%, 0 100%);
   z-index: -1;
 }
@@ -1561,18 +1561,18 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .card-subtitle {
-  font-size: 10px;
+  font-size: 8px;
   color: #a8b5c7;
-  margin-top: 2px;
+  margin-top: 1px;
   opacity: 0.92;
 }
 
@@ -1584,34 +1584,34 @@ onBeforeUnmount(() => {
 
 .picker-label {
   color: #cfd6e0;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .picker-select {
-  min-width: 160px;
+  min-width: 120px;
 }
 
 .status-row {
   display: flex;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .status-label {
-  width: 100px;
+  width: 80px;
   color: #c8d3e1;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .status-value {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .status-extra {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #dfe7f4;
-  font-size: 10px;
+  font-size: 8px;
   line-height: 1.4;
 }
 
@@ -1632,20 +1632,20 @@ onBeforeUnmount(() => {
 }
 
 .status-hint {
-  margin-top: 4px;
-  font-size: 10px;
+  margin-top: 3px;
+  font-size: 8px;
   color: rgba(255, 255, 255, 0.75);
 }
 
 .search-box {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .search-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 4px 4px 12px;
+  gap: 6px;
+  padding: 3px 3px 3px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.78);
   background: rgba(0, 0, 0, 0.26);
@@ -1655,12 +1655,12 @@ onBeforeUnmount(() => {
 .search-input {
   flex: 1;
   min-width: 0;
-  padding: 8px 4px;
+  padding: 6px 2px;
   border-radius: 999px;
   border: none;
   background: transparent;
   color: #f8fbff;
-  font-size: 11px;
+  font-size: 8px;
 }
 
 .search-input:focus {
@@ -1672,8 +1672,8 @@ onBeforeUnmount(() => {
 }
 
 .search-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.08);
@@ -1686,8 +1686,8 @@ onBeforeUnmount(() => {
 }
 
 .search-btn img {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   filter: brightness(0) invert(1);
 }
 
@@ -1706,8 +1706,8 @@ onBeforeUnmount(() => {
 }
 
 .search-results {
-  margin-top: 10px;
-  max-height: 210px;
+  margin-top: 8px;
+  max-height: 150px;
   overflow-y: auto;
   border-radius: 14px;
   background: rgba(7, 10, 18, 0.9);
@@ -1720,7 +1720,7 @@ onBeforeUnmount(() => {
 }
 
 .search-result-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   cursor: pointer;
   border-radius: 10px;
   transition: background-color 0.15s ease, transform 0.1s ease;
@@ -1746,7 +1746,7 @@ onBeforeUnmount(() => {
 
 .summary-board {
   content: '';
-  margin-top: 12px;
+  margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   position: relative;
@@ -1768,7 +1768,7 @@ onBeforeUnmount(() => {
 }
 
 .board-item {
-  padding: 8px 12px 10px;
+  padding: 6px 9px 8px;
   background: transparent;
   border: none;
   color: #f8fbff;
@@ -1793,12 +1793,12 @@ onBeforeUnmount(() => {
 }
 
 .board-label {
-  font-size: 9px;
-  letter-spacing: 0.3px;
+  font-size: 7px;
+  letter-spacing: 0.2px;
 }
 
 .board-value {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1;
 }
@@ -1823,7 +1823,7 @@ onBeforeUnmount(() => {
 }
 
 .search-result-item {
-  padding: 8px 10px;
+  padding: 6px 8px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -1835,13 +1835,13 @@ onBeforeUnmount(() => {
 .result-title {
   color: #f8fafc;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .result-address {
   color: #a5acba;
-  font-size: 10px;
-  margin-top: 3px;
+  font-size: 9px;
+  margin-top: 2px;
 }
 
 .map-actions {
