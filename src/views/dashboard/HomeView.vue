@@ -44,6 +44,9 @@ const mapReady = ref(false)
 const mapListeners = []
 const statusCenter = ref(DEFAULT_CENTER)
 const userLocation = ref(null)
+const scaleBarWidthPx = ref(0)
+const scaleBarLabel = ref('')
+const showScaleBar = computed(() => scaleBarWidthPx.value > 0 && !!scaleBarLabel.value)
 
 const searchKeyword = ref('')
 const searchResults = ref([])
@@ -541,6 +544,53 @@ const estimateVisibleRadiusMeters = () => {
   return 80000
 }
 
+const formatScaleLabel = (meters) => {
+  if (!Number.isFinite(meters) || meters <= 0) return ''
+  if (meters >= 1000) {
+    const km = meters / 1000
+    return `${km >= 10 ? km.toFixed(0) : km.toFixed(1)} km`
+  }
+  return `${Math.round(meters)} m`
+}
+
+const updateScaleBar = (center, zoom) => {
+  if (!mapInstance.value || !mapReady.value) {
+    scaleBarWidthPx.value = 0
+    scaleBarLabel.value = ''
+    return
+  }
+  const lat = Number(center?.latitude ?? DEFAULT_CENTER.latitude)
+  const useZoom = Number.isFinite(zoom) ? zoom : DEFAULT_MAP_ZOOM
+  const metersPerPixel =
+    (40075016.686 * Math.abs(Math.cos((lat * Math.PI) / 180))) / (256 * Math.pow(2, useZoom))
+  if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
+    scaleBarWidthPx.value = 0
+    scaleBarLabel.value = ''
+    return
+  }
+  const candidates = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000]
+  const targetPx = 120
+  const rangeMin = 70
+  const rangeMax = 180
+  let picked = { meters: candidates[0], px: candidates[0] / metersPerPixel, score: Infinity }
+  candidates.forEach((meters) => {
+    const px = meters / metersPerPixel
+    const inRange = px >= rangeMin && px <= rangeMax
+    const score = Math.abs(px - targetPx) + (inRange ? 0 : 1000)
+    if (score < picked.score) {
+      picked = { meters, px, score }
+    }
+  })
+  scaleBarWidthPx.value = picked.px
+  scaleBarLabel.value = formatScaleLabel(picked.meters)
+}
+
+const refreshScaleBar = () => {
+  const center = getCurrentCenter()
+  const zoom = typeof mapInstance.value?.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
+  updateScaleBar(center, zoom)
+}
+
 const circleRectFromCenter = (center, radius) => {
   if (!center) return null
   const metersLat = 111320
@@ -884,6 +934,7 @@ const refreshData = (force = false, providedToken = null) => {
   const radiusKm = Math.max(0.5, Math.round((radiusMeters / 1000) * 10) / 10)
   const zoom = typeof mapInstance.value.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
 
+  updateScaleBar(center, zoom)
   loadNearbyMarkers(center, radiusKm, token)
   loadNoFlyZones(center, radiusKm, token)
   loadDjiAreas(center, radiusMeters, bounds, token)
@@ -899,6 +950,7 @@ const refreshData = (force = false, providedToken = null) => {
 
 const scheduleRefresh = () => {
   if (refreshTimer) clearTimeout(refreshTimer)
+  refreshScaleBar()
   const token = nextRefreshToken()
   refreshTimer = setTimeout(() => refreshData(false, token), 300)
 }
@@ -913,6 +965,7 @@ const initializeMap = () => {
     panControl: false,
   })
   mapReady.value = true
+  refreshScaleBar()
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'center_changed', scheduleRefresh))
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'idle', scheduleRefresh))
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'dragend', scheduleRefresh))
@@ -1145,6 +1198,14 @@ onBeforeUnmount(() => {
         <img :src="centerPinIcon" alt="中心锚点" />
       </div>
       <div v-if="!mapReady" class="map-placeholder">地图加载中...</div>
+      <div v-if="showScaleBar" class="map-scale">
+        <div class="map-scale-label">{{ scaleBarLabel }}</div>
+        <div class="map-scale-track" :style="{ width: `${scaleBarWidthPx}px` }">
+          <div class="map-scale-line"></div>
+          <div class="map-scale-tick map-scale-tick-start"></div>
+          <div class="map-scale-tick map-scale-tick-end"></div>
+        </div>
+      </div>
     </div>
 
     <div class="map-overlays">
@@ -1396,14 +1457,76 @@ onBeforeUnmount(() => {
   opacity: 0.4;
 }
 
+.map-scale {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(12, 18, 32, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  color: #eef2ff;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.map-scale-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  color: #dfe7f4;
+}
+
+.map-scale-track {
+  position: relative;
+  height: 12px;
+  min-width: 60px;
+}
+
+.map-scale-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #8dd3ff 0%, #4a9dff 100%);
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.map-scale-tick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 14px;
+  background: #e5edf9;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.map-scale-tick-start {
+  left: 0;
+}
+
+.map-scale-tick-end {
+  right: 0;
+}
+
 .map-overlays {
   position: absolute;
-  top: 24px;
-  left: 20px;
-  width: 470px;
+  top: 18px;
+  left: 16px;
+  width: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 7;
   pointer-events: none;
 }
@@ -1415,7 +1538,7 @@ onBeforeUnmount(() => {
 .dashboard-card {
   position: relative;
   width: 100%;
-  padding: 26px 26px 18px;
+  padding: 18px 18px 12px;
   color: #f7fbff;
   user-select: none;
 }
@@ -1438,18 +1561,18 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .card-title {
-  font-size: 22px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .card-subtitle {
-  font-size: 12px;
+  font-size: 10px;
   color: #a8b5c7;
-  margin-top: 4px;
+  margin-top: 2px;
   opacity: 0.92;
 }
 
@@ -1461,34 +1584,34 @@ onBeforeUnmount(() => {
 
 .picker-label {
   color: #cfd6e0;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .picker-select {
-  min-width: 200px;
+  min-width: 160px;
 }
 
 .status-row {
   display: flex;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .status-label {
-  width: 132px;
+  width: 100px;
   color: #c8d3e1;
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .status-value {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .status-extra {
-  margin-top: 6px;
+  margin-top: 4px;
   color: #dfe7f4;
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.4;
 }
 
@@ -1509,35 +1632,35 @@ onBeforeUnmount(() => {
 }
 
 .status-hint {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.75);
 }
 
 .search-box {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .search-pill {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 6px 6px 16px;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: inset 0 10px 22px rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(0, 0, 0, 0.26);
+  box-shadow: inset 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
 .search-input {
   flex: 1;
   min-width: 0;
-  padding: 10px 4px;
+  padding: 8px 4px;
   border-radius: 999px;
   border: none;
   background: transparent;
   color: #f8fbff;
-  font-size: 15px;
+  font-size: 11px;
 }
 
 .search-input:focus {
@@ -1549,8 +1672,8 @@ onBeforeUnmount(() => {
 }
 
 .search-btn {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.08);
@@ -1563,8 +1686,8 @@ onBeforeUnmount(() => {
 }
 
 .search-btn img {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   filter: brightness(0) invert(1);
 }
 
@@ -1583,8 +1706,8 @@ onBeforeUnmount(() => {
 }
 
 .search-results {
-  margin-top: 12px;
-  max-height: 260px;
+  margin-top: 10px;
+  max-height: 210px;
   overflow-y: auto;
   border-radius: 14px;
   background: rgba(7, 10, 18, 0.9);
@@ -1597,7 +1720,7 @@ onBeforeUnmount(() => {
 }
 
 .search-result-item {
-  padding: 12px 14px;
+  padding: 8px 10px;
   cursor: pointer;
   border-radius: 10px;
   transition: background-color 0.15s ease, transform 0.1s ease;
@@ -1623,7 +1746,7 @@ onBeforeUnmount(() => {
 
 .summary-board {
   content: '';
-  margin-top: 18px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   position: relative;
@@ -1645,7 +1768,7 @@ onBeforeUnmount(() => {
 }
 
 .board-item {
-  padding: 12px 16px 14px;
+  padding: 8px 12px 10px;
   background: transparent;
   border: none;
   color: #f8fbff;
@@ -1670,12 +1793,12 @@ onBeforeUnmount(() => {
 }
 
 .board-label {
-  font-size: 13px;
-  letter-spacing: 0.4px;
+  font-size: 9px;
+  letter-spacing: 0.3px;
 }
 
 .board-value {
-  font-size: 30px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1;
 }
@@ -1700,7 +1823,7 @@ onBeforeUnmount(() => {
 }
 
 .search-result-item {
-  padding: 12px 14px;
+  padding: 8px 10px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -1712,17 +1835,18 @@ onBeforeUnmount(() => {
 .result-title {
   color: #f8fafc;
   font-weight: 600;
+  font-size: 13px;
 }
 
 .result-address {
   color: #a5acba;
-  font-size: 12px;
-  margin-top: 4px;
+  font-size: 10px;
+  margin-top: 3px;
 }
 
 .map-actions {
   position: absolute;
-  top: 140px;
+  bottom: 260px;
   right: 20px;
   display: flex;
   flex-direction: column;
@@ -1732,9 +1856,9 @@ onBeforeUnmount(() => {
 }
 
 .floating-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.75);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
@@ -1747,8 +1871,8 @@ onBeforeUnmount(() => {
 }
 
 .floating-btn img {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
   filter: brightness(0) saturate(100%);
 }
@@ -1912,7 +2036,7 @@ onBeforeUnmount(() => {
   }
 
   .map-actions {
-    top: 120px;
+    top: 220px;
     right: 14px;
   }
 }
