@@ -7,6 +7,7 @@
     "home": "首页",
     "airspace": "空域地图",
     "user": "用户管理",
+    "groups": "小组管理",
     "settings": "设置"
   },
   "profile": {
@@ -552,6 +553,44 @@
         "reason": "原因",
         "createdAt": "时间"
       }
+    }
+  },
+  "groups": {
+    "title": "小组管理",
+    "subtitle": "查看并维护工作组状态。",
+    "columns": {
+      "name": "名称",
+      "avatar": "头像",
+      "description": "简介",
+      "markerCount": "标记数量",
+      "memberCount": "成员数",
+      "updatedAt": "更新时间",
+      "actions": "操作"
+    },
+    "table": {
+      "noAvatar": "暂无头像",
+      "noDescription": "暂无简介",
+      "unnamed": "未命名小组"
+    },
+    "status": {
+      "ACTIVE": "正常",
+      "BANNED": "已封禁"
+    },
+    "actions": {
+      "ban": "封禁",
+      "disband": "解散",
+      "confirmBanTitle": "确认封禁 {name}？",
+      "confirmBanMessage": "封禁后小组将无法继续使用，请确认操作。",
+      "disbandPlaceholder": "解散功能暂未开放",
+      "defaultBanReason": "管理端封禁"
+    },
+    "messages": {
+      "loadFailed": "加载小组失败，请稍后重试。",
+      "banSuccess": "已封禁「{name}」",
+      "banFailed": "封禁失败，请稍后重试"
+    },
+    "pagination": {
+      "total": "共 {total} 个小组 · 显示第 {start}-{end} 个"
     }
   }
 }

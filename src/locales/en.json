@@ -7,6 +7,7 @@
     "home": "Home",
     "airspace": "Airspace Map",
     "user": "User Management",
+    "groups": "Group Management",
     "settings": "Settings"
   },
   "profile": {
@@ -552,6 +553,44 @@
         "reason": "Reason",
         "createdAt": "Created at"
       }
+    }
+  },
+  "groups": {
+    "title": "Group management",
+    "subtitle": "Review work groups and control their status.",
+    "columns": {
+      "name": "Name",
+      "avatar": "Avatar",
+      "description": "Description",
+      "markerCount": "Marker count",
+      "memberCount": "Members",
+      "updatedAt": "Updated at",
+      "actions": "Actions"
+    },
+    "table": {
+      "noAvatar": "No avatar",
+      "noDescription": "No description",
+      "unnamed": "Untitled group"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "BANNED": "Banned"
+    },
+    "actions": {
+      "ban": "Ban",
+      "disband": "Disband",
+      "confirmBanTitle": "Ban {name}?",
+      "confirmBanMessage": "After banning, the group cannot continue to operate. Please confirm.",
+      "disbandPlaceholder": "Disband action is not yet available",
+      "defaultBanReason": "Admin ban"
+    },
+    "messages": {
+      "loadFailed": "Failed to load groups. Please try again.",
+      "banSuccess": "Banned \"{name}\" successfully",
+      "banFailed": "Failed to ban the group. Please try again"
+    },
+    "pagination": {
+      "total": "Total {total} groups · Showing {start}-{end}"
     }
   }
 }

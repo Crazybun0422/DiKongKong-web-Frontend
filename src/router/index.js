@@ -6,6 +6,7 @@ const MainLayout = () => import('../layouts/MainLayout.vue')
 const HomeView = () => import('../views/dashboard/HomeView.vue')
 const AirspaceMapView = () => import('../views/dashboard/AirspaceMapView.vue')
 const UserManagementView = () => import('../views/dashboard/UserManagementView.vue')
+const WorkGroupManagementView = () => import('../views/dashboard/WorkGroupManagementView.vue')
 const SettingsView = () => import('../views/dashboard/SettingsView.vue')
 
 const routes = [
@@ -34,6 +35,11 @@ const routes = [
         path: 'users',
         name: 'users',
         component: UserManagementView,
+      },
+      {
+        path: 'groups',
+        name: 'groups',
+        component: WorkGroupManagementView,
       },
       {
         path: 'settings',
