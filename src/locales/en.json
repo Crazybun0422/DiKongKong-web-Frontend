@@ -247,6 +247,62 @@
         "loadFailed": "Failed to load the order. Please try again later.",
         "notFound": "No linked order found."
       }
+    },
+    "pinAudit": {
+      "title": "Review Pin Markers",
+      "columns": {
+        "name": "Name / Submitted At",
+        "visibility": "Visibility",
+        "reviewStatus": "Review Status",
+        "status": "Live Status",
+        "actions": "Actions"
+      },
+      "visibility": {
+        "public": "Public",
+        "group": "Group",
+        "private": "Private"
+      },
+      "reviewStatus": {
+        "pending": "Pending",
+        "approved_a": "Approved (A)",
+        "approved_b": "Approved (B)",
+        "rejected": "Rejected",
+        "unknown": "Unknown"
+      },
+      "pinStatus": {
+        "alive": "Enabled",
+        "banned": "Disabled"
+      },
+      "actions": {
+        "open": "Review Pins",
+        "passA": "Approve A",
+        "passB": "Approve B",
+        "approve": "Approve",
+        "reject": "Reject",
+        "disable": "Disable",
+        "enable": "Restore",
+        "toggleStatus": "Confirm"
+      },
+      "messages": {
+        "loadFailed": "Failed to load pins, please try again later.",
+        "onlyPublicReview": "Only public pins require review.",
+        "reviewSuccess": "Review submitted.",
+        "reviewFailed": "Review submission failed, please retry.",
+        "statusUpdated": "Pin status updated.",
+        "statusUpdateFailed": "Failed to update pin status, please retry."
+      },
+      "confirm": {
+        "approve": {
+          "title": "Confirm approval",
+          "content": "Approve \"{name}\" as {status}?"
+        },
+        "reject": {
+          "title": "Confirm rejection",
+          "content": "Reject \"{name}\"?"
+        },
+        "statusTitle": "Update pin status",
+        "statusContent": "Set \"{name}\" to {status}?"
+      }
     }
   },
   "noFlyZone": {
