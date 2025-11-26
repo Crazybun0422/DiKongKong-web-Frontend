@@ -222,6 +222,62 @@
         "viewOrder": "查看订单"
       }
     },
+    "pinAudit": {
+      "title": "审核 Pin 标记",
+      "columns": {
+        "name": "名称 / 提交时间",
+        "visibility": "可见性",
+        "reviewStatus": "审核状态",
+        "status": "启用状态",
+        "actions": "操作"
+      },
+      "visibility": {
+        "public": "公开",
+        "group": "群组",
+        "private": "个人"
+      },
+      "reviewStatus": {
+        "pending": "待审核",
+        "approved_a": "通过（A级）",
+        "approved_b": "通过（B级）",
+        "rejected": "已驳回",
+        "unknown": "未知"
+      },
+      "pinStatus": {
+        "alive": "启用",
+        "banned": "已禁用"
+      },
+      "actions": {
+        "open": "审核标记",
+        "passA": "通过A",
+        "passB": "通过B",
+        "approve": "通过",
+        "reject": "驳回",
+        "disable": "禁用",
+        "enable": "恢复",
+        "toggleStatus": "确认"
+      },
+      "messages": {
+        "loadFailed": "加载 Pin 列表失败，请稍后重试。",
+        "onlyPublicReview": "仅对公开可见的标记进行审核。",
+        "reviewSuccess": "审核结果已提交。",
+        "reviewFailed": "审核提交失败，请稍后重试。",
+        "statusUpdated": "标记状态已更新。",
+        "statusUpdateFailed": "更新标记状态失败，请稍后重试。"
+      },
+      "confirm": {
+        "approve": {
+          "title": "确认通过审核",
+          "content": "确定将“{name}”标记审核为 {status} 吗？"
+        },
+        "reject": {
+          "title": "确认驳回",
+          "content": "确定驳回“{name}”吗？"
+        },
+        "statusTitle": "更新标记状态",
+        "statusContent": "确认将“{name}”设置为 {status} 状态吗？"
+      }
+    },
     "orderModal": {
       "title": "关联订单",
       "close": "关闭",
