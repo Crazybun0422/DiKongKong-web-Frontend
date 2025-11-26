@@ -118,6 +118,7 @@
     "subtitle": "Manage and review submitted markers with quick filters.",
     "mainTabs": {
       "markers": "Merchant Markers",
+      "pinAudit": "Pin Reviews",
       "noFlyZones": "Temporary No-Fly Zones"
     },
     "tabs": {
@@ -275,6 +276,7 @@
       },
       "actions": {
         "open": "Review Pins",
+        "detail": "Details",
         "passA": "Approve A",
         "passB": "Approve B",
         "approve": "Approve",
@@ -282,6 +284,18 @@
         "disable": "Disable",
         "enable": "Restore",
         "toggleStatus": "Confirm"
+      },
+      "detail": {
+        "title": "Pin Detail",
+        "basic": "Basic Info",
+        "visibility": "Visibility",
+        "reviewStatus": "Review Status",
+        "status": "Enable Status",
+        "createdAt": "Submitted At",
+        "updatedAt": "Updated At",
+        "description": "Description",
+        "images": "Images",
+        "close": "Close"
       },
       "messages": {
         "loadFailed": "Failed to load pins, please try again later.",

@@ -41,7 +41,6 @@ const sortLabel = computed(() =>
   sortOrder.value === 'ASC' ? t('airspace.sort.ascend') : t('airspace.sort.descend'),
 )
 
-const pinAuditVisible = ref(false)
 const pinAuditLoading = ref(false)
 const pinAuditData = ref([])
 const pinAuditPagination = reactive({
@@ -51,6 +50,8 @@ const pinAuditPagination = reactive({
 })
 const pinAuditVisibility = ref(PIN_VISIBILITY.PUBLIC)
 const pinAuditReviewStatus = ref(PIN_REVIEW_STATUS.PENDING)
+const pinDetailVisible = ref(false)
+const pinDetailRecord = ref(null)
 
 const ORDER_STATUS_COLORS = {
   WAITING_PAYMENT: 'gold',
@@ -82,6 +83,7 @@ const updateRouteStatus = (status) => {
 
 const mainTabs = computed(() => [
   { key: 'markers', label: t('airspace.mainTabs.markers') },
+  { key: 'pinAudit', label: t('airspace.mainTabs.pinAudit') },
   { key: 'noFlyZones', label: t('airspace.mainTabs.noFlyZones') },
 ])
 
@@ -97,6 +99,10 @@ const pinReviewOptions = computed(() => [
   { value: PIN_REVIEW_STATUS.APPROVED_B, label: t('airspace.pinAudit.reviewStatus.approved_b') },
   { value: PIN_REVIEW_STATUS.REJECTED, label: t('airspace.pinAudit.reviewStatus.rejected') },
 ])
+
+const pinReviewStatusTabs = computed(() =>
+  pinReviewOptions.value.map((option) => ({ key: option.value, label: option.label })),
+)
 
 const statusTabs = computed(() => [
   { key: MARKER_REVIEW_STATUS.ALL, label: t('airspace.tabs.all') },
@@ -365,16 +371,18 @@ const loadData = async () => {
 const loadPinAuditData = async () => {
   pinAuditLoading.value = true
   try {
+    const reviewStatusFilter =
+      pinAuditVisibility.value === PIN_VISIBILITY.PUBLIC ? pinAuditReviewStatus.value : undefined
     const { content, totalElements, page, size } = await fetchPins({
       page: pinAuditPagination.current,
       size: pinAuditPagination.pageSize,
       visibility: pinAuditVisibility.value,
-      reviewStatus: pinAuditReviewStatus.value,
+      reviewStatus: reviewStatusFilter,
     })
     pinAuditData.value = content
-    pinAuditPagination.total = totalElements
-    pinAuditPagination.current = page
-    pinAuditPagination.pageSize = size
+  pinAuditPagination.total = totalElements
+  pinAuditPagination.current = page
+  pinAuditPagination.pageSize = size
   } catch (error) {
     console.error('Failed to load pins', error)
     message.error(t('airspace.pinAudit.messages.loadFailed'))
@@ -397,16 +405,9 @@ const handleMainTabChange = (key) => {
   activeMainTab.value = key
   if (key === 'markers') {
     loadData()
+  } else if (key === 'pinAudit') {
+    loadPinAuditData()
   }
-}
-
-const handlePinAuditOpen = () => {
-  pinAuditVisible.value = true
-  loadPinAuditData()
-}
-
-const handlePinAuditClose = () => {
-  pinAuditVisible.value = false
 }
 
 const handlePinVisibilityChange = (nextVisibility) => {
@@ -433,6 +434,12 @@ const handlePinAuditTableChange = (pager) => {
   loadPinAuditData()
 }
 
+const syncPinDetailRecord = (pin) => {
+  if (pin && pinDetailRecord.value?.id === pin.id) {
+    pinDetailRecord.value = { ...pinDetailRecord.value, ...pin }
+  }
+}
+
 const toggleCreatedAtSort = () => {
   sortOrder.value = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
   pagination.current = 1
@@ -447,6 +454,16 @@ const openDetail = (record) => {
 const closeDetail = () => {
   detailVisible.value = false
   detailRecord.value = null
+}
+
+const openPinDetail = (record) => {
+  pinDetailRecord.value = { ...record }
+  pinDetailVisible.value = true
+}
+
+const closePinDetail = () => {
+  pinDetailVisible.value = false
+  pinDetailRecord.value = null
 }
 
 const openOrderDetail = async (referenceId) => {
@@ -529,9 +546,10 @@ const submitPinReview = async (pin, status) => {
     return
   }
   try {
-    await reviewPin(pin.id, status)
+    const updated = await reviewPin(pin.id, status)
     message.success(t('airspace.pinAudit.messages.reviewSuccess'))
     await loadPinAuditData()
+    syncPinDetailRecord(updated)
   } catch (error) {
     console.error('Failed to review pin', error)
     message.error(t('airspace.pinAudit.messages.reviewFailed'))
@@ -572,8 +590,9 @@ const confirmPinStatusChange = (pin) => {
     },
     onOk: async () => {
       try {
-        await updatePinStatus(pin.id, nextStatus)
+        const updated = await updatePinStatus(pin.id, nextStatus)
         message.success(t('airspace.pinAudit.messages.statusUpdated'))
+        syncPinDetailRecord(updated)
         await loadPinAuditData()
       } catch (error) {
         console.error('Failed to update pin status', error)
@@ -610,11 +629,7 @@ watch(
           <h2 class="card-title">{{ t('airspace.title') }}</h2>
           <p class="card-subtitle">{{ t('airspace.subtitle') }}</p>
         </div>
-        <div class="card-actions">
-          <a-button type="primary" ghost @click="handlePinAuditOpen">
-            {{ t('airspace.pinAudit.actions.open') }}
-          </a-button>
-        </div>
+        <div class="card-actions"></div>
       </header>
       <a-tabs :active-key="activeMainTab" @change="handleMainTabChange" class="main-tabs">
         <a-tab-pane v-for="tab in mainTabs" :key="tab.key" :tab="tab.label" />
@@ -677,75 +692,140 @@ watch(
           </template>
         </a-table>
       </template>
+      <template v-else-if="activeMainTab === 'pinAudit'">
+        <div class="pin-audit-panel">
+          <div class="pin-audit-toolbar">
+            <a-segmented :options="pinVisibilityOptions" :value="pinAuditVisibility"
+              @change="handlePinVisibilityChange" />
+            <a-tabs v-if="pinAuditVisibility === PIN_VISIBILITY.PUBLIC" :active-key="pinAuditReviewStatus"
+              class="pin-review-tabs" @change="handlePinReviewFilterChange">
+              <a-tab-pane v-for="status in pinReviewStatusTabs" :key="status.key" :tab="status.label" />
+            </a-tabs>
+          </div>
+
+          <a-table :data-source="pinAuditData" :loading="pinAuditLoading" :pagination="pinAuditPaginationConfig"
+            :row-key="(record) => record.id" @change="handlePinAuditTableChange" class="pin-audit-table">
+            <a-table-column :title="t('airspace.pinAudit.columns.name')" key="name" dataIndex="name">
+              <template #default="{ record }">
+                <div class="pin-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</div>
+                <div class="pin-meta">{{ formatDateTime(record.createdAt) }}</div>
+              </template>
+            </a-table-column>
+            <a-table-column :title="t('airspace.pinAudit.columns.visibility')" key="visibility" dataIndex="visibility">
+              <template #default="{ record }">
+                <a-tag :color="pinReviewColors[record.reviewStatus] || 'default'">
+                  {{ pinVisibilityText(record.visibility) }}
+                </a-tag>
+              </template>
+            </a-table-column>
+            <a-table-column :title="t('airspace.pinAudit.columns.reviewStatus')" key="reviewStatus"
+              dataIndex="reviewStatus">
+              <template #default="{ record }">
+                <a-tag :color="pinReviewColors[record.reviewStatus] || 'default'">
+                  {{ pinReviewStatusText(record.reviewStatus) }}
+                </a-tag>
+              </template>
+            </a-table-column>
+            <a-table-column :title="t('airspace.pinAudit.columns.status')" key="status" dataIndex="status">
+              <template #default="{ record }">
+                <a-tag :color="pinStatusColors[record.status] || 'default'">
+                  {{ pinStatusText(record.status) }}
+                </a-tag>
+              </template>
+            </a-table-column>
+            <a-table-column :title="t('airspace.pinAudit.columns.actions')" key="actions">
+              <template #default="{ record }">
+                <div class="pin-actions">
+                  <a-button size="small" type="text" @click="openPinDetail(record)">
+                    {{ t('airspace.pinAudit.actions.detail') }}
+                  </a-button>
+                  <a-divider type="vertical" />
+                  <a-button size="small" type="link" danger @click="confirmPinStatusChange(record)">
+                    {{ record.status === PIN_STATUS.BANNED
+                      ? t('airspace.pinAudit.actions.enable')
+                      : t('airspace.pinAudit.actions.disable') }}
+                  </a-button>
+                </div>
+              </template>
+            </a-table-column>
+          </a-table>
+        </div>
+      </template>
       <template v-else>
         <TemporaryNoFlyZoneManager />
       </template>
     </a-card>
 
-    <a-modal :open="pinAuditVisible" :title="t('airspace.pinAudit.title')" width="920px" :destroy-on-close="true"
-      @cancel="handlePinAuditClose" :footer="null">
-      <div class="pin-audit-toolbar">
-        <a-segmented :options="pinVisibilityOptions" :value="pinAuditVisibility"
-          @change="handlePinVisibilityChange" />
-        <a-segmented :options="pinReviewOptions" :value="pinAuditReviewStatus"
-          @change="handlePinReviewFilterChange" />
-      </div>
+    <a-modal :open="pinDetailVisible" :title="pinDetailRecord?.name || t('airspace.pinAudit.detail.title')"
+      width="880px" :destroy-on-close="true" @cancel="closePinDetail">
+      <template #footer>
+        <div class="modal-footer">
+          <a-button @click="closePinDetail">{{ t('airspace.pinAudit.detail.close') }}</a-button>
+          <template v-if="pinDetailRecord?.reviewStatus === PIN_REVIEW_STATUS.PENDING">
+            <a-button type="primary" ghost :danger="pinDetailRecord?.status === PIN_STATUS.ALIVE"
+              @click="confirmPinStatusChange(pinDetailRecord)">
+              {{ pinDetailRecord?.status === PIN_STATUS.BANNED
+                ? t('airspace.pinAudit.actions.enable')
+                : t('airspace.pinAudit.actions.disable') }}
+            </a-button>
+            <a-button type="primary" ghost :disabled="!canReviewPin(pinDetailRecord)"
+              @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.APPROVED_A)">
+              {{ t('airspace.pinAudit.actions.passA') }}
+            </a-button>
+            <a-button type="primary" ghost :disabled="!canReviewPin(pinDetailRecord)"
+              @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.APPROVED_B)">
+              {{ t('airspace.pinAudit.actions.passB') }}
+            </a-button>
+            <a-button type="primary" danger :disabled="!canReviewPin(pinDetailRecord)"
+              @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.REJECTED)">
+              {{ t('airspace.pinAudit.actions.reject') }}
+            </a-button>
+          </template>
+        </div>
+      </template>
 
-      <a-table :data-source="pinAuditData" :loading="pinAuditLoading" :pagination="pinAuditPaginationConfig"
-        :row-key="(record) => record.id" @change="handlePinAuditTableChange" class="pin-audit-table">
-        <a-table-column :title="t('airspace.pinAudit.columns.name')" key="name" dataIndex="name">
-          <template #default="{ record }">
-            <div class="pin-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</div>
-            <div class="pin-meta">{{ formatDateTime(record.createdAt) }}</div>
-          </template>
-        </a-table-column>
-        <a-table-column :title="t('airspace.pinAudit.columns.visibility')" key="visibility" dataIndex="visibility">
-          <template #default="{ record }">
-            <a-tag :color="pinReviewColors[record.reviewStatus] || 'default'">
-              {{ pinVisibilityText(record.visibility) }}
-            </a-tag>
-          </template>
-        </a-table-column>
-        <a-table-column :title="t('airspace.pinAudit.columns.reviewStatus')" key="reviewStatus"
-          dataIndex="reviewStatus">
-          <template #default="{ record }">
-            <a-tag :color="pinReviewColors[record.reviewStatus] || 'default'">
-              {{ pinReviewStatusText(record.reviewStatus) }}
-            </a-tag>
-          </template>
-        </a-table-column>
-        <a-table-column :title="t('airspace.pinAudit.columns.status')" key="status" dataIndex="status">
-          <template #default="{ record }">
-            <a-tag :color="pinStatusColors[record.status] || 'default'">
-              {{ pinStatusText(record.status) }}
-            </a-tag>
-          </template>
-        </a-table-column>
-        <a-table-column :title="t('airspace.pinAudit.columns.actions')" key="actions">
-          <template #default="{ record }">
-            <div class="pin-actions">
-              <a-button size="small" type="text" :disabled="!canReviewPin(record)"
-                @click="confirmPinReview(record, PIN_REVIEW_STATUS.APPROVED_A)">
-                {{ t('airspace.pinAudit.actions.passA') }}
-              </a-button>
-              <a-button size="small" type="text" :disabled="!canReviewPin(record)"
-                @click="confirmPinReview(record, PIN_REVIEW_STATUS.APPROVED_B)">
-                {{ t('airspace.pinAudit.actions.passB') }}
-              </a-button>
-              <a-button size="small" type="text" danger :disabled="!canReviewPin(record)"
-                @click="confirmPinReview(record, PIN_REVIEW_STATUS.REJECTED)">
-                {{ t('airspace.pinAudit.actions.reject') }}
-              </a-button>
-              <a-divider type="vertical" />
-              <a-button size="small" type="link" danger @click="confirmPinStatusChange(record)">
-                {{ record.status === PIN_STATUS.BANNED
-                  ? t('airspace.pinAudit.actions.enable')
-                  : t('airspace.pinAudit.actions.disable') }}
-              </a-button>
-            </div>
-          </template>
-        </a-table-column>
-      </a-table>
+      <div v-if="pinDetailRecord" class="detail-body">
+        <section class="detail-section">
+          <h3>{{ t('airspace.pinAudit.detail.basic') }}</h3>
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.visibility')">
+              {{ pinVisibilityText(pinDetailRecord.visibility) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.reviewStatus')">
+              <a-tag :color="pinReviewColors[pinDetailRecord.reviewStatus] || 'default'">
+                {{ pinReviewStatusText(pinDetailRecord.reviewStatus) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.status')">
+              <a-tag :color="pinStatusColors[pinDetailRecord.status] || 'default'">
+                {{ pinStatusText(pinDetailRecord.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.createdAt')">
+              {{ formatDateTime(pinDetailRecord.createdAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.updatedAt')">
+              {{ formatDateTime(pinDetailRecord.updatedAt) }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </section>
+
+        <section v-if="pinDetailRecord.description" class="detail-section">
+          <h3>{{ t('airspace.pinAudit.detail.description') }}</h3>
+          <p class="description-text">{{ pinDetailRecord.description }}</p>
+        </section>
+
+        <section v-if="pinDetailRecord.images?.length" class="detail-section">
+          <h3>{{ t('airspace.pinAudit.detail.images') }}</h3>
+          <div class="image-grid">
+            <a-image-preview-group>
+              <a-image v-for="url in pinDetailRecord.images" :key="url" :src="url" width="140"
+                :preview="{ src: url }" />
+            </a-image-preview-group>
+          </div>
+        </section>
+      </div>
+      <a-empty v-else />
     </a-modal>
 
     <a-modal :open="detailVisible" :title="detailRecord?.name || t('airspace.modal.title')" width="960px"
@@ -1020,13 +1100,25 @@ watch(
   width: 100%;
 }
 
+
+.pin-audit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .pin-audit-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
+}
+
+.pin-review-tabs {
+  flex: 1;
+  min-width: 320px;
 }
 
 .pin-audit-table :deep(.ant-table-tbody > tr > td) {
