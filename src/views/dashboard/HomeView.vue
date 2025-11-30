@@ -7,7 +7,13 @@ import locationIcon from '../../assets/img/location.png'
 import searchIcon from '../../assets/img/search.png'
 import centerPinIcon from '../../assets/img/position.png'
 import droneIcon from '../../assets/img/drone.png'
-import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones } from '../../services/airspaceMap'
+import layerIcon from '../../assets/img/layer.png'
+import pointDefaultIcon from '../../assets/img/default.png'
+import pointWarningIcon from '../../assets/img/drone-warning.png'
+import pointAerialIcon from '../../assets/img/aerial.png'
+import pointDockIcon from '../../assets/img/dock.png'
+import pointElevationIcon from '../../assets/img/elevation.png'
+import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones, fetchNearbyPins } from '../../services/airspaceMap'
 import { buildDownloadUrl, extractObjectName, normalizeFileList } from '../../services/files'
 import {
   buildAreaGraphics,
@@ -28,6 +34,8 @@ import { DRONES } from '../../utils/drones'
 import { clampRadius, gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '../../utils/coords'
 import { fetchPendingMarkersCount, MARKER_REVIEW_STATUS } from '../../services/markers'
 import { fetchOrders } from '../../services/orders'
+// Layer settings are stored locally in the browser to avoid backend dependency
+
 
 const { t } = useI18n()
 const router = useRouter()
@@ -99,7 +107,34 @@ const markerDrawerLoading = ref(false)
 const activeMarker = ref(null)
 const markerDetail = ref(null)
 const nearbyMarkers = ref([])
+const pinOverlays = ref([])
+const nearbyPins = ref([])
 const MARKER_LABEL_WIDTH = 120
+const PIN_LABEL_WIDTH = 140
+const PIN_STROKE_COLOR = '#ff4d4f'
+const PIN_SHAPE_ALIASES = {
+  AREA: 'POLYGON',
+  AREA_POLYGON: 'POLYGON',
+  AREA_CIRCLE: 'CIRCLE',
+  AREA_RECTANGLE: 'RECTANGLE',
+  LINE_PATH_BUFFER: 'LINE',
+}
+
+const PIN_POINT_CATEGORY_ALIASES = {
+  POINT_DEFAULT: 'GENERAL',
+  POINT_WARNING: 'WARNING',
+  POINT_AERIAL: 'AERIAL_SHOT',
+  POINT_DOCK: 'TAKEOFF_LANDING',
+  POINT_ELEVATION: 'TALL_BUILDING',
+}
+
+const pointIconByCategory = {
+  GENERAL: pointDefaultIcon,
+  WARNING: pointWarningIcon,
+  AERIAL_SHOT: pointAerialIcon,
+  TAKEOFF_LANDING: pointDockIcon,
+  TALL_BUILDING: pointElevationIcon,
+}
 const normalizePoint = (value) => {
   const pick = (...vals) => {
     for (const v of vals) {
@@ -159,6 +194,58 @@ const orderPagination = reactive({
   pageSize: 10,
   total: 0,
 })
+
+const layerDrawerVisible = ref(false)
+const layerLoading = ref(false)
+const layerSaving = ref(false)
+const LAYER_SETTINGS_STORAGE_KEY = 'dk_layer_settings'
+const layerForm = reactive({
+  mapType: 'STANDARD',
+  airspaceBoardEnabled: true,
+  uomDivisionEnabled: true,
+  djiNoFlyZoneEnabled: true,
+  merchantMarkersEnabled: true,
+  privateMarkersEnabled: true,
+  groupSharingEnabled: true,
+  platformCoConstructionEnabled: true,
+})
+
+const mapTypeOptions = computed(() => [
+  {
+    key: 'STANDARD',
+    label: t('layers.standard'),
+    thumb:
+      'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 30%, #a5f3fc 60%, #f1f5f9 100%)',
+  },
+  {
+    key: 'SATELLITE',
+    label: t('layers.satellite'),
+    thumb:
+      'linear-gradient(135deg, #0f172a 0%, #111827 40%, #1f2937 70%, #0b1625 100%)',
+  },
+])
+
+const layerElementOptions = computed(() => [
+  { key: 'uomDivisionEnabled', label: t('layers.uom') },
+  { key: 'djiNoFlyZoneEnabled', label: t('layers.dji') },
+  { key: 'merchantMarkersEnabled', label: t('layers.merchant') },
+  { key: 'privateMarkersEnabled', label: t('layers.private') },
+  { key: 'groupSharingEnabled', label: t('layers.group') },
+  { key: 'platformCoConstructionEnabled', label: t('layers.platform') },
+])
+
+const setMapType = (key) => {
+  layerForm.mapType = key
+}
+
+const toggleLayerElement = (key) => {
+  if (key in layerForm) {
+    layerForm[key] = !layerForm[key]
+    if (['privateMarkersEnabled', 'groupSharingEnabled', 'platformCoConstructionEnabled'].includes(key)) {
+      renderPins(nearbyPins.value)
+    }
+  }
+}
 
 const djiPolygonOverlays = ref([])
 const djiCircleOverlays = ref([])
@@ -339,6 +426,157 @@ const normalizeMarkerLocation = (item) => {
   }
 }
 
+const normalizePinShapeType = (pin) => {
+  const raw = pin?.shape?.type || pin?.shapeType
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  if (PIN_SHAPE_ALIASES[normalized]) {
+    return PIN_SHAPE_ALIASES[normalized]
+  }
+  return normalized
+}
+
+const pinShapeKey = (pin) => {
+  const normalized = normalizePinShapeType(pin)
+  if (normalized === 'POINT') return 'point'
+  if (normalized === 'LINE') return 'line'
+  if (normalized === 'CIRCLE') return 'circle'
+  if (normalized === 'RECTANGLE') return 'rectangle'
+  if (normalized === 'POLYGON') return 'polygon'
+  return 'unknown'
+}
+
+const normalizePinPointCategory = (pin) => {
+  const raw = pin?.shape?.pointCategory || pin?.pointCategory
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  return PIN_POINT_CATEGORY_ALIASES[normalized] || normalized
+}
+
+const normalizePinCoordinates = (pin) => {
+  if (!Array.isArray(pin?.shape?.coordinates)) return []
+  return pin.shape.coordinates
+    .map((coord) => {
+      const lat = pickNumber(coord?.latitude, coord?.lat)
+      const lng = pickNumber(coord?.longitude, coord?.lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      return { latitude: lat, longitude: lng }
+    })
+    .filter(Boolean)
+}
+
+const normalizePinEntry = (pin) => ({
+  ...pin,
+  shape: {
+    ...(pin?.shape || {}),
+    coordinates: normalizePinCoordinates(pin),
+  },
+})
+
+const findPinHeight = (pin) =>
+  [
+    pin?.shape?.height,
+    pin?.shape?.elevation,
+    pin?.shape?.altitude,
+    pin?.height,
+    pin?.elevation,
+    pin?.altitude,
+  ]
+    .map((v) => Number(v))
+    .find((v) => Number.isFinite(v))
+
+const toPlainCoordinate = (coord) => {
+  const lat = pickNumber(coord?.latitude, coord?.lat)
+  const lng = pickNumber(coord?.longitude, coord?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { latitude: lat, longitude: lng }
+}
+
+const EARTH_RADIUS = 6378137
+
+const projectToMercator = ({ latitude, longitude }) => {
+  const x = ((longitude * Math.PI) / 180) * EARTH_RADIUS
+  const y = Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)) * EARTH_RADIUS
+  return { x, y }
+}
+
+const unprojectFromMercator = ({ x, y }) => {
+  const lng = (x / EARTH_RADIUS) * (180 / Math.PI)
+  const lat = (2 * Math.atan(Math.exp(y / EARTH_RADIUS)) - Math.PI / 2) * (180 / Math.PI)
+  return { lat, lng }
+}
+
+const normalizeVector = ({ x, y }) => {
+  const length = Math.sqrt(x * x + y * y)
+  if (!length) return { x: 0, y: 0, length: 0 }
+  return { x: x / length, y: y / length, length }
+}
+
+const segmentNormal = (start, end) => {
+  const { x, y, length } = normalizeVector({ x: end.x - start.x, y: end.y - start.y })
+  if (!length) return null
+  return { x: -y, y: x }
+}
+
+const computePathBufferPolygon = (points, distanceMeters) => {
+  const distance = Number(distanceMeters)
+  if (!Array.isArray(points) || points.length < 2 || !Number.isFinite(distance) || distance <= 0) {
+    return []
+  }
+  const plain = points.map((point) => toPlainCoordinate(point)).filter(Boolean)
+  if (plain.length < 2) return []
+  const projected = plain.map((coord) => projectToMercator(coord))
+  const leftSide = []
+  const rightSide = []
+
+  for (let i = 0; i < projected.length; i += 1) {
+    const current = projected[i]
+    if (!current) continue
+    let normal = null
+    if (i === 0 && projected[i + 1]) {
+      normal = segmentNormal(current, projected[i + 1])
+    } else if (i === projected.length - 1 && projected[i - 1]) {
+      normal = segmentNormal(projected[i - 1], current)
+    } else if (projected[i - 1] && projected[i + 1]) {
+      const prevNormal = segmentNormal(projected[i - 1], current)
+      const nextNormal = segmentNormal(current, projected[i + 1])
+      if (prevNormal && nextNormal) {
+        const combined = { x: prevNormal.x + nextNormal.x, y: prevNormal.y + nextNormal.y }
+        const { x: nx, y: ny, length } = normalizeVector(combined)
+        if (length > 1e-6) {
+          normal = { x: nx, y: ny }
+        } else {
+          normal = prevNormal || nextNormal
+        }
+        const reference = prevNormal || nextNormal
+        if (reference) {
+          const dot = Math.abs(normal.x * reference.x + normal.y * reference.y)
+          const scale = distance / Math.max(dot, 0.2)
+          leftSide.push({ x: current.x + normal.x * scale, y: current.y + normal.y * scale })
+          rightSide.push({ x: current.x - normal.x * scale, y: current.y - normal.y * scale })
+          continue
+        }
+      }
+      normal = prevNormal || nextNormal
+    }
+    if (!normal) continue
+    const { x: nx, y: ny, length } = normalizeVector(normal)
+    if (length <= 0) continue
+    leftSide.push({ x: current.x + nx * distance, y: current.y + ny * distance })
+    rightSide.push({ x: current.x - nx * distance, y: current.y - ny * distance })
+  }
+
+  if (leftSide.length < 2 || rightSide.length < 2) {
+    return []
+  }
+  const polygon = [...leftSide, ...rightSide.reverse()]
+  if (polygon.length) {
+    polygon.push({ ...polygon[0] })
+  }
+  return polygon.map((point) => {
+    const unprojected = unprojectFromMercator(point)
+    return { latitude: unprojected.lat, longitude: unprojected.lng }
+  })
+}
+
 const renderDjiOverlays = (polygons = [], circles = []) => {
   clearOverlays(djiPolygonOverlays)
   clearOverlays(djiCircleOverlays)
@@ -511,6 +749,135 @@ const renderMarkers = (markers = []) => {
     }
     window.qq.maps.event.addListener(overlay, 'click', () => openMarkerDetail(marker))
     markerOverlays.value.push(overlay)
+  })
+}
+
+const clearPins = () => clearOverlays(pinOverlays)
+
+const renderPinPoint = (pin, center) => {
+  if (!mapInstance.value || !window.qq?.maps || !center) return
+  const iconKey = (normalizePinPointCategory(pin) || 'GENERAL').toUpperCase()
+  const icon = pointIconByCategory[iconKey] || pointDefaultIcon
+  const size = new window.qq.maps.Size(40, 40)
+  const marker = new window.qq.maps.Marker({
+    map: mapInstance.value,
+    position: center,
+    icon: new window.qq.maps.MarkerImage(icon, size, new window.qq.maps.Point(0, 0), new window.qq.maps.Point(20, 20), size),
+    zIndex: 6,
+  })
+  const height = findPinHeight(pin)
+  const name = pin?.name || '未命名标记'
+  const labelText = iconKey === 'TALL_BUILDING' && Number.isFinite(height) ? `${name} ${height}m` : name
+  const label = new window.qq.maps.Label({
+    map: mapInstance.value,
+    position: center,
+    content: labelText,
+    offset: new window.qq.maps.Size(0, -46),
+  })
+  label.setZIndex(7)
+  label.setStyle({
+    background: '#fff',
+    color: '#111827',
+    padding: '6px 10px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '700',
+    border: '1px solid rgba(0,0,0,0.15)',
+    boxShadow: '0 8px 16px rgba(0,0,0,0.18)',
+    whiteSpace: 'nowrap',
+    transform: 'translate(-50%, -100%)',
+    width: `${PIN_LABEL_WIDTH}px`,
+    maxWidth: `${PIN_LABEL_WIDTH}px`,
+    textAlign: 'center',
+  })
+  pinOverlays.value.push(label)
+  pinOverlays.value.push(marker)
+}
+
+const renderPinLine = (pin, coordinates = []) => {
+  if (!mapInstance.value || !window.qq?.maps || coordinates.length < 2) return
+  const buffer = computePathBufferPolygon(coordinates, pin?.shape?.width ?? pin?.shape?.pathDistanceMeters ?? 50)
+  if (buffer.length >= 3) {
+    const bufferLatLng = buffer.map((coord) => toLatLng(coord))
+    const polygon = new window.qq.maps.Polygon({
+      map: mapInstance.value,
+      path: bufferLatLng,
+      strokeColor: toQqColor(PIN_STROKE_COLOR, 1),
+      strokeWeight: 1,
+      strokeOpacity: 1,
+      fillColor: toQqColor(PIN_STROKE_COLOR, 0.12),
+      fillOpacity: 0.12,
+      zIndex: 4,
+    })
+    pinOverlays.value.push(polygon)
+  }
+  const path = coordinates.map((coord) => toLatLng(coord))
+  const polyline = new window.qq.maps.Polyline({
+    map: mapInstance.value,
+    path,
+    strokeColor: toQqColor(PIN_STROKE_COLOR, 1),
+    strokeWeight: 1,
+    strokeDashStyle: 'dash',
+    zIndex: 5,
+  })
+  pinOverlays.value.push(polyline)
+}
+
+const renderPinPolygon = (coordinates = []) => {
+  if (!mapInstance.value || !window.qq?.maps || coordinates.length < 3) return
+  const polygon = new window.qq.maps.Polygon({
+    map: mapInstance.value,
+    path: coordinates.map((coord) => toLatLng(coord)),
+    strokeColor: toQqColor(PIN_STROKE_COLOR, 1),
+    strokeWeight: 1,
+    strokeOpacity: 1,
+    fillColor: toQqColor(PIN_STROKE_COLOR, 0.12),
+    fillOpacity: 0.12,
+    zIndex: 4,
+  })
+  pinOverlays.value.push(polygon)
+}
+
+const renderPinCircle = (center, radiusKm = 0) => {
+  if (!mapInstance.value || !window.qq?.maps || !center) return
+  const circle = new window.qq.maps.Circle({
+    map: mapInstance.value,
+    center,
+    radius: Math.max(0, Number(radiusKm || 0)) * 1000,
+    strokeColor: toQqColor(PIN_STROKE_COLOR, 1),
+    strokeWeight: 1,
+    strokeOpacity: 1,
+    fillColor: toQqColor(PIN_STROKE_COLOR, 0.12),
+    fillOpacity: 0.12,
+    zIndex: 4,
+  })
+  pinOverlays.value.push(circle)
+}
+
+const renderPins = (pins = []) => {
+  clearPins()
+  if (!mapInstance.value || !window.qq?.maps) return
+  const visiblePins = pins.filter((pin) => {
+    const visibility = typeof pin?.visibility === 'string' ? pin.visibility.toUpperCase() : ''
+    if (visibility === 'PRIVATE' && !layerForm.privateMarkersEnabled) return false
+    if (visibility === 'GROUP' && !layerForm.groupSharingEnabled) return false
+    if (visibility === 'PUBLIC' && !layerForm.platformCoConstructionEnabled) return false
+    return true
+  })
+  visiblePins.forEach((pin) => {
+    const shapeKey = pinShapeKey(pin)
+    const coords = normalizePinCoordinates(pin)
+    if (shapeKey === 'point') {
+      const center = coords[0]
+      if (center) renderPinPoint(pin, toLatLng(center))
+    } else if (shapeKey === 'line') {
+      renderPinLine(pin, coords)
+    } else if (shapeKey === 'polygon' || shapeKey === 'rectangle') {
+      renderPinPolygon(coords)
+    } else if (shapeKey === 'circle') {
+      const center = coords[0]
+      if (center) renderPinCircle(toLatLng(center), pin?.shape?.radius)
+    }
   })
 }
 
@@ -860,6 +1227,24 @@ const loadNearbyMarkers = async (center, radiusKm, token) => {
   }
 }
 
+const loadNearbyPins = async (center, radiusKm, token) => {
+  try {
+    const pins = await fetchNearbyPins({
+      latitude: center.latitude,
+      longitude: center.longitude,
+      radiusInKilometers: radiusKm,
+    })
+    if (isStaleToken(token)) return
+    const normalized = pins
+      .map((item) => normalizePinEntry(item))
+      .filter((item) => normalizePinCoordinates(item).length > 0 && pinShapeKey(item) !== 'unknown')
+    nearbyPins.value = normalized
+    renderPins(normalized)
+  } catch (error) {
+    console.error('加载 Pin 标记失败', error)
+  }
+}
+
 const loadNoFlyZones = async (center, radiusKm, token) => {
   try {
     const wgs = gcj02ToWgs84(center.longitude, center.latitude)
@@ -936,6 +1321,7 @@ const refreshData = (force = false, providedToken = null) => {
 
   updateScaleBar(center, zoom)
   loadNearbyMarkers(center, radiusKm, token)
+  loadNearbyPins(center, radiusKm, token)
   loadNoFlyZones(center, radiusKm, token)
   loadDjiAreas(center, radiusMeters, bounds, token)
   if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
@@ -1154,6 +1540,66 @@ const closeOrdersModal = () => {
   ordersVisible.value = false
 }
 
+const applyLayerPayload = (payload = {}) => {
+  layerForm.mapType = payload.mapType || 'STANDARD'
+  layerForm.airspaceBoardEnabled = Boolean(payload.airspaceBoardEnabled ?? true)
+  layerForm.uomDivisionEnabled = Boolean(payload.uomDivisionEnabled ?? true)
+  layerForm.djiNoFlyZoneEnabled = Boolean(payload.djiNoFlyZoneEnabled ?? true)
+  layerForm.merchantMarkersEnabled = Boolean(payload.merchantMarkersEnabled ?? true)
+  layerForm.privateMarkersEnabled = Boolean(payload.privateMarkersEnabled ?? true)
+  layerForm.groupSharingEnabled = Boolean(payload.groupSharingEnabled ?? true)
+  layerForm.platformCoConstructionEnabled = Boolean(payload.platformCoConstructionEnabled ?? true)
+}
+
+const loadLayerSettings = () => {
+  layerLoading.value = true
+  try {
+    const raw = localStorage.getItem(LAYER_SETTINGS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      applyLayerPayload(parsed)
+    }
+  } catch (error) {
+    console.error('Failed to load map layer settings from local storage', error)
+    message.error(t('layers.loadFailed'))
+  } finally {
+    layerLoading.value = false
+  }
+}
+
+const openLayerDrawer = () => {
+  layerDrawerVisible.value = true
+  loadLayerSettings()
+}
+
+const closeLayerDrawer = () => {
+  layerDrawerVisible.value = false
+}
+
+const saveLayerSettings = () => {
+  layerSaving.value = true
+  try {
+    const payload = {
+      mapType: layerForm.mapType,
+      airspaceBoardEnabled: layerForm.airspaceBoardEnabled,
+      uomDivisionEnabled: layerForm.uomDivisionEnabled,
+      djiNoFlyZoneEnabled: layerForm.djiNoFlyZoneEnabled,
+      merchantMarkersEnabled: layerForm.merchantMarkersEnabled,
+      privateMarkersEnabled: layerForm.privateMarkersEnabled,
+      groupSharingEnabled: layerForm.groupSharingEnabled,
+      platformCoConstructionEnabled: layerForm.platformCoConstructionEnabled,
+    }
+    localStorage.setItem(LAYER_SETTINGS_STORAGE_KEY, JSON.stringify(payload))
+    message.success(t('layers.saveSuccess'))
+    layerDrawerVisible.value = false
+  } catch (error) {
+    console.error('Failed to save map layer settings to local storage', error)
+    message.error(t('layers.saveFailed'))
+  } finally {
+    layerSaving.value = false
+  }
+}
+
 const handleOrdersTableChange = (pager) => {
   orderPagination.current = pager?.current ?? 1
   orderPagination.pageSize = pager?.pageSize ?? orderPagination.pageSize
@@ -1178,6 +1624,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearListeners()
   clearOverlays(markerOverlays)
+  clearOverlays(pinOverlays)
   clearOverlays(djiPolygonOverlays)
   clearOverlays(djiCircleOverlays)
   clearOverlays(nfzPolygonOverlays)
@@ -1273,6 +1720,10 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="map-actions">
+      <button class="floating-btn floating-btn--layer" type="button"
+        :style="{ backgroundImage: `url(${layerIcon})` }" @click="openLayerDrawer">
+        <span class="visually-hidden">{{ t('layers.open') }}</span>
+      </button>
       <button class="floating-btn" type="button" @click="locateUser">
         <img :src="locationIcon" alt="定位" />
       </button>
@@ -1398,6 +1849,47 @@ onBeforeUnmount(() => {
         </template>
       </a-table>
     </a-modal>
+
+    <a-drawer :open="layerDrawerVisible" :title="t('layers.title')" width="420" placement="right"
+      :destroy-on-close="true" @close="closeLayerDrawer">
+      <template #footer>
+        <div class="layer-footer">
+          <a-button @click="closeLayerDrawer">{{ t('layers.cancel') }}</a-button>
+          <a-button type="primary" :loading="layerSaving" @click="saveLayerSettings">
+            {{ layerSaving ? t('layers.saving') : t('layers.save') }}
+          </a-button>
+        </div>
+      </template>
+      <a-spin :spinning="layerLoading">
+        <div class="layer-section">
+          <div class="layer-title">{{ t('layers.mapType') }}</div>
+          <div class="layer-maptypes">
+            <button v-for="item in mapTypeOptions" :key="item.key" type="button"
+              :class="['layer-card', { 'layer-card--active': layerForm.mapType === item.key }]"
+              :style="{ backgroundImage: item.thumb }" @click="setMapType(item.key)">
+              <span class="layer-card__label">{{ item.label }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="layer-section layer-switch">
+          <div class="layer-title">{{ t('layers.airspaceBoard') }}</div>
+          <a-switch v-model:checked="layerForm.airspaceBoardEnabled" />
+        </div>
+
+        <div class="layer-section">
+          <div class="layer-title">{{ t('layers.elements') }}</div>
+          <div class="layer-elements">
+            <button v-for="el in layerElementOptions" :key="el.key" type="button"
+              :class="['layer-pill', { 'layer-pill--active': layerForm[el.key] }]"
+              @click="toggleLayerElement(el.key)">
+              <span class="pill-check" aria-hidden="true">✓</span>
+              <span>{{ el.label }}</span>
+            </button>
+          </div>
+        </div>
+      </a-spin>
+    </a-drawer>
   </div>
 </template>
 
@@ -1870,6 +2362,12 @@ onBeforeUnmount(() => {
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
+.floating-btn--layer {
+  background-size: 22px 22px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .floating-btn img {
   width: 22px;
   height: 22px;
@@ -1884,6 +2382,18 @@ onBeforeUnmount(() => {
 
 .floating-btn:active {
   transform: scale(0.96);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .marker-detail {
@@ -2023,6 +2533,111 @@ onBeforeUnmount(() => {
 
 .orders-table {
   margin-top: 8px;
+}
+
+.layer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.layer-section {
+  margin-bottom: 16px;
+}
+
+.layer-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.layer-maptypes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.layer-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.layer-card {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 12px;
+  background-size: cover;
+  background-position: center;
+  min-height: 96px;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  color: #111;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.layer-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+}
+
+.layer-card--active {
+  border-color: #1677ff;
+  box-shadow: 0 16px 32px rgba(22, 119, 255, 0.2);
+}
+
+.layer-card__label {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.layer-elements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.layer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 600;
+}
+
+.layer-pill:hover {
+  border-color: #1677ff;
+  box-shadow: 0 10px 20px rgba(22, 119, 255, 0.12);
+}
+
+.layer-pill--active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.pill-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 @media (max-width: 1100px) {

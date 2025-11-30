@@ -16,6 +16,16 @@ export const fetchMarkerDetail = async (markerId) => {
   return data?.data || null
 }
 
+export const fetchNearbyPins = async ({ latitude, longitude, radiusInKilometers }) => {
+  const params = {}
+  if (Number.isFinite(latitude)) params.latitude = latitude
+  if (Number.isFinite(longitude)) params.longitude = longitude
+  if (Number.isFinite(radiusInKilometers)) params.radiusInKilometers = radiusInKilometers
+
+  const { data } = await http.get('/pins/nearby', { params })
+  return Array.isArray(data?.data) ? data.data : []
+}
+
 export const fetchNearbyNoFlyZones = async ({ latitude, longitude, radiusInKilometers }) => {
   const params = {}
   if (Number.isFinite(latitude)) params.latitude = latitude
@@ -29,5 +39,6 @@ export const fetchNearbyNoFlyZones = async ({ latitude, longitude, radiusInKilom
 export default {
   fetchNearbyMarkers,
   fetchMarkerDetail,
+  fetchNearbyPins,
   fetchNearbyNoFlyZones,
 }

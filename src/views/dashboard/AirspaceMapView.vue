@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { Modal, message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { EnvironmentOutlined } from '@ant-design/icons-vue'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS } from '../../services/markers'
 import {
   fetchPins,
@@ -14,6 +15,11 @@ import {
 } from '../../services/pins'
 import { fetchOrderByReference } from '../../services/orders'
 import detailIcon from '../../assets/img/detail.png'
+import pointDefaultIcon from '../../assets/img/default.png'
+import pointWarningIcon from '../../assets/img/drone-warning.png'
+import pointAerialIcon from '../../assets/img/aerial.png'
+import pointDockIcon from '../../assets/img/dock.png'
+import pointElevationIcon from '../../assets/img/elevation.png'
 import TemporaryNoFlyZoneManager from '../../components/noFlyZones/TemporaryNoFlyZoneManager.vue'
 
 const { t } = useI18n()
@@ -52,6 +58,12 @@ const pinAuditVisibility = ref(PIN_VISIBILITY.PUBLIC)
 const pinAuditReviewStatus = ref(PIN_REVIEW_STATUS.PENDING)
 const pinDetailVisible = ref(false)
 const pinDetailRecord = ref(null)
+const mapPreviewVisible = ref(false)
+const mapPreviewTarget = ref(null)
+const mapPreviewKind = ref('pin')
+const mapPreviewContainer = ref(null)
+const mapPreviewInstance = ref(null)
+const mapPreviewOverlays = ref([])
 
 const ORDER_STATUS_COLORS = {
   WAITING_PAYMENT: 'gold',
@@ -131,6 +143,166 @@ const pinStatusColors = {
   BANNED: 'red',
 }
 
+const pinShapeColors = {
+  point: 'blue',
+  line: 'geekblue',
+  circle: 'orange',
+  rectangle: 'purple',
+  polygon: 'volcano',
+  unknown: 'default',
+}
+
+const PIN_SHAPE_ALIASES = {
+  AREA: 'POLYGON',
+  AREA_POLYGON: 'POLYGON',
+  AREA_CIRCLE: 'CIRCLE',
+  AREA_RECTANGLE: 'RECTANGLE',
+  LINE_PATH_BUFFER: 'LINE',
+}
+
+const PIN_POINT_CATEGORY_ALIASES = {
+  POINT_DEFAULT: 'GENERAL',
+  POINT_WARNING: 'WARNING',
+  POINT_AERIAL: 'AERIAL_SHOT',
+  POINT_DOCK: 'TAKEOFF_LANDING',
+  POINT_ELEVATION: 'TALL_BUILDING',
+}
+
+const PIN_LINE_CATEGORY_ALIASES = {
+  LINE_PATH_BUFFER: 'TEMPORARY_NO_FLY_ZONE_BUFFER',
+}
+
+const markerTypeColors = {
+  point: 'blue',
+  line: 'geekblue',
+  polygon: 'volcano',
+  unknown: 'default',
+}
+
+// QQ 颜色工具（与临时禁飞区一致）
+const toQqColor = (value, opacity = 1) => {
+  const toRgb = (input) => {
+    if (typeof input !== 'string') return null
+    const hex = input.trim().replace('#', '')
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      return {
+        r: parseInt(hex.slice(0, 2), 16),
+        g: parseInt(hex.slice(2, 4), 16),
+        b: parseInt(hex.slice(4, 6), 16),
+      }
+    }
+    const m = input.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+    if (m) {
+      return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) }
+    }
+    return null
+  }
+
+  const rgb = toRgb(value)
+  if (window.qq?.maps?.Color && rgb) {
+    const clamp = (v) => Math.max(0, Math.min(255, Number.isFinite(v) ? v : 0))
+    const a = Math.max(0, Math.min(1, Number(opacity)))
+    return new window.qq.maps.Color(clamp(rgb.r), clamp(rgb.g), clamp(rgb.b), a)
+  }
+  return value
+}
+
+// --- geometry helpers for map preview ---
+const toPlainCoordinate = (coord) => {
+  if (!coord) return null
+  const lat = Number(coord.latitude ?? coord.lat)
+  const lng = Number(coord.longitude ?? coord.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { latitude: lat, longitude: lng }
+}
+
+const EARTH_RADIUS = 6378137
+
+const projectToMercator = ({ latitude, longitude }) => {
+  const x = ((longitude * Math.PI) / 180) * EARTH_RADIUS
+  const y = Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)) * EARTH_RADIUS
+  return { x, y }
+}
+
+const unprojectFromMercator = ({ x, y }) => {
+  const lng = (x / EARTH_RADIUS) * (180 / Math.PI)
+  const lat = (2 * Math.atan(Math.exp(y / EARTH_RADIUS)) - Math.PI / 2) * (180 / Math.PI)
+  return { lat, lng }
+}
+
+const normalizeVector = ({ x, y }) => {
+  const length = Math.sqrt(x * x + y * y)
+  if (!length) return { x: 0, y: 0, length: 0 }
+  return { x: x / length, y: y / length, length }
+}
+
+const segmentNormal = (start, end) => {
+  const { x, y, length } = normalizeVector({ x: end.x - start.x, y: end.y - start.y })
+  if (!length) return null
+  return { x: -y, y: x }
+}
+
+const computePathBufferPolygon = (points, distanceMeters) => {
+  const distance = Number(distanceMeters)
+  if (!Array.isArray(points) || points.length < 2 || !Number.isFinite(distance) || distance <= 0) {
+    return []
+  }
+  const plain = points.map((point) => toPlainCoordinate(point)).filter(Boolean)
+  if (plain.length < 2) return []
+  const projected = plain.map((coord) => projectToMercator(coord))
+  const leftSide = []
+  const rightSide = []
+
+  for (let i = 0; i < projected.length; i += 1) {
+    const current = projected[i]
+    if (!current) continue
+    let normal = null
+    if (i === 0 && projected[i + 1]) {
+      normal = segmentNormal(current, projected[i + 1])
+    } else if (i === projected.length - 1 && projected[i - 1]) {
+      normal = segmentNormal(projected[i - 1], current)
+    } else if (projected[i - 1] && projected[i + 1]) {
+      const prevNormal = segmentNormal(projected[i - 1], current)
+      const nextNormal = segmentNormal(current, projected[i + 1])
+      if (prevNormal && nextNormal) {
+        const combined = { x: prevNormal.x + nextNormal.x, y: prevNormal.y + nextNormal.y }
+        const { x: nx, y: ny, length } = normalizeVector(combined)
+        if (length > 1e-6) {
+          normal = { x: nx, y: ny }
+        } else {
+          normal = prevNormal || nextNormal
+        }
+        const reference = prevNormal || nextNormal
+        if (reference) {
+          const dot = Math.abs(normal.x * reference.x + normal.y * reference.y)
+          const scale = distance / Math.max(dot, 0.2)
+          leftSide.push({ x: current.x + normal.x * scale, y: current.y + normal.y * scale })
+          rightSide.push({ x: current.x - normal.x * scale, y: current.y - normal.y * scale })
+          continue
+        }
+      }
+      normal = prevNormal || nextNormal
+    }
+    if (!normal) continue
+    const { x: nx, y: ny, length } = normalizeVector(normal)
+    if (length <= 0) continue
+    leftSide.push({ x: current.x + nx * distance, y: current.y + ny * distance })
+    rightSide.push({ x: current.x - nx * distance, y: current.y - ny * distance })
+  }
+
+  if (leftSide.length < 2 || rightSide.length < 2) {
+    return []
+  }
+  const polygon = [...leftSide, ...rightSide.reverse()]
+  if (polygon.length) {
+    polygon.push({ ...polygon[0] })
+  }
+  return polygon.map((point) => {
+    const unprojected = unprojectFromMercator(point)
+    return { latitude: unprojected.lat, longitude: unprojected.lng }
+  })
+}
+
 const formatDateTime = (value) => {
   if (!value) return '-'
   try {
@@ -168,6 +340,358 @@ const pinStatusText = (status) => {
   const key = String(status).toLowerCase()
   return t(`airspace.pinAudit.pinStatus.${key}`, status)
 }
+
+const normalizeShapeType = (pin) => {
+  const raw = pin?.shape?.type || pin?.shapeType
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  if (PIN_SHAPE_ALIASES[normalized]) {
+    return PIN_SHAPE_ALIASES[normalized]
+  }
+  return normalized
+}
+
+const pinShapeKey = (pin) => {
+  const normalized = normalizeShapeType(pin)
+  if (normalized === 'POINT') return 'point'
+  if (normalized === 'LINE') return 'line'
+  if (normalized === 'CIRCLE') return 'circle'
+  if (normalized === 'RECTANGLE') return 'rectangle'
+  if (normalized === 'POLYGON') return 'polygon'
+  return 'unknown'
+}
+
+const normalizePointCategory = (pin) => {
+  const raw = pin?.shape?.pointCategory || pin?.pointCategory
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  return PIN_POINT_CATEGORY_ALIASES[normalized] || normalized
+}
+
+const normalizeLineCategory = (pin) => {
+  const raw = pin?.shape?.lineCategory || pin?.lineCategory
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  return PIN_LINE_CATEGORY_ALIASES[normalized] || normalized
+}
+
+const pinShapeText = (pin) => t(`airspace.pinAudit.shapeType.${pinShapeKey(pin)}`)
+
+const pinShapeCategoryText = (pin) => {
+  const shapeKey = pinShapeKey(pin)
+  if (shapeKey === 'point') {
+    const pointKey = normalizePointCategory(pin)
+    if (pointKey) {
+      const key = pointKey.toLowerCase()
+      return t(`airspace.pinAudit.shapePointCategory.${key}`, pointKey)
+    }
+  }
+  if (shapeKey === 'line') {
+    const lineKey = normalizeLineCategory(pin)
+    if (lineKey) {
+      const key = lineKey.toLowerCase()
+      return t(`airspace.pinAudit.shapeLineCategory.${key}`, lineKey)
+    }
+  }
+  if (shapeKey === 'circle') return t('airspace.pinAudit.shapeType.circle')
+  if (shapeKey === 'rectangle') return t('airspace.pinAudit.shapeType.rectangle')
+  if (shapeKey === 'polygon') return t('airspace.pinAudit.shapeType.polygon')
+  return ''
+}
+
+const pinShapeDisplay = (pin) => {
+  const typeLabel = pinShapeText(pin)
+  const category = pinShapeCategoryText(pin)
+  if (category && pinShapeKey(pin) !== 'circle' && pinShapeKey(pin) !== 'rectangle' && pinShapeKey(pin) !== 'polygon') {
+    return `${typeLabel} - ${category}`
+  }
+  if (category && ['circle', 'rectangle', 'polygon'].includes(pinShapeKey(pin))) {
+    return category
+  }
+  return typeLabel
+}
+
+const pointIconByCategory = {
+  GENERAL: pointDefaultIcon,
+  WARNING: pointWarningIcon,
+  AERIAL_SHOT: pointAerialIcon,
+  TAKEOFF_LANDING: pointDockIcon,
+  TALL_BUILDING: pointElevationIcon,
+}
+
+const clearMapPreviewOverlays = () => {
+  if (!mapPreviewOverlays.value.length) return
+  mapPreviewOverlays.value.forEach((overlay) => {
+    try {
+      overlay.setMap(null)
+    } catch (err) {
+      // ignore
+    }
+  })
+  mapPreviewOverlays.value = []
+}
+
+const ensureTencentMapScript = () =>
+  new Promise((resolve, reject) => {
+    if (window.qq?.maps) {
+      resolve(window.qq.maps)
+      return
+    }
+    const existing = document.getElementById('qqmaps-script-preview')
+    if (existing) {
+      existing.onload = () => resolve(window.qq?.maps)
+      existing.onerror = (err) => reject(err)
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'qqmaps-script-preview'
+    script.src = `https://map.qq.com/api/js?v=2.exp&key=${import.meta.env.VITE_TENCENT_MAP_KEY || 'GEDBZ-R36KT-S52XJ-LTI4K-WWZK7-USFNP'}`
+    script.onload = () => resolve(window.qq?.maps)
+    script.onerror = (err) => reject(err)
+    document.body.appendChild(script)
+  })
+
+const initMapPreview = async () => {
+  await ensureTencentMapScript()
+  if (!mapPreviewContainer.value) return
+  mapPreviewContainer.value.innerHTML = ''
+  if (!mapPreviewInstance.value) {
+    mapPreviewInstance.value = new window.qq.maps.Map(mapPreviewContainer.value, {
+      center: new window.qq.maps.LatLng(26.074508, 119.296494),
+      zoom: 11,
+      disableDoubleClickZoom: true,
+    })
+  } else {
+    window.qq?.maps?.event?.trigger?.(mapPreviewInstance.value, 'resize')
+  }
+}
+
+const getPinCoordinates = (pin) => {
+  if (!pin?.shape?.coordinates) return []
+  return pin.shape.coordinates
+    .map((item) => {
+      const lat = Number(item.latitude ?? item.lat)
+      const lng = Number(item.longitude ?? item.lng)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      return new window.qq.maps.LatLng(lat, lng)
+    })
+    .filter(Boolean)
+}
+
+const getMarkerLocationLatLng = (marker) => {
+  const lat = Number(marker?.location?.latitude ?? marker?.location?.lat)
+  const lng = Number(marker?.location?.longitude ?? marker?.location?.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return new window.qq.maps.LatLng(lat, lng)
+}
+
+const renderPointPreview = (center, pin) => {
+  const map = mapPreviewInstance.value
+  if (!map || !center) return
+  const iconKey = (normalizePointCategory(pin) || 'GENERAL').toUpperCase()
+  const icon = pointIconByCategory[iconKey] || pointDefaultIcon
+  const size = new window.qq.maps.Size(40, 40)
+  const marker = new window.qq.maps.Marker({
+    map,
+    position: center,
+    icon: new window.qq.maps.MarkerImage(icon, size, new window.qq.maps.Point(0, 0), new window.qq.maps.Point(20, 20), size),
+    zIndex: 3,
+  })
+  const labelText = (() => {
+    const name = pin?.name || t('airspace.table.placeholders.unnamed')
+    const height = [
+      pin?.shape?.height,
+      pin?.shape?.elevation,
+      pin?.shape?.altitude,
+      pin?.height,
+      pin?.elevation,
+      pin?.altitude,
+    ].map((v) => Number(v)).find((v) => Number.isFinite(v))
+    if (iconKey === 'TALL_BUILDING' && Number.isFinite(height)) {
+      return `${name} ${height}m`
+    }
+    return name
+  })()
+  const label = new window.qq.maps.Label({
+    map,
+    position: center,
+    content: labelText,
+    offset: new window.qq.maps.Size(0, -46),
+  })
+  label.setStyle({
+    background: '#fff',
+    color: '#111827',
+    padding: '6px 10px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '700',
+    border: '1px solid rgba(0,0,0,0.15)',
+    boxShadow: '0 8px 16px rgba(0,0,0,0.18)',
+    whiteSpace: 'nowrap',
+    transform: 'translate(-50%, -100%)',
+  })
+  mapPreviewOverlays.value.push(label)
+  mapPreviewOverlays.value.push(marker)
+  map.setCenter(center)
+  map.setZoom(16)
+}
+
+const renderLinePreview = (points) => {
+  const map = mapPreviewInstance.value
+  if (!map || !points.length) return
+  const rawDistance =
+    Number(mapPreviewTarget.value?.shape?.width ?? mapPreviewTarget.value?.shape?.pathDistanceMeters ?? 50)
+  const distanceMeters = Number.isFinite(rawDistance) ? rawDistance : 50
+  const buffer = computePathBufferPolygon(
+    points.map((pt) => ({ latitude: pt.getLat(), longitude: pt.getLng() })),
+    distanceMeters,
+  )
+  if (buffer.length >= 3) {
+    const bufferLatLng = buffer.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude))
+    const polygon = new window.qq.maps.Polygon({
+      map,
+      path: bufferLatLng,
+      strokeColor: toQqColor('#ff4d4f', 1),
+      strokeWeight: 1,
+      strokeOpacity: 1,
+      fillColor: toQqColor('#ff4d4f', 0.12),
+      fillOpacity: 0.12,
+      zIndex: 2,
+    })
+    mapPreviewOverlays.value.push(polygon)
+  }
+  const polyline = new window.qq.maps.Polyline({
+    map,
+    path: points,
+    strokeColor: toQqColor('#ff4d4f', 1),
+    strokeWeight: 1,
+    strokeDashStyle: 'dash',
+    zIndex: 3,
+  })
+  mapPreviewOverlays.value.push(polyline)
+  const bounds = new window.qq.maps.LatLngBounds()
+  points.forEach((pt) => bounds.extend(pt))
+  map.fitBounds(bounds)
+}
+
+const renderPolygonPreview = (points) => {
+  const map = mapPreviewInstance.value
+  if (!map || points.length < 3) return
+  const polygon = new window.qq.maps.Polygon({
+    map,
+    path: points,
+    strokeColor: toQqColor('#ff4d4f', 1),
+    strokeWeight: 1,
+    strokeOpacity: 1,
+    fillColor: toQqColor('#ff4d4f', 0.12),
+    fillOpacity: 0.12,
+    zIndex: 2,
+  })
+  mapPreviewOverlays.value.push(polygon)
+  const bounds = new window.qq.maps.LatLngBounds()
+  points.forEach((pt) => bounds.extend(pt))
+  map.fitBounds(bounds)
+}
+
+const renderCirclePreview = (center, radiusKm = 0) => {
+  const map = mapPreviewInstance.value
+  if (!map || !center) return
+  const circle = new window.qq.maps.Circle({
+    map,
+    center,
+    radius: Math.max(0, Number(radiusKm || 0)) * 1000,
+    strokeColor: toQqColor('#ff4d4f', 1),
+    strokeWeight: 1,
+    strokeOpacity: 1,
+    fillColor: toQqColor('#ff4d4f', 0.12),
+    fillOpacity: 0.12,
+    zIndex: 2,
+  })
+  mapPreviewOverlays.value.push(circle)
+  map.setCenter(center)
+  map.fitBounds(circle.getBounds())
+}
+
+const renderShapePreview = async () => {
+  clearMapPreviewOverlays()
+  await initMapPreview()
+  if (!mapPreviewInstance.value || !mapPreviewTarget.value) return
+  const target = mapPreviewTarget.value
+  if (mapPreviewKind.value === 'marker') {
+    const center = getMarkerLocationLatLng(target)
+    if (!center) {
+      message.warning(t('airspace.messages.mapPreviewMissing'))
+      return
+    }
+    renderPointPreview(center, null)
+    return
+  }
+  const shapeKey = pinShapeKey(target)
+  const points = getPinCoordinates(target)
+  if (!points.length && shapeKey === 'point') {
+    message.warning(t('airspace.messages.mapPreviewMissing'))
+    return
+  }
+  switch (shapeKey) {
+    case 'point': {
+      renderPointPreview(points[0], target)
+      break
+    }
+    case 'line': {
+      renderLinePreview(points)
+      break
+    }
+    case 'polygon': {
+      renderPolygonPreview(points)
+      break
+    }
+    case 'rectangle': {
+      renderPolygonPreview(points)
+      break
+    }
+    case 'circle': {
+      const center = points[0]
+      renderCirclePreview(center, target?.shape?.radius)
+      break
+    }
+    default: {
+      if (points.length) {
+        renderPolygonPreview(points)
+      } else {
+        message.warning(t('airspace.messages.mapPreviewMissing'))
+      }
+    }
+  }
+}
+
+const openMapPreview = async (record, kind = 'pin') => {
+  mapPreviewTarget.value = record
+  mapPreviewKind.value = kind
+  mapPreviewVisible.value = true
+  await nextTick()
+  renderShapePreview()
+}
+
+const closeMapPreview = () => {
+  mapPreviewVisible.value = false
+}
+
+watch(mapPreviewVisible, (visible) => {
+  if (!visible) {
+    clearMapPreviewOverlays()
+    mapPreviewInstance.value = null
+  }
+})
+
+const markerTypeKey = (marker) => {
+  const raw = marker?.type || marker?.geometryType || marker?.shapeType
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  if (normalized.includes('POINT')) return 'point'
+  if (normalized.includes('LINE')) return 'line'
+  if (normalized.includes('POLYGON') || normalized.includes('AREA') || normalized.includes('SURFACE')) {
+    return 'polygon'
+  }
+  return 'unknown'
+}
+
+const markerTypeText = (marker) => t(`airspace.markerType.${markerTypeKey(marker)}`)
 
 const isDraftRecord = (record) => {
   if (!record) return false
@@ -290,6 +814,7 @@ const normalizedOrderItems = computed(() => {
 
 const columns = computed(() => [
   { title: t('airspace.table.columns.name'), dataIndex: 'name', key: 'name' },
+  { title: t('airspace.table.columns.type'), dataIndex: 'type', key: 'type', width: 120 },
   { title: t('airspace.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: t('airspace.table.columns.status'), dataIndex: 'reviewStatus', key: 'status', width: 140 },
   { title: t('airspace.table.columns.exposure'), dataIndex: 'exposureCount', key: 'exposureCount', width: 120 },
@@ -662,6 +1187,9 @@ watch(
                 </div>
               </div>
             </template>
+            <template v-else-if="column.key === 'type'">
+              <a-tag :color="markerTypeColors[markerTypeKey(record)] || 'default'">{{ markerTypeText(record) }}</a-tag>
+            </template>
             <template v-else-if="column.key === 'createdAt'">
               {{ formatDateTime(record.createdAt) }}
             </template>
@@ -711,6 +1239,13 @@ watch(
                 <div class="pin-meta">{{ formatDateTime(record.createdAt) }}</div>
               </template>
             </a-table-column>
+            <a-table-column :title="t('airspace.pinAudit.columns.type')" key="shapeType">
+              <template #default="{ record }">
+                <a-tag :color="pinShapeColors[pinShapeKey(record)] || 'default'">
+                  {{ pinShapeDisplay(record) }}
+                </a-tag>
+              </template>
+            </a-table-column>
             <a-table-column :title="t('airspace.pinAudit.columns.visibility')" key="visibility" dataIndex="visibility">
               <template #default="{ record }">
                 <a-tag :color="pinReviewColors[record.reviewStatus] || 'default'">
@@ -735,15 +1270,11 @@ watch(
             </a-table-column>
             <a-table-column :title="t('airspace.pinAudit.columns.actions')" key="actions">
               <template #default="{ record }">
-                <div class="pin-actions">
-                  <a-button size="small" type="text" @click="openPinDetail(record)">
-                    {{ t('airspace.pinAudit.actions.detail') }}
-                  </a-button>
-                  <a-divider type="vertical" />
-                  <a-button size="small" type="link" danger @click="confirmPinStatusChange(record)">
-                    {{ record.status === PIN_STATUS.BANNED
-                      ? t('airspace.pinAudit.actions.enable')
-                      : t('airspace.pinAudit.actions.disable') }}
+                <div class="table-actions">
+                  <a-button size="small" type="text" class="detail-button"
+                    :title="t('airspace.pinAudit.actions.detail')" :aria-label="t('airspace.pinAudit.actions.detail')"
+                    @click="openPinDetail(record)">
+                    <img :src="detailIcon" :alt="t('airspace.pinAudit.actions.detail')" class="detail-icon" />
                   </a-button>
                 </div>
               </template>
@@ -801,11 +1332,37 @@ watch(
                 {{ pinStatusText(pinDetailRecord.status) }}
               </a-tag>
             </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.shapeType')">
+              <div class="type-with-action">
+                <a-tag :color="pinShapeColors[pinShapeKey(pinDetailRecord)] || 'default'">
+                  {{ pinShapeText(pinDetailRecord) }}
+                </a-tag>
+                <a-button size="small" type="link" :icon="h(EnvironmentOutlined)"
+                  @click="openMapPreview(pinDetailRecord, 'pin')">
+                  {{ t('airspace.actions.mapPreview') }}
+                </a-button>
+              </div>
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinShapeCategoryText(pinDetailRecord)"
+              :label="t('airspace.pinAudit.detail.shapeCategory')">
+              {{ pinShapeCategoryText(pinDetailRecord) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.shapePoints')">
+              {{ pinDetailRecord?.shape?.coordinates?.length ?? 0 }}
+            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.createdAt')">
               {{ formatDateTime(pinDetailRecord.createdAt) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.updatedAt')">
               {{ formatDateTime(pinDetailRecord.updatedAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.shape?.radius"
+              :label="t('airspace.pinAudit.detail.shapeRadius')">
+              {{ pinDetailRecord.shape.radius }} km
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.shape?.width"
+              :label="t('airspace.pinAudit.detail.shapeWidth')">
+              {{ pinDetailRecord.shape.width }}
             </a-descriptions-item>
           </a-descriptions>
         </section>
@@ -853,6 +1410,16 @@ watch(
             <a-descriptions-item :label="t('airspace.modal.fields.name')">{{ detailRecord.name }}</a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.featureCode')">
               {{ detailRecord.featureCode || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.modal.fields.type')">
+              <div class="type-with-action">
+                <a-tag :color="markerTypeColors[markerTypeKey(detailRecord)] || 'default'">
+                  {{ markerTypeText(detailRecord) }}
+                </a-tag>
+                <a-button size="small" type="link" :icon="h(EnvironmentOutlined)" @click="openMapPreview(detailRecord, 'marker')">
+                  {{ t('airspace.actions.mapPreview') }}
+                </a-button>
+              </div>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.location')" :span="2">
               {{ detailRecord?.location?.text || t('airspace.table.placeholders.unknownLocation') }}
@@ -1030,6 +1597,11 @@ watch(
         <a-empty v-else-if="!orderDetailLoading" :description="t('airspace.orderModal.empty')" />
       </a-spin>
     </a-modal>
+
+    <a-modal :open="mapPreviewVisible" :title="t('airspace.actions.mapPreview')" width="50vw"
+      :body-style="{ height: '60vh', padding: 0 }" :destroy-on-close="true" @cancel="closeMapPreview" :footer="null">
+      <div ref="mapPreviewContainer" class="map-preview-container"></div>
+    </a-modal>
   </div>
 </template>
 
@@ -1133,13 +1705,6 @@ watch(
 .pin-meta {
   color: #6b7280;
   font-size: 0.85rem;
-}
-
-.pin-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
 }
 
 .main-tabs,
@@ -1286,6 +1851,17 @@ watch(
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.type-with-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-preview-container {
+  width: 100%;
+  height: 100%;
 }
 
 @media (max-width: 768px) {

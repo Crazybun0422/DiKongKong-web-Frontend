@@ -74,6 +74,29 @@
   "dashboard": {
     "pending": "待审核"
   },
+  "layers": {
+    "title": "图层设置",
+    "open": "图层",
+    "mapType": "图层",
+    "standard": "标准图层",
+    "satellite": "卫星图层",
+    "airspaceBoard": "空域看板",
+    "elements": "地图元素",
+    "uom": "uom划分",
+    "dji": "大疆划分",
+    "tempNfz": "临时禁飞区",
+    "merchant": "商户服务",
+    "private": "私有标记",
+    "group": "小组共享",
+    "platform": "平台共建",
+    "save": "保存",
+    "cancel": "取消",
+    "loading": "加载中...",
+    "saving": "保存中...",
+    "loadFailed": "图层设置加载失败，请稍后重试。",
+    "saveSuccess": "图层设置已保存。",
+    "saveFailed": "保存失败，请稍后重试。"
+  },
   "orders": {
     "summary": {
       "title": "新增订单"
@@ -118,7 +141,7 @@
     "subtitle": "按审核状态快速筛选，完成标记的审核与维护。",
     "mainTabs": {
       "markers": "商户标点",
-      "pinAudit": "审核标记",
+      "pinAudit": "用户发布",
       "noFlyZones": "临时禁飞区"
     },
     "tabs": {
@@ -131,6 +154,7 @@
     "table": {
       "columns": {
         "name": "标记信息",
+        "type": "类型",
         "createdAt": "提交时间",
         "status": "审核状态",
         "exposure": "曝光量",
@@ -160,6 +184,12 @@
       "paid": "已付款",
       "unpaid": "未付款"
     },
+    "markerType": {
+      "point": "点",
+      "line": "线",
+      "polygon": "面",
+      "unknown": "未提供"
+    },
     "sort": {
       "ascend": "提交时间从早到晚",
       "descend": "提交时间从晚到早"
@@ -171,7 +201,11 @@
       "loadFailed": "标记数据加载失败，请稍后重试。",
       "reviewSuccess": "审核结果已提交。",
       "reviewFailed": "审核提交失败，请稍后重试。",
-      "unpaidWarning": "仅已付款的标记可以审核。"
+      "unpaidWarning": "仅已付款的标记可以审核。",
+      "mapPreviewMissing": "缺少坐标，无法定位。"
+    },
+    "actions": {
+      "mapPreview": "地图预览"
     },
     "confirm": {
       "approve": {
@@ -202,6 +236,7 @@
       "fields": {
         "name": "名称",
         "featureCode": "Feature Code",
+        "type": "类型",
         "location": "位置",
         "phone": "联系电话",
         "status": "审核状态",
@@ -227,6 +262,7 @@
       "title": "审核 Pin 标记",
       "columns": {
         "name": "名称 / 提交时间",
+        "type": "类型",
         "visibility": "可见性",
         "reviewStatus": "审核状态",
         "status": "启用状态",
@@ -248,6 +284,27 @@
         "alive": "启用",
         "banned": "已禁用"
       },
+      "shapeType": {
+        "point": "点",
+        "line": "线",
+        "circle": "圆",
+        "rectangle": "矩形",
+        "polygon": "面",
+        "unknown": "未提供"
+      },
+      "shapePointCategory": {
+        "general": "通用",
+        "warning": "警示点",
+        "aerial_shot": "航拍点",
+        "takeoff_landing": "起降场",
+        "tall_building": "高程建筑",
+        "unknown": "未提供"
+      },
+      "shapeLineCategory": {
+        "standard": "普通线",
+        "temporary_no_fly_zone_buffer": "临时禁飞区路径缓冲区",
+        "unknown": "未提供"
+      },
       "actions": {
         "open": "审核标记",
         "detail": "查看详情",
@@ -265,6 +322,11 @@
         "visibility": "可见性",
         "reviewStatus": "审核状态",
         "status": "启用状态",
+        "shapeType": "类型",
+        "shapeCategory": "类型说明",
+        "shapePoints": "坐标数量",
+        "shapeRadius": "半径（km）",
+        "shapeWidth": "线宽",
         "createdAt": "提交时间",
         "updatedAt": "更新时间",
         "description": "描述",

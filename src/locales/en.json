@@ -74,6 +74,29 @@
   "dashboard": {
     "pending": "Pending"
   },
+  "layers": {
+    "title": "Layer Settings",
+    "open": "Layers",
+    "mapType": "Basemap",
+    "standard": "Standard",
+    "satellite": "Satellite",
+    "airspaceBoard": "Airspace board",
+    "elements": "Map elements",
+    "uom": "UOM division",
+    "dji": "DJI division",
+    "tempNfz": "Temporary NFZ",
+    "merchant": "Merchant markers",
+    "private": "Private markers",
+    "group": "Group sharing",
+    "platform": "Platform co-build",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "loadFailed": "Failed to load layer settings. Please retry.",
+    "saveSuccess": "Layer settings saved.",
+    "saveFailed": "Failed to save. Please retry."
+  },
   "orders": {
     "summary": {
       "title": "New Orders"
@@ -131,6 +154,7 @@
     "table": {
       "columns": {
         "name": "Marker",
+        "type": "Type",
         "createdAt": "Submitted At",
         "status": "Status",
         "exposure": "Exposure",
@@ -160,6 +184,12 @@
       "paid": "Paid",
       "unpaid": "Unpaid"
     },
+    "markerType": {
+      "point": "Point",
+      "line": "Line",
+      "polygon": "Area",
+      "unknown": "Not provided"
+    },
     "sort": {
       "ascend": "Oldest first",
       "descend": "Newest first"
@@ -171,7 +201,11 @@
       "loadFailed": "Failed to load markers, please try again later.",
       "reviewSuccess": "Review result submitted.",
       "reviewFailed": "Failed to submit review result.",
-      "unpaidWarning": "Only paid markers can be reviewed."
+      "unpaidWarning": "Only paid markers can be reviewed.",
+      "mapPreviewMissing": "Coordinates are missing, cannot locate on map."
+    },
+    "actions": {
+      "mapPreview": "Map preview"
     },
     "confirm": {
       "approve": {
@@ -202,6 +236,7 @@
       "fields": {
         "name": "Name",
         "featureCode": "Feature code",
+        "type": "Type",
         "location": "Location",
         "phone": "Phone",
         "status": "Status",
@@ -253,6 +288,7 @@
       "title": "Review Pin Markers",
       "columns": {
         "name": "Name / Submitted At",
+        "type": "Type",
         "visibility": "Visibility",
         "reviewStatus": "Review Status",
         "status": "Live Status",
@@ -274,6 +310,27 @@
         "alive": "Enabled",
         "banned": "Disabled"
       },
+      "shapeType": {
+        "point": "Point",
+        "line": "Line",
+        "circle": "Circle",
+        "rectangle": "Rectangle",
+        "polygon": "Area",
+        "unknown": "Not provided"
+      },
+      "shapePointCategory": {
+        "general": "General",
+        "warning": "Warning point",
+        "aerial_shot": "Aerial shot",
+        "takeoff_landing": "Takeoff / Landing",
+        "tall_building": "Tall building",
+        "unknown": "Not provided"
+      },
+      "shapeLineCategory": {
+        "standard": "Standard line",
+        "temporary_no_fly_zone_buffer": "Temp NFZ path buffer",
+        "unknown": "Not provided"
+      },
       "actions": {
         "open": "Review Pins",
         "detail": "Details",
@@ -291,6 +348,11 @@
         "visibility": "Visibility",
         "reviewStatus": "Review Status",
         "status": "Enable Status",
+        "shapeType": "Type",
+        "shapeCategory": "Category",
+        "shapePoints": "Coordinate Count",
+        "shapeRadius": "Radius (km)",
+        "shapeWidth": "Line Width",
         "createdAt": "Submitted At",
         "updatedAt": "Updated At",
         "description": "Description",
