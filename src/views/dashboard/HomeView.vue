@@ -8,6 +8,8 @@ import searchIcon from '../../assets/img/search.png'
 import centerPinIcon from '../../assets/img/position.png'
 import droneIcon from '../../assets/img/drone.png'
 import layerIcon from '../../assets/img/layer.png'
+import mapStandardThumb from '../../assets/img/map-standard.png'
+import mapSatelliteThumb from '../../assets/img/map-satellite.png'
 import pointDefaultIcon from '../../assets/img/default.png'
 import pointWarningIcon from '../../assets/img/drone-warning.png'
 import pointAerialIcon from '../../assets/img/aerial.png'
@@ -210,18 +212,32 @@ const layerForm = reactive({
   platformCoConstructionEnabled: true,
 })
 
+const mapTypeIdForKey = (key) => {
+  if (!window.qq?.maps?.MapTypeId) return null
+  return key === 'SATELLITE' ? window.qq.maps.MapTypeId.SATELLITE : window.qq.maps.MapTypeId.ROADMAP
+}
+
+const applyMapTypeToMap = () => {
+  if (!mapInstance.value) return
+  const mapTypeId = mapTypeIdForKey(layerForm.mapType)
+  if (!mapTypeId) return
+  try {
+    mapInstance.value.setMapTypeId(mapTypeId)
+  } catch (error) {
+    console.error('Failed to set map type', error)
+  }
+}
+
 const mapTypeOptions = computed(() => [
   {
     key: 'STANDARD',
     label: t('layers.standard'),
-    thumb:
-      'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 30%, #a5f3fc 60%, #f1f5f9 100%)',
+    thumb: mapStandardThumb,
   },
   {
     key: 'SATELLITE',
     label: t('layers.satellite'),
-    thumb:
-      'linear-gradient(135deg, #0f172a 0%, #111827 40%, #1f2937 70%, #0b1625 100%)',
+    thumb: mapSatelliteThumb,
   },
 ])
 
@@ -234,16 +250,54 @@ const layerElementOptions = computed(() => [
   { key: 'platformCoConstructionEnabled', label: t('layers.platform') },
 ])
 
+const applyLayerElementChange = (key) => {
+  if (key === 'uomDivisionEnabled') {
+    if (!layerForm.uomDivisionEnabled) {
+      setUomLayerVisible(false)
+      clearOverlays(uomOverlays)
+      currentWmsTiles.value = []
+    } else if (mapReady.value) {
+      const center = getCurrentCenter()
+      const bounds = getCurrentBounds()
+      const zoom = typeof mapInstance.value?.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
+      if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
+        setUomLayerVisible(true)
+        refreshUom(center, zoom, bounds)
+      }
+    }
+    updateStatusPanel()
+    return
+  }
+  if (key === 'djiNoFlyZoneEnabled') {
+    if (!layerForm.djiNoFlyZoneEnabled) {
+      clearOverlays(djiPolygonOverlays)
+      clearOverlays(djiCircleOverlays)
+    } else if (Array.isArray(lastDjiAreas.value)) {
+      const graphics = buildAreaGraphics(lastDjiAreas.value)
+      renderDjiOverlays(graphics.polygons || [], graphics.circles || [])
+    } else {
+      refreshData(true)
+    }
+    return
+  }
+  if (key === 'merchantMarkersEnabled') {
+    renderMarkers(nearbyMarkers.value)
+    return
+  }
+  if (['privateMarkersEnabled', 'groupSharingEnabled', 'platformCoConstructionEnabled'].includes(key)) {
+    renderPins(nearbyPins.value)
+  }
+}
+
 const setMapType = (key) => {
   layerForm.mapType = key
+  applyMapTypeToMap()
 }
 
 const toggleLayerElement = (key) => {
   if (key in layerForm) {
     layerForm[key] = !layerForm[key]
-    if (['privateMarkersEnabled', 'groupSharingEnabled', 'platformCoConstructionEnabled'].includes(key)) {
-      renderPins(nearbyPins.value)
-    }
+    applyLayerElementChange(key)
   }
 }
 
@@ -580,6 +634,7 @@ const computePathBufferPolygon = (points, distanceMeters) => {
 const renderDjiOverlays = (polygons = [], circles = []) => {
   clearOverlays(djiPolygonOverlays)
   clearOverlays(djiCircleOverlays)
+  if (!layerForm.djiNoFlyZoneEnabled) return
   if (!mapInstance.value || !window.qq?.maps) return
 
   polygons.forEach((poly) => {
@@ -673,15 +728,17 @@ const ensureUomMapType = () => {
 
 const setUomLayerVisible = (visible) => {
   if (!mapInstance.value || !window.qq?.maps) return
+  if (!visible || !layerForm.uomDivisionEnabled) {
+    if (uomMapTypeIndex > -1) {
+      mapInstance.value.overlayMapTypes.removeAt(uomMapTypeIndex)
+      uomMapTypeIndex = -1
+    }
+    return
+  }
   const layer = ensureUomMapType()
   if (!layer) return
-  if (visible) {
-    if (uomMapTypeIndex === -1) {
-      uomMapTypeIndex = mapInstance.value.overlayMapTypes.push(layer) - 1
-    }
-  } else if (uomMapTypeIndex > -1) {
-    mapInstance.value.overlayMapTypes.removeAt(uomMapTypeIndex)
-    uomMapTypeIndex = -1
+  if (uomMapTypeIndex === -1) {
+    uomMapTypeIndex = mapInstance.value.overlayMapTypes.push(layer) - 1
   }
 }
 
@@ -690,6 +747,7 @@ const clearMarkers = () => clearOverlays(markerOverlays)
 const renderMarkers = (markers = []) => {
   clearMarkers()
   if (!mapInstance.value || !window.qq?.maps) return
+  if (!layerForm.merchantMarkersEnabled) return
 
   const iconSize = new window.qq.maps.Size(40, 40)
   const markerImage = new window.qq.maps.MarkerImage(
@@ -708,11 +766,11 @@ const renderMarkers = (markers = []) => {
     const overlay = new window.qq.maps.Marker({
       map: mapInstance.value,
       position: new window.qq.maps.LatLng(latitude, longitude),
-      title: marker.name || '未命名商户',
+      title: marker.name || '?????',
       icon: markerImage,
       zIndex: 5,
     })
-    const labelText = marker.name || '未命名商户'
+    const labelText = marker.name || '?????'
     if (labelText) {
       const label = new window.qq.maps.Label({
         map: mapInstance.value,
@@ -1324,7 +1382,7 @@ const refreshData = (force = false, providedToken = null) => {
   loadNearbyPins(center, radiusKm, token)
   loadNoFlyZones(center, radiusKm, token)
   loadDjiAreas(center, radiusMeters, bounds, token)
-  if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
+  if (layerForm.uomDivisionEnabled && zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
     setUomLayerVisible(true)
     refreshUom(center, zoom, bounds)
   } else {
@@ -1350,6 +1408,7 @@ const initializeMap = () => {
     zoomControl: false,
     panControl: false,
   })
+  applyMapTypeToMap()
   mapReady.value = true
   refreshScaleBar()
   mapListeners.push(window.qq.maps.event.addListener(mapInstance.value, 'center_changed', scheduleRefresh))
@@ -1616,6 +1675,7 @@ const goToPendingMarkers = () => {
 }
 
 onMounted(() => {
+  loadLayerSettings()
   waitForMap()
   loadPendingCount()
   loadOrderSummary()
@@ -1706,7 +1766,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="summary-board summary-board--standalone">
+      <div v-if="layerForm.airspaceBoardEnabled" class="summary-board summary-board--standalone">
         <button class="board-item board-item--pending" type="button" @click="goToPendingMarkers">
           <span class="board-label">{{ t('dashboard.pending') }} ></span>
           <span class="board-value">{{ pendingLoading ? '...' : pendingCount }}</span>
@@ -1866,7 +1926,7 @@ onBeforeUnmount(() => {
           <div class="layer-maptypes">
             <button v-for="item in mapTypeOptions" :key="item.key" type="button"
               :class="['layer-card', { 'layer-card--active': layerForm.mapType === item.key }]"
-              :style="{ backgroundImage: item.thumb }" @click="setMapType(item.key)">
+              :style="{ backgroundImage: `url(${item.thumb})` }" @click="setMapType(item.key)">
               <span class="layer-card__label">{{ item.label }}</span>
             </button>
           </div>
@@ -2563,6 +2623,14 @@ onBeforeUnmount(() => {
   justify-content: space-between;
 }
 
+.layer-switch :deep(.ant-switch-checked) {
+  background-color: #111827;
+}
+
+.layer-switch :deep(.ant-switch-checked:hover) {
+  background-color: #0b1220;
+}
+
 .layer-card {
   position: relative;
   border: 2px solid transparent;
@@ -2570,6 +2638,7 @@ onBeforeUnmount(() => {
   padding: 12px;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   min-height: 96px;
   cursor: pointer;
   display: flex;
