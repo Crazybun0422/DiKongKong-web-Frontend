@@ -355,8 +355,7 @@ paths:
   /api/pins/search:
     get:
       summary: 搜索已审核通过的 Pin 标记
-      description: 根据关键字模糊搜索公开且存活、审核通过的 Pin 标记，接口无需登录。
-      security: []
+      description: 根据关键字模糊搜索公开且存活、审核通过的 Pin 标记，需登录后使用。
       parameters:
         - in: query
           name: keyword

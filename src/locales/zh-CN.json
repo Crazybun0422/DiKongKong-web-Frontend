@@ -352,6 +352,21 @@
         },
         "statusTitle": "更新标记状态",
         "statusContent": "确认将“{name}”设置为 {status} 状态吗？"
+      },
+      "reward": {
+        "approvedA": "通过（A级）奖励",
+        "approvedB": "通过（B级）奖励",
+        "unit": "FLP",
+        "updatedAt": "配置更新时间：{time}",
+        "loading": "加载奖励配置中...",
+        "loadFailed": "奖励配置加载失败，请稍后重试",
+        "title": "奖励发放配置",
+        "placeholder": "请输入奖励数量",
+        "save": "保存",
+        "saving": "保存中...",
+        "reload": "重新加载",
+        "saved": "奖励配置已保存",
+        "saveFailed": "奖励配置保存失败，请稍后重试"
       }
     },
     "orderModal": {

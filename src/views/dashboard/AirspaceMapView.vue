@@ -14,6 +14,7 @@ import {
   PIN_STATUS,
 } from '../../services/pins'
 import { fetchOrderByReference } from '../../services/orders'
+import { fetchPinReviewRewardConfig, savePinReviewRewardConfig } from '../../services/config'
 import detailIcon from '../../assets/img/detail.png'
 import pointDefaultIcon from '../../assets/img/default.png'
 import pointWarningIcon from '../../assets/img/drone-warning.png'
@@ -64,6 +65,13 @@ const mapPreviewKind = ref('pin')
 const mapPreviewContainer = ref(null)
 const mapPreviewInstance = ref(null)
 const mapPreviewOverlays = ref([])
+const pinRewardConfig = ref(null)
+const pinRewardLoading = ref(false)
+const pinRewardSaving = ref(false)
+const pinRewardForm = reactive({
+  approvedARewardFlp: null,
+  approvedBRewardFlp: null,
+})
 
 const ORDER_STATUS_COLORS = {
   WAITING_PAYMENT: 'gold',
@@ -904,15 +912,61 @@ const loadPinAuditData = async () => {
       visibility: pinAuditVisibility.value,
       reviewStatus: reviewStatusFilter,
     })
-    pinAuditData.value = content
-  pinAuditPagination.total = totalElements
-  pinAuditPagination.current = page
-  pinAuditPagination.pageSize = size
+    const filteredContent =
+      reviewStatusFilter && Array.isArray(content)
+        ? content.filter(
+            (item) => String(item?.reviewStatus || '').toUpperCase() === String(reviewStatusFilter).toUpperCase(),
+          )
+        : content
+    pinAuditData.value = filteredContent
+    const effectiveTotal =
+      reviewStatusFilter && pinAuditVisibility.value === PIN_VISIBILITY.PUBLIC
+        ? Number.isFinite(totalElements) && totalElements >= filteredContent.length
+          ? totalElements
+          : filteredContent.length
+        : totalElements
+    pinAuditPagination.total = effectiveTotal
+    pinAuditPagination.current = page
+    pinAuditPagination.pageSize = size
   } catch (error) {
     console.error('Failed to load pins', error)
     message.error(t('airspace.pinAudit.messages.loadFailed'))
   } finally {
     pinAuditLoading.value = false
+  }
+}
+
+const loadPinRewardConfig = async () => {
+  if (pinRewardLoading.value) return
+  pinRewardLoading.value = true
+  try {
+    const config = await fetchPinReviewRewardConfig()
+    pinRewardConfig.value = config || null
+    pinRewardForm.approvedARewardFlp = Number(config?.approvedARewardFlp) || 0
+    pinRewardForm.approvedBRewardFlp = Number(config?.approvedBRewardFlp) || 0
+  } catch (error) {
+    console.error('Failed to load pin reward config', error)
+    message.error(t('airspace.pinAudit.reward.loadFailed'))
+  } finally {
+    pinRewardLoading.value = false
+  }
+}
+
+const submitPinRewardConfig = async () => {
+  pinRewardSaving.value = true
+  try {
+    const payload = {
+      approvedARewardFlp: Number(pinRewardForm.approvedARewardFlp) || 0,
+      approvedBRewardFlp: Number(pinRewardForm.approvedBRewardFlp) || 0,
+    }
+    const saved = await savePinReviewRewardConfig(payload)
+    pinRewardConfig.value = saved || payload
+    message.success(t('airspace.pinAudit.reward.saved'))
+  } catch (error) {
+    console.error('Failed to save pin reward config', error)
+    message.error(t('airspace.pinAudit.reward.saveFailed'))
+  } finally {
+    pinRewardSaving.value = false
   }
 }
 
@@ -932,6 +986,7 @@ const handleMainTabChange = (key) => {
     loadData()
   } else if (key === 'pinAudit') {
     loadPinAuditData()
+    loadPinRewardConfig()
   }
 }
 
@@ -1132,6 +1187,9 @@ onMounted(() => {
   activeStatus.value = initialStatus
   updateRouteStatus(initialStatus)
   loadData()
+  if (activeMainTab.value === 'pinAudit') {
+    loadPinRewardConfig()
+  }
 })
 
 watch(
@@ -1221,6 +1279,39 @@ watch(
         </a-table>
       </template>
       <template v-else-if="activeMainTab === 'pinAudit'">
+        <div class="pin-reward-form" role="form" aria-live="polite">
+          <div class="reward-form-title">{{ t('airspace.pinAudit.reward.title') }}</div>
+          <div class="reward-inputs">
+            <a-form layout="vertical">
+              <a-row :gutter="[16, 0]">
+                  <a-col :xs="24" :sm="12">
+                    <a-form-item :label="t('airspace.pinAudit.reward.approvedB')">
+                    <a-input-number v-model:value="pinRewardForm.approvedBRewardFlp" :min="0" :step="0.01" :precision="2"
+                      :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="12">
+                  <a-form-item :label="t('airspace.pinAudit.reward.approvedA')">
+                    <a-input-number v-model:value="pinRewardForm.approvedARewardFlp" :min="0" :step="0.01" :precision="2"
+                      :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </a-form>
+            <div class="reward-actions">
+              <a-button type="primary" :loading="pinRewardSaving" @click="submitPinRewardConfig">
+                {{ pinRewardSaving ? t('airspace.pinAudit.reward.saving') : t('airspace.pinAudit.reward.save') }}
+              </a-button>
+              <a-button @click="loadPinRewardConfig" :loading="pinRewardLoading">
+                {{ t('airspace.pinAudit.reward.reload') }}
+              </a-button>
+              <span v-if="pinRewardConfig?.updatedAt" class="reward-updated">
+                {{ t('airspace.pinAudit.reward.updatedAt', { time: formatDateTime(pinRewardConfig.updatedAt) }) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div class="pin-audit-panel">
           <div class="pin-audit-toolbar">
             <a-segmented :options="pinVisibilityOptions" :value="pinAuditVisibility"
@@ -1679,6 +1770,10 @@ watch(
   gap: 12px;
 }
 
+.pin-reward-form {
+  margin-bottom: 8px;
+}
+
 .pin-audit-toolbar {
   display: flex;
   justify-content: space-between;
@@ -1691,6 +1786,42 @@ watch(
 .pin-review-tabs {
   flex: 1;
   min-width: 320px;
+}
+
+.pin-reward-form {
+  padding: 14px 12px 6px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.reward-form-title {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.reward-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reward-input {
+  width: 100%;
+  max-width: 420px;
+  min-width: 260px;
+}
+
+.reward-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reward-updated {
+  color: #64748b;
+  font-size: 0.9rem;
 }
 
 .pin-audit-table :deep(.ant-table-tbody > tr > td) {
