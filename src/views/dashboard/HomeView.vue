@@ -766,11 +766,11 @@ const renderMarkers = (markers = []) => {
     const overlay = new window.qq.maps.Marker({
       map: mapInstance.value,
       position: new window.qq.maps.LatLng(latitude, longitude),
-      title: marker.name || '?????',
+      title: marker.name || '未命名商户',
       icon: markerImage,
       zIndex: 5,
     })
-    const labelText = marker.name || '?????'
+    const labelText = marker.name || '未命名商户'
     if (labelText) {
       const label = new window.qq.maps.Label({
         map: mapInstance.value,
@@ -1716,7 +1716,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="map-overlays">
-      <div class="dashboard-card">
+      <div v-if="layerForm.airspaceBoardEnabled" class="dashboard-card">
         <div class="card-header">
           <div>
             <div class="card-title">飞前安全准备</div>
@@ -1766,7 +1766,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-if="layerForm.airspaceBoardEnabled" class="summary-board summary-board--standalone">
+      <div class="summary-board summary-board--standalone">
         <button class="board-item board-item--pending" type="button" @click="goToPendingMarkers">
           <span class="board-label">{{ t('dashboard.pending') }} ></span>
           <span class="board-value">{{ pendingLoading ? '...' : pendingCount }}</span>
