@@ -74,14 +74,24 @@
         "template": "Template",
         "templateData": "Template data",
         "registration": "User range",
-        "flp": "FLP",
-        "like": "Likes",
+        "progress": "Progress",
         "createdAt": "Created at"
       },
       "pagination": {
         "total": "{total} records, showing {start}-{end}"
       },
-      "empty": "Not set"
+      "empty": "Not set",
+      "progress": {
+        "notStarted": "Not started",
+        "success": "Success",
+        "failure": "Failure"
+      }
+    },
+    "status": {
+      "pending": "Pending",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
     },
     "messages": {
       "templatesLoadFailed": "Failed to load template list",

@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchTemplateSettings } from '../../services/config'
 import { createSubscriptionPush, fetchSubscriptionPushes } from '../../services/weappSubscriptions'
+import { API_BASE_URL } from '../../services/http'
 
 const LANDING_TEMPLATE_NAME = '运营活动通知'
 
@@ -20,6 +21,7 @@ const formRef = ref(null)
 const submissionLoading = ref(false)
 const landingModalVisible = ref(false)
 const listLoading = ref(false)
+const taskSocket = ref(null)
 
 const formState = reactive({
   templateId: '',
@@ -91,8 +93,7 @@ const columns = computed(() => [
   { title: t('subscriptionPush.table.columns.template'), dataIndex: 'templateId', key: 'templateId', width: 200 },
   { title: t('subscriptionPush.table.columns.templateData'), dataIndex: 'templateData', key: 'templateData' },
   { title: t('subscriptionPush.table.columns.registration'), dataIndex: 'registrationRange', key: 'registrationRange', width: 200 },
-  { title: t('subscriptionPush.table.columns.flp'), dataIndex: 'flpMin', key: 'flp' },
-  { title: t('subscriptionPush.table.columns.like'), dataIndex: 'likeMin', key: 'like' },
+  { title: t('subscriptionPush.table.columns.progress'), key: 'progress', width: 360 },
   { title: t('subscriptionPush.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
 ])
 
@@ -266,7 +267,19 @@ const loadPushes = async (pageOverride) => {
       page: pagination.current,
       size: pagination.pageSize,
     })
-    tableData.value = content || []
+    tableData.value = (content || []).map((item) => ({
+      ...item,
+      taskSnapshot: item?.lastTaskStatus
+        ? {
+          id: item.lastTaskId,
+          status: item.lastTaskStatus,
+          progressPercent: item.progressPercent,
+          successCount: item.lastSendSuccessCount,
+          failureCount: item.lastSendFailureCount,
+          totalTargets: item.totalTargets ?? item.processedCount,
+        }
+        : null,
+    }))
     pagination.total = totalElements
     pagination.current = page
     pagination.pageSize = size
@@ -293,13 +306,6 @@ const closeLandingModal = () => {
   landingModalVisible.value = false
 }
 
-const landingSummary = computed(() => {
-  if (!formState.pushContent) return t('subscriptionPush.landing.empty')
-  const plain = formState.pushContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!plain) return t('subscriptionPush.landing.empty')
-  return plain.length > 120 ? `${plain.slice(0, 120)}...` : plain
-})
-
 const formatRegistration = (record) => {
   const range = record?.registrationRange || 'ALL'
   const rangeLabel = registrationOptions.value.find((item) => item.value === range)?.label || range
@@ -309,13 +315,6 @@ const formatRegistration = (record) => {
     return start && end ? `${rangeLabel} | ${start} ~ ${end}` : rangeLabel
   }
   return rangeLabel
-}
-
-const formatRangeDisplay = (min, max) => {
-  const hasMin = min !== null && min !== undefined && min !== ''
-  const hasMax = max !== null && max !== undefined && max !== ''
-  if (!hasMin && !hasMax) return t('subscriptionPush.table.empty')
-  return `${hasMin ? min : '0'} ~ ${hasMax ? max : 'max'}`
 }
 
 const formatTemplateDataList = (data) => {
@@ -333,6 +332,88 @@ const formatDateTime = (value) => {
   }
 }
 
+const resolveStatusLabel = (status) => {
+  if (!status) return t('subscriptionPush.table.progress.notStarted')
+  const key = String(status).toLowerCase()
+  const translated = t(`subscriptionPush.status.${key}`)
+  return translated || status
+}
+
+const getProgressPercent = (task) => {
+  if (!task || typeof task.progressPercent !== 'number') return 0
+  if (!Number.isFinite(task.progressPercent)) return 0
+  return Math.min(Math.max(task.progressPercent, 0), 100)
+}
+
+const applyTaskUpdate = (task) => {
+  if (!task || (!task.pushId && !task.id)) return
+  tableData.value = tableData.value.map((row) => {
+    const matches = row.id === task.pushId || row.lastTaskId === task.id
+    if (!matches) return row
+    return {
+      ...row,
+      taskSnapshot: {
+        id: task.id ?? row.taskSnapshot?.id,
+        pushId: task.pushId ?? row.taskSnapshot?.pushId,
+        status: task.status ?? row.taskSnapshot?.status,
+        progressPercent: typeof task.progressPercent === 'number' ? task.progressPercent : row.taskSnapshot?.progressPercent,
+        successCount: task.successCount ?? row.taskSnapshot?.successCount,
+        failureCount: task.failureCount ?? row.taskSnapshot?.failureCount,
+        totalTargets: task.totalTargets ?? row.taskSnapshot?.totalTargets ?? task.processedCount,
+        processedCount: task.processedCount ?? row.taskSnapshot?.processedCount,
+        message: task.message ?? row.taskSnapshot?.message,
+        startedAt: task.startedAt ?? row.taskSnapshot?.startedAt,
+        finishedAt: task.finishedAt ?? row.taskSnapshot?.finishedAt,
+      },
+    }
+  })
+}
+
+const buildWsUrl = () => {
+  if (typeof window === 'undefined') return ''
+  try {
+    const apiUrl = new URL(API_BASE_URL, window.location.origin)
+    const wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${wsProtocol}//${apiUrl.host}/ws/subscription-push-task`
+  } catch (error) {
+    const origin = window.location.origin.replace(/^http/, 'ws')
+    return `${origin}/ws/subscription-push-task`
+  }
+}
+
+const closeTaskSocket = () => {
+  if (taskSocket.value) {
+    taskSocket.value.close()
+    taskSocket.value = null
+  }
+}
+
+const openTaskSocket = () => {
+  const url = buildWsUrl()
+  if (!url) return
+
+  closeTaskSocket()
+  const socket = new WebSocket(url)
+  taskSocket.value = socket
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const task = JSON.parse(event.data)
+      applyTaskUpdate(task)
+    } catch (error) {
+      console.error('Failed to parse subscription task update', error)
+    }
+  })
+
+  socket.addEventListener('error', (error) => {
+    console.error('Subscription task websocket error', error)
+  })
+
+  socket.addEventListener('close', () => {
+    taskSocket.value = null
+  })
+}
+
 watch(
   () => formState.templateId,
   (next) => {
@@ -347,6 +428,11 @@ watch(
 onMounted(() => {
   loadTemplateSettings()
   loadPushes()
+  openTaskSocket()
+})
+
+onBeforeUnmount(() => {
+  closeTaskSocket()
 })
 </script>
 
@@ -542,11 +628,26 @@ onMounted(() => {
           <template v-else-if="column.key === 'registrationRange'">
             {{ formatRegistration(record) }}
           </template>
-          <template v-else-if="column.key === 'flp'">
-            {{ formatRangeDisplay(record.flpMin, record.flpMax) }}
-          </template>
-          <template v-else-if="column.key === 'like'">
-            {{ formatRangeDisplay(record.likeMin, record.likeMax) }}
+          <template v-else-if="column.key === 'progress'">
+            <div class="progress-cell">
+              <a-progress
+                :percent="getProgressPercent(record.taskSnapshot)"
+                size="small"
+                :status="record.taskSnapshot?.status === 'FAILED' ? 'exception' : record.taskSnapshot?.status === 'COMPLETED' ? 'success' : 'active'"
+              />
+              <div class="progress-meta">
+                <span class="status-label">{{ resolveStatusLabel(record.taskSnapshot?.status) }}</span>
+                <span class="count-label">
+                  {{ t('subscriptionPush.table.progress.success') }} {{ record.taskSnapshot?.successCount ?? 0 }}
+                  /
+                  {{ record.taskSnapshot?.totalTargets ?? record.taskSnapshot?.processedCount ?? '-' }}
+                </span>
+                <span class="count-label failure">
+                  {{ t('subscriptionPush.table.progress.failure') }} {{ record.taskSnapshot?.failureCount ?? 0 }}
+                </span>
+                <span class="message" v-if="record.taskSnapshot?.message"> · {{ record.taskSnapshot.message }}</span>
+              </div>
+            </div>
           </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
@@ -709,6 +810,34 @@ onMounted(() => {
 .template-name {
   font-weight: 600;
   color: #0f172a;
+}
+
+.progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.status-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.count-label.failure {
+  color: #dc2626;
+}
+
+.message {
+  color: #6b7280;
 }
 
 @media (max-width: 720px) {

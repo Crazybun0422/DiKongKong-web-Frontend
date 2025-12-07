@@ -74,14 +74,24 @@
         "template": "模板",
         "templateData": "模板数据",
         "registration": "发送范围",
-        "flp": "FLP 数量",
-        "like": "获赞数",
+        "progress": "进度",
         "createdAt": "创建时间"
       },
       "pagination": {
         "total": "共 {total} 条记录，当前 {start}-{end}"
       },
-      "empty": "未填写"
+      "empty": "未填写",
+      "progress": {
+        "notStarted": "未开始",
+        "success": "成功",
+        "failure": "失败"
+      }
+    },
+    "status": {
+      "pending": "排队中",
+      "running": "进行中",
+      "completed": "已完成",
+      "failed": "失败"
     },
     "messages": {
       "templatesLoadFailed": "模板列表加载失败",
