@@ -470,7 +470,10 @@ const submitTemplateEdit = async () => {
   }
   templateEditSaving.value = true
   try {
-    await updateTemplateSetting(templateEditForm.templateName, { templateId: templateEditForm.templateId })
+    await updateTemplateSetting(templateEditForm.templateName, {
+      templateId: templateEditForm.templateId,
+      templateName: templateEditForm.templateName,
+    })
     message.success(t('settings.templateSettings.messages.updateSuccess'))
     templateEditVisible.value = false
     await loadTemplateSettings()
