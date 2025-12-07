@@ -45,6 +45,16 @@ export const saveFlpRewardHelpCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchInviteGuideCopy = async () => {
+  const response = await http.get('/config/invite-guide')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveInviteGuideCopy = async (payload) => {
+  const response = await http.put('/config/invite-guide', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchPinReviewRewardConfig = async () => {
   const response = await http.get('/config/pin-review-reward')
   return normalizePagePayload(response, { approvedARewardFlp: 0, approvedBRewardFlp: 0 })
@@ -98,6 +108,8 @@ export default {
   saveOpenPlatformCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
+  fetchInviteGuideCopy,
+  saveInviteGuideCopy,
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
   fetchTemplateSettings,

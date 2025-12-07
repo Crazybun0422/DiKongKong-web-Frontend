@@ -626,7 +626,8 @@
       },
       "options": {
         "openPlatform": "Open platform",
-        "flpRewardHelp": "FLP mechanism"
+        "flpRewardHelp": "FLP mechanism",
+        "inviteGuide": "Invite guide"
       },
       "actions": {
         "save": "Save content",

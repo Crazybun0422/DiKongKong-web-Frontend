@@ -11,6 +11,8 @@ import {
   saveOpenPlatformCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
+  fetchInviteGuideCopy,
+  saveInviteGuideCopy,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
@@ -106,6 +108,7 @@ const copyHasContent = computed(() => {
 const copyTypeOptions = computed(() => [
   { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
   { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
+  { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
 ])
 const copyHandlers = {
   openPlatform: {
@@ -115,6 +118,10 @@ const copyHandlers = {
   flpRewardHelp: {
     fetch: fetchFlpRewardHelpCopy,
     save: saveFlpRewardHelpCopy,
+  },
+  inviteGuide: {
+    fetch: fetchInviteGuideCopy,
+    save: saveInviteGuideCopy,
   },
 }
 

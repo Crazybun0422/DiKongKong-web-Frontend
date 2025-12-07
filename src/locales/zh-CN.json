@@ -641,7 +641,8 @@
       },
       "options": {
         "openPlatform": "开放平台",
-        "flpRewardHelp": "FLP机制"
+        "flpRewardHelp": "FLP机制",
+        "inviteGuide": "邀请攻略"
       },
       "actions": {
         "save": "保存文案",
