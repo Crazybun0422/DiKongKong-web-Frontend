@@ -607,16 +607,19 @@
         "reload": "Refresh",
         "edit": "Edit",
         "delete": "Delete",
-        "deleteConfirm": "Confirm delete?"
+        "deleteConfirm": "Confirm delete?",
+        "addDetail": "Add field",
+        "removeDetail": "Remove"
       },
       "bulk": {
         "title": "Bulk add templates",
         "subtitle": "Import template name, ID, and optional detail fields (keys to be filled).",
         "inputLabel": "Template name, ID, and fields",
         "placeholder": "Example:\npayment_success, TPL1234567890, keyword1, keyword2\norder_cancel | TPL2345678901 | thing1 | thing2",
-        "helper": "One record per line. Template name and ID can be separated by comma/space/pipe; remaining tokens are stored as detail fields.",
+        "helper": "One record per line. Template name and ID can be separated by comma/space/pipe; detail fields should use \"field:value\" or \"field=value\".",
         "warningSequential": "Saving will call the API sequentially for each template.",
         "preview": "{count} template(s) will be updated.",
+        "previewTitle": "Parsed preview",
         "actions": {
           "save": "Save templates",
           "reload": "Reload current",

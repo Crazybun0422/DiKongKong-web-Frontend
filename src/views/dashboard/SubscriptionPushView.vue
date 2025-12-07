@@ -6,6 +6,7 @@ import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchTemplateSettings } from '../../services/config'
 import { createSubscriptionPush, fetchSubscriptionPushes } from '../../services/weappSubscriptions'
 import { API_BASE_URL } from '../../services/http'
+import dayjs from 'dayjs'
 
 const LANDING_TEMPLATE_NAME = '运营活动通知'
 
@@ -42,6 +43,8 @@ const pagination = reactive({
   pageSize: 10,
   total: 0,
 })
+const selectedPushId = ref(null)
+const selectedPushRecord = ref(null)
 
 const templateOptions = computed(() =>
   Object.entries(templateSettings.templates || {}).map(([templateName, config]) => {
@@ -65,15 +68,46 @@ const templateIdNameMap = computed(() =>
     return acc
   }, {}),
 )
+const templateDetailReverseMap = computed(() =>
+  Object.entries(templateSettings.templates || {}).reduce((acc, [_templateName, config]) => {
+    const templateId = typeof config === 'string' ? config : config?.templateId
+    const details = Array.isArray(config?.details) ? config.details : []
+    if (!templateId) return acc
+    const detailMap = {}
+    details.forEach((item) => {
+      const field = (item?.field || '').trim()
+      const value = (item?.value || '').trim()
+      if (value && field) {
+        detailMap[value] = field
+      }
+    })
+    acc[templateId] = detailMap
+    return acc
+  }, {}),
+)
 
 const selectedTemplateName = computed(
   () => formState.templateName || templateIdNameMap.value[formState.templateId] || '',
 )
 
 const canEditLanding = computed(() => selectedTemplateName.value === LANDING_TEMPLATE_NAME)
+const detailKeyMap = computed(() => {
+  const option = templateOptions.value.find((item) => item.value === formState.templateId)
+  const map = {}
+  if (Array.isArray(option?.details)) {
+    option.details.forEach((d) => {
+      const field = (d?.field || '').trim()
+      const value = (d?.value || '').trim()
+      if (!value && !field) return
+      if (field) map[field] = value || field
+      if (value) map[value] = value
+    })
+  }
+  return map
+})
 const selectedTemplateDetails = computed(() => {
   const option = templateOptions.value.find((item) => item.value === formState.templateId)
-  return Array.isArray(option?.details) ? option.details.filter(Boolean) : []
+  return Array.isArray(option?.details) ? option.details.filter((d) => d?.value || d?.field) : []
 })
 const satisfiedDetailTags = computed(() => {
   const keys = formState.templateData.map((item) => (item.key || '').trim()).filter(Boolean)
@@ -82,7 +116,7 @@ const satisfiedDetailTags = computed(() => {
 const allDetailsSatisfied = computed(() => {
   const tags = selectedTemplateDetails.value
   if (!tags.length) return false
-  return tags.every((tag) => satisfiedDetailTags.value.has(tag))
+  return tags.every((tag) => satisfiedDetailTags.value.has(tag.field || tag.value))
 })
 
 const registrationOptions = computed(() => [
@@ -160,9 +194,11 @@ const resetForm = () => {
 const handleTemplateChange = (value, option) => {
   formState.templateId = value
   formState.templateName = option?.label || option?.key || ''
-  const detailsList = Array.isArray(option?.details) ? option.details.filter(Boolean) : []
+  const detailsList = Array.isArray(option?.details) ? option.details.filter((d) => d?.value) : []
   formState.templateData =
-    detailsList.length > 0 ? detailsList.map((key) => ({ key, value: '' })) : [{ key: '', value: '' }]
+    detailsList.length > 0
+      ? detailsList.map((item) => ({ key: item.field || item.value || '', value: '' }))
+      : [{ key: '', value: '' }]
   if (!canEditLanding.value) {
     formState.pushContent = ''
   }
@@ -195,10 +231,21 @@ const buildTemplateDataPayload = () => {
   formState.templateData.forEach(({ key, value }) => {
     const trimmedKey = (key || '').trim()
     if (!trimmedKey) return
-    payload[trimmedKey] = typeof value === 'string' ? value.trim() : value ?? ''
+    const resolvedKey = detailKeyMap.value[trimmedKey] || trimmedKey
+    payload[resolvedKey] = typeof value === 'string' ? value.trim() : value ?? ''
   })
   return payload
 }
+
+watch(
+  () => templateSettings.templates,
+  () => {
+    if (selectedPushRecord.value) {
+      loadRecordToForm(selectedPushRecord.value)
+    }
+  },
+  { deep: true },
+)
 
 const validateRanges = () => {
   if (
@@ -317,6 +364,9 @@ const loadPushes = async (pageOverride) => {
     pagination.total = totalElements
     pagination.current = page
     pagination.pageSize = size
+    if (!selectedPushId.value && tableData.value.length) {
+      handleSelectPush(tableData.value[0])
+    }
   } catch (error) {
     console.error('Failed to load subscription pushes', error)
     message.error(t('subscriptionPush.messages.listLoadFailed'))
@@ -329,6 +379,38 @@ const handleTableChange = (pager) => {
   pagination.current = pager?.current ?? 1
   pagination.pageSize = pager?.pageSize ?? pagination.pageSize
   loadPushes()
+}
+
+const loadRecordToForm = (record) => {
+  if (!record) return
+  selectedPushId.value = record.id
+  selectedPushRecord.value = record
+  formState.templateId = record.templateId || ''
+  formState.templateName = templateIdNameMap.value[record.templateId] || record.templateName || ''
+
+  const reverseMap = templateDetailReverseMap.value[record.templateId] || {}
+  const dataEntries = Object.entries(record.templateData || {})
+  formState.templateData =
+    dataEntries.length > 0
+      ? dataEntries.map(([k, v]) => ({ key: reverseMap[k] || k, value: v }))
+      : [{ key: '', value: '' }]
+
+  formState.registrationRange = record.registrationRange || 'ALL'
+  if (record.registrationRange === 'BETWEEN' && record.registrationStart && record.registrationEnd) {
+    formState.registrationDateRange = [dayjs(record.registrationStart), dayjs(record.registrationEnd)]
+  } else {
+    formState.registrationDateRange = []
+  }
+
+  formState.flpMin = record.flpMin ?? null
+  formState.flpMax = record.flpMax ?? null
+  formState.likeMin = record.likeMin ?? null
+  formState.likeMax = record.likeMax ?? null
+  formState.pushContent = record.pushContent || ''
+}
+
+const handleSelectPush = (record) => {
+  loadRecordToForm(record)
 }
 
 const openLandingModal = () => {
@@ -351,10 +433,14 @@ const formatRegistration = (record) => {
   return rangeLabel
 }
 
-const formatTemplateDataList = (data) => {
+const formatTemplateDataList = (data, templateId) => {
   const entries = Object.entries(data || {})
   if (!entries.length) return [t('subscriptionPush.table.empty')]
-  return entries.map(([k, v]) => `${k}: ${v}`)
+  const reverseMap = templateDetailReverseMap.value[templateId] || {}
+  return entries.map(([k, v]) => {
+    const displayKey = reverseMap[k] || k
+    return `${displayKey}: ${v}`
+  })
 }
 
 const formatDateTime = (value) => {
@@ -526,8 +612,12 @@ onBeforeUnmount(() => {
               <p class="muted">{{ t('subscriptionPush.form.kvHint') }}</p>
               <div class="detail-tags" v-if="selectedTemplateDetails.length">
                 <span class="detail-tags__label">{{ t('subscriptionPush.form.detailTags') }}</span>
-                <a-tag v-for="tag in selectedTemplateDetails" :key="tag" :color="satisfiedDetailTags.has(tag) ? 'blue' : '#d9d9d9'">
-                  {{ tag }}
+                <a-tag
+                  v-for="tag in selectedTemplateDetails"
+                  :key="tag.field || tag.value"
+                  :color="satisfiedDetailTags.has(tag.field || tag.value) ? 'blue' : '#d9d9d9'"
+                >
+                  {{ tag.field || tag.value }}
                 </a-tag>
               </div>
             </div>
@@ -647,6 +737,8 @@ onBeforeUnmount(() => {
         :loading="listLoading"
         :pagination="paginationConfig"
         @change="handleTableChange"
+        :row-class-name="record => (record.id === selectedPushId ? 'row-selected' : '')"
+        :customRow="record => ({ onClick: () => handleSelectPush(record) })"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'templateId'">
@@ -659,7 +751,7 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'templateData'">
             <div class="kv-tags">
-              <a-tag v-for="item in formatTemplateDataList(record.templateData)" :key="item">{{ item }}</a-tag>
+              <a-tag v-for="item in formatTemplateDataList(record.templateData, record.templateId)" :key="item">{{ item }}</a-tag>
             </div>
           </template>
           <template v-else-if="column.key === 'registrationRange'">
@@ -887,6 +979,10 @@ onBeforeUnmount(() => {
 
 .message {
   color: #6b7280;
+}
+
+.row-selected {
+  background: #f0f9ff !important;
 }
 
 @media (max-width: 720px) {

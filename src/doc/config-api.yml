@@ -677,9 +677,9 @@ components:
         details:
           type: array
           nullable: true
-          description: 当前模版的详情，字符串数组，可为空。
+          description: 当前模版的详情字段列表，可为空；每个元素包含展示名称和对应的 value（实际发送给微信接口的字段名）。
           items:
-            type: string
+            $ref: '#/components/schemas/TemplateDetailEntry'
     TemplateSettingsResponse:
       type: object
       properties:
@@ -702,8 +702,8 @@ components:
         details:
           type: array
           items:
-            type: string
-          description: 当前模版的详情列表，未配置时为空数组。
+            $ref: '#/components/schemas/TemplateDetailEntry'
+          description: 当前模版的详情列表（包含字段与 value 键值对），未配置时为空数组。
     ApiResponseTemplateSettingsResponse:
       type: object
       properties:
@@ -715,6 +715,15 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/TemplateSettingsResponse'
+    TemplateDetailEntry:
+      type: object
+      properties:
+        field:
+          type: string
+          description: 模版字段的展示名称。
+        value:
+          type: string
+          description: 模版字段对应的 value，将作为键发送给微信接口。
     PinReviewRewardConfigRequest:
       type: object
       required:

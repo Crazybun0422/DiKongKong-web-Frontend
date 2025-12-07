@@ -38,7 +38,11 @@ const parseBulkTemplateInput = (input) => {
     if (parts.length < 2) return
     const [templateName, templateId, ...details] = parts
     if (templateName && templateId) {
-      result.set(templateName.trim(), { templateId: templateId.trim(), details })
+      const detailPairs = details
+        .map((entry) => entry.split(/[:=]/).map((v) => v.trim()).filter(Boolean))
+        .filter((pair) => pair.length >= 2)
+        .map(([field, value]) => ({ field, value }))
+      result.set(templateName.trim(), { templateId: templateId.trim(), details: detailPairs })
     }
   })
   return Array.from(result.entries()).map(([templateName, payload]) => ({
@@ -196,7 +200,6 @@ const templateEditForm = reactive({
   templateName: '',
   templateId: '',
   details: [],
-  detailsText: '',
 })
 
 const inviteColumns = computed(() => [
@@ -469,8 +472,9 @@ const submitTemplateSettingsBatch = async () => {
 const openTemplateEdit = (record) => {
   templateEditForm.templateName = record?.templateName || ''
   templateEditForm.templateId = record?.templateId || ''
-  templateEditForm.details = Array.isArray(record?.details) ? [...record.details] : []
-  templateEditForm.detailsText = templateEditForm.details.join('\n')
+  templateEditForm.details = Array.isArray(record?.details)
+    ? record.details.map((item) => ({ field: item.field || '', value: item.value || '' }))
+    : []
   templateEditVisible.value = true
 }
 
@@ -484,10 +488,12 @@ const submitTemplateEdit = async () => {
   }
   templateEditSaving.value = true
   try {
-    const details = templateEditForm.detailsText
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean)
+    const details = (templateEditForm.details || [])
+      .map((item) => ({
+        field: (item.field || '').trim(),
+        value: (item.value || '').trim(),
+      }))
+      .filter((item) => item.field && item.value)
     await updateTemplateSetting(templateEditForm.templateName, {
       templateId: templateEditForm.templateId,
       templateName: templateEditForm.templateName,
@@ -826,7 +832,9 @@ onMounted(() => {
                   <template #bodyCell="{ column, record }">
                     <template v-if="column.key === 'details'">
                       <div class="kv-tags">
-                        <a-tag v-for="item in record.details" :key="item" color="blue">{{ item }}</a-tag>
+                        <a-tag v-for="item in record.details" :key="item.field + item.value" color="blue">
+                          {{ item.field }} → {{ item.value }}
+                        </a-tag>
                         <span v-if="!record.details?.length" class="empty-hint">
                           {{ t('settings.templateSettings.emptyDetails') }}
                         </span>
@@ -854,35 +862,55 @@ onMounted(() => {
             <section class="template-bulk">
               <h3>{{ t('settings.templateSettings.bulk.title') }}</h3>
               <p class="tab-description">{{ t('settings.templateSettings.bulk.subtitle') }}</p>
-              <a-form layout="vertical" :model="{ bulkTemplateInput: bulkTemplateInput }"
-                @finish="submitTemplateSettingsBatch">
-                <a-form-item :label="t('settings.templateSettings.bulk.inputLabel')">
-                  <a-textarea v-model:value="bulkTemplateInput"
-                    :placeholder="t('settings.templateSettings.bulk.placeholder')"
-                    :auto-size="{ minRows: 4, maxRows: 8 }" />
-                  <div class="template-bulk__helper">
-                    {{ t('settings.templateSettings.bulk.helper') }}
-                  </div>
-                  <!-- <div class="template-bulk__helper template-bulk__helper--warning">
-                    {{ t('settings.templateSettings.bulk.warningSequential') }}
-                  </div> -->
-                  <div class="template-bulk__helper template-bulk__helper--count">
-                    {{ t('settings.templateSettings.bulk.preview', { count: parsedBulkTemplates.length }) }}
-                  </div>
-                </a-form-item>
-                <div class="actions">
-                  <a-button type="primary" html-type="submit" :loading="templateSettingsSaving">
-                    {{ t('settings.templateSettings.bulk.actions.save') }}
-                  </a-button>
-                  <a-button type="default" @click="loadTemplateSettings"
-                    :disabled="templateSettingsLoading || templateSettingsSaving">
-                    {{ t('settings.templateSettings.bulk.actions.reload') }}
-                  </a-button>
-                  <a-button type="default" @click="bulkTemplateInput = ''" :disabled="templateSettingsSaving">
-                    {{ t('settings.templateSettings.bulk.actions.clear') }}
-                  </a-button>
+              <div class="template-bulk__layout">
+                <div class="template-bulk__form">
+                  <a-form layout="vertical" :model="{ bulkTemplateInput: bulkTemplateInput }"
+                    @finish="submitTemplateSettingsBatch">
+                    <a-form-item :label="t('settings.templateSettings.bulk.inputLabel')">
+                      <a-textarea v-model:value="bulkTemplateInput"
+                        :placeholder="t('settings.templateSettings.bulk.placeholder')"
+                        :auto-size="{ minRows: 6, maxRows: 12 }" />
+                      <div class="template-bulk__helper">
+                        {{ t('settings.templateSettings.bulk.helper') }}
+                      </div>
+                      <div class="template-bulk__helper template-bulk__helper--count">
+                        {{ t('settings.templateSettings.bulk.preview', { count: parsedBulkTemplates.length }) }}
+                      </div>
+                    </a-form-item>
+                    <div class="actions">
+                      <a-button type="primary" html-type="submit" :loading="templateSettingsSaving">
+                        {{ t('settings.templateSettings.bulk.actions.save') }}
+                      </a-button>
+                      <a-button type="default" @click="loadTemplateSettings"
+                        :disabled="templateSettingsLoading || templateSettingsSaving">
+                        {{ t('settings.templateSettings.bulk.actions.reload') }}
+                      </a-button>
+                      <a-button type="default" @click="bulkTemplateInput = ''" :disabled="templateSettingsSaving">
+                        {{ t('settings.templateSettings.bulk.actions.clear') }}
+                      </a-button>
+                    </div>
+                  </a-form>
                 </div>
-              </a-form>
+                <div class="template-bulk__preview">
+                  <h4>{{ t('settings.templateSettings.bulk.previewTitle') }}</h4>
+                  <ul>
+                    <li v-for="item in parsedBulkTemplates" :key="item.templateName">
+                      <div class="preview-row">
+                        <span class="preview-name">{{ item.templateName }}</span>
+                        <span class="preview-id">{{ item.templateId }}</span>
+                      </div>
+                      <div class="preview-details" v-if="item.details?.length">
+                        <a-tag v-for="detail in item.details" :key="detail.field + detail.value" color="blue">
+                          {{ detail.field }} → {{ detail.value }}
+                        </a-tag>
+                      </div>
+                      <div class="preview-details" v-else>
+                        <span class="empty-hint">{{ t('settings.templateSettings.emptyDetails') }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </section>
 
             <a-modal :open="templateEditVisible" :title="t('settings.templateSettings.modal.title')"
@@ -897,13 +925,26 @@ onMounted(() => {
                   <a-input v-model:value="templateEditForm.templateId"
                     :placeholder="t('settings.templateSettings.modal.placeholder')" />
                 </a-form-item>
-                <a-form-item :label="t('settings.templateSettings.modal.detailsLabel')">
-                  <a-textarea v-model:value="templateEditForm.detailsText" :auto-size="{ minRows: 3, maxRows: 6 }"
-                    :placeholder="t('settings.templateSettings.modal.detailsPlaceholder')" />
+                <div class="detail-editor">
+                  <div class="detail-editor__header">
+                    <span>{{ t('settings.templateSettings.modal.detailsLabel') }}</span>
+                    <a-button size="small" type="dashed" @click="templateEditForm.details.push({ field: '', value: '' })">
+                      {{ t('settings.templateSettings.actions.addDetail') }}
+                    </a-button>
+                  </div>
+                  <div class="detail-editor__rows">
+                    <div v-for="(item, index) in templateEditForm.details" :key="index" class="detail-row">
+                      <a-input v-model:value="item.field" :placeholder="t('settings.templateSettings.modal.detailsFieldPlaceholder')" />
+                      <a-input v-model:value="item.value" :placeholder="t('settings.templateSettings.modal.detailsValuePlaceholder')" />
+                      <a-button type="link" danger size="small" @click="templateEditForm.details.splice(index, 1)">
+                        {{ t('settings.templateSettings.actions.removeDetail') }}
+                      </a-button>
+                    </div>
+                  </div>
                   <div class="template-bulk__helper">
                     {{ t('settings.templateSettings.modal.detailsHelper') }}
                   </div>
-                </a-form-item>
+                </div>
               </a-form>
             </a-modal>
           </div>
@@ -1122,6 +1163,63 @@ onMounted(() => {
   color: #b45309;
 }
 
+.template-bulk__layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+.template-bulk__preview {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 100%;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.preview-id {
+  color: #2563eb;
+}
+
+.preview-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+
+.detail-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.detail-editor__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+
 @media (max-width: 768px) {
   .settings-card {
     padding: 16px;
@@ -1148,6 +1246,10 @@ onMounted(() => {
   .actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .template-bulk__layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>

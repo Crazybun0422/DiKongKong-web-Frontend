@@ -626,9 +626,10 @@
         "subtitle": "一次性导入模板名称、模板ID与可选详情字段（例如要填写的 Key 列表）。",
         "inputLabel": "模板名称、模板ID与详情字段列表",
         "placeholder": "示例：\npayment_success, TPL1234567890, keyword1, keyword2\norder_cancel | TPL2345678901 | thing1 | thing2",
-        "helper": "每行一条记录，模板名称和模板ID可用逗号、空格或竖线分隔；后续字段将作为详情数组存储。",
+        "helper": "每行一条记录，模板名称和模板ID可用逗号、空格或竖线分隔；后续字段请用“字段:值”或“字段=值”表示，将作为详情数组存储。",
         "warningSequential": "保存会依次调用单条API逐条写入。",
         "preview": "将更新 {count} 条模板映射。",
+        "previewTitle": "解析预览",
         "actions": {
           "save": "保存模板",
           "reload": "重新加载",
@@ -658,7 +659,9 @@
         "reload": "重新加载",
         "edit": "编辑",
         "delete": "删除",
-        "deleteConfirm": "确认删除？"
+        "deleteConfirm": "确认删除？",
+        "addDetail": "新增字段",
+        "removeDetail": "移除"
       },
       "emptyDetails": "未配置详情字段"
     },
