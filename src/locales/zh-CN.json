@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "brandPrimary": "低空星球",
     "brandTag": "管理平台"
@@ -28,6 +28,7 @@
       "template": "模板",
       "kvTitle": "模板 KV 数据",
       "kvHint": "按模板字段填写键和值，支持多个条目。",
+      "detailTags": "详情字段：",
       "registrationRange": "发送范围",
       "registrationDateRange": "注册时间段",
       "flpRange": "按 FLP 数量",
@@ -614,6 +615,7 @@
       "columns": {
         "templateName": "模板名称",
         "templateId": "模板ID",
+        "details": "模板详情字段",
         "actions": "操作"
       },
       "actions": {
@@ -621,10 +623,10 @@
       },
       "bulk": {
         "title": "批量添加模板",
-        "subtitle": "一次性导入多组模板名称与模板ID，确保使用已审核的商业化模板。",
-        "inputLabel": "模板名称与模板ID列表",
-        "placeholder": "示例：\npayment_success, TPL1234567890\norder_cancel, TPL2345678901",
-        "helper": "每行一条记录，模板名称和模板ID可用逗号、空格或竖线分隔。",
+        "subtitle": "一次性导入模板名称、模板ID与可选详情字段（例如要填写的 Key 列表）。",
+        "inputLabel": "模板名称、模板ID与详情字段列表",
+        "placeholder": "示例：\npayment_success, TPL1234567890, keyword1, keyword2\norder_cancel | TPL2345678901 | thing1 | thing2",
+        "helper": "每行一条记录，模板名称和模板ID可用逗号、空格或竖线分隔；后续字段将作为详情数组存储。",
         "warningSequential": "保存会依次调用单条API逐条写入。",
         "preview": "将更新 {count} 条模板映射。",
         "actions": {
@@ -646,6 +648,9 @@
       "modal": {
         "title": "编辑模板",
         "placeholder": "请输入模板ID",
+        "detailsLabel": "详情字段（按行填写）",
+        "detailsPlaceholder": "如：keyword1\nkeyword2\nthing1",
+        "detailsHelper": "每行一个字段名，将作为模板详情数组存储。",
         "ok": "保存",
         "cancel": "取消"
       },
@@ -654,7 +659,8 @@
         "edit": "编辑",
         "delete": "删除",
         "deleteConfirm": "确认删除？"
-      }
+      },
+      "emptyDetails": "未配置详情字段"
     },
     "tabs": {
       "invite": "拉新奖励配置",

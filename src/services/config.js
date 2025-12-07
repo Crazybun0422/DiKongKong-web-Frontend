@@ -78,12 +78,11 @@ export const saveTemplateSetting = async (payload) => {
 export const saveTemplateSettingsBatch = async (items = []) => {
   let latest = null
   for (const item of items) {
-    if (!item?.templateName || !item?.templateId) {
-      continue
-    }
+    if (!item?.templateName || !item?.templateId) continue
     latest = await saveTemplateSetting({
       templateName: item.templateName,
       templateId: item.templateId,
+      details: Array.isArray(item.details) ? item.details : [],
     })
   }
   return latest

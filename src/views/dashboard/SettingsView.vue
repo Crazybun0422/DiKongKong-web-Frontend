@@ -36,12 +36,16 @@ const parseBulkTemplateInput = (input) => {
     if (!trimmed) return
     const parts = trimmed.split(/[,，|\s]+/).filter(Boolean)
     if (parts.length < 2) return
-    const [templateName, templateId] = parts
+    const [templateName, templateId, ...details] = parts
     if (templateName && templateId) {
-      result.set(templateName.trim(), templateId.trim())
+      result.set(templateName.trim(), { templateId: templateId.trim(), details })
     }
   })
-  return Array.from(result.entries()).map(([templateName, templateId]) => ({ templateName, templateId }))
+  return Array.from(result.entries()).map(([templateName, payload]) => ({
+    templateName,
+    templateId: payload.templateId,
+    details: payload.details || [],
+  }))
 }
 
 const inviteForm = reactive({
@@ -167,14 +171,20 @@ const bulkTemplateInput = ref('')
 const templateSettingsColumns = computed(() => [
   { title: t('settings.templateSettings.columns.templateName'), dataIndex: 'templateName', key: 'templateName' },
   { title: t('settings.templateSettings.columns.templateId'), dataIndex: 'templateId', key: 'templateId' },
-  { title: t('settings.templateSettings.columns.actions'), key: 'actions', width: 160 },
+  { title: t('settings.templateSettings.columns.details'), dataIndex: 'details', key: 'details' },
+  { title: t('settings.templateSettings.columns.actions'), key: 'actions', width: 180 },
 ])
 const templateSettingsDataSource = computed(() =>
-  Object.entries(templateSettings.templates || {}).map(([templateName, templateId]) => ({
-    templateName,
-    templateId,
-    key: templateName,
-  })),
+  Object.entries(templateSettings.templates || {}).map(([templateName, config]) => {
+    const templateId = typeof config === 'string' ? config : config?.templateId
+    const details = Array.isArray(config?.details) ? config.details : []
+    return {
+      templateName,
+      templateId: templateId || '',
+      details,
+      key: templateName,
+    }
+  }),
 )
 const parsedBulkTemplates = computed(() => parseBulkTemplateInput(bulkTemplateInput.value))
 const templateSettingsUpdatedAt = computed(() =>
@@ -185,6 +195,8 @@ const templateEditSaving = ref(false)
 const templateEditForm = reactive({
   templateName: '',
   templateId: '',
+  details: [],
+  detailsText: '',
 })
 
 const inviteColumns = computed(() => [
@@ -457,6 +469,8 @@ const submitTemplateSettingsBatch = async () => {
 const openTemplateEdit = (record) => {
   templateEditForm.templateName = record?.templateName || ''
   templateEditForm.templateId = record?.templateId || ''
+  templateEditForm.details = Array.isArray(record?.details) ? [...record.details] : []
+  templateEditForm.detailsText = templateEditForm.details.join('\n')
   templateEditVisible.value = true
 }
 
@@ -470,9 +484,14 @@ const submitTemplateEdit = async () => {
   }
   templateEditSaving.value = true
   try {
+    const details = templateEditForm.detailsText
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
     await updateTemplateSetting(templateEditForm.templateName, {
       templateId: templateEditForm.templateId,
       templateName: templateEditForm.templateName,
+      details,
     })
     message.success(t('settings.templateSettings.messages.updateSuccess'))
     templateEditVisible.value = false
@@ -805,6 +824,14 @@ onMounted(() => {
                 <a-table :columns="templateSettingsColumns" :data-source="templateSettingsDataSource"
                   :pagination="false" size="small" row-key="templateName" bordered>
                   <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'details'">
+                      <div class="kv-tags">
+                        <a-tag v-for="item in record.details" :key="item" color="blue">{{ item }}</a-tag>
+                        <span v-if="!record.details?.length" class="empty-hint">
+                          {{ t('settings.templateSettings.emptyDetails') }}
+                        </span>
+                      </div>
+                    </template>
                     <template v-if="column.key === 'actions'">
                       <a-space>
                         <a-button type="link" size="small" @click="openTemplateEdit(record)">
@@ -869,6 +896,13 @@ onMounted(() => {
                 <a-form-item :label="t('settings.templateSettings.columns.templateId')">
                   <a-input v-model:value="templateEditForm.templateId"
                     :placeholder="t('settings.templateSettings.modal.placeholder')" />
+                </a-form-item>
+                <a-form-item :label="t('settings.templateSettings.modal.detailsLabel')">
+                  <a-textarea v-model:value="templateEditForm.detailsText" :auto-size="{ minRows: 3, maxRows: 6 }"
+                    :placeholder="t('settings.templateSettings.modal.detailsPlaceholder')" />
+                  <div class="template-bulk__helper">
+                    {{ t('settings.templateSettings.modal.detailsHelper') }}
+                  </div>
                 </a-form-item>
               </a-form>
             </a-modal>
@@ -1050,6 +1084,16 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.kv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empty-hint {
+  color: #9ca3af;
 }
 
 .template-settings__meta {

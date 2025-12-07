@@ -44,16 +44,24 @@ const pagination = reactive({
 })
 
 const templateOptions = computed(() =>
-  Object.entries(templateSettings.templates || {}).map(([templateName, templateId]) => ({
-    label: templateName,
-    value: templateId,
-    key: templateName,
-  })),
+  Object.entries(templateSettings.templates || {}).map(([templateName, config]) => {
+    const templateId = typeof config === 'string' ? config : config?.templateId
+    const details = Array.isArray(config?.details) ? config.details : []
+    return {
+      label: templateName,
+      value: templateId,
+      key: templateName,
+      details,
+    }
+  }),
 )
 
 const templateIdNameMap = computed(() =>
-  Object.entries(templateSettings.templates || {}).reduce((acc, [templateName, templateId]) => {
-    acc[templateId] = templateName
+  Object.entries(templateSettings.templates || {}).reduce((acc, [templateName, config]) => {
+    const templateId = typeof config === 'string' ? config : config?.templateId
+    if (templateId) {
+      acc[templateId] = templateName
+    }
     return acc
   }, {}),
 )
@@ -63,6 +71,19 @@ const selectedTemplateName = computed(
 )
 
 const canEditLanding = computed(() => selectedTemplateName.value === LANDING_TEMPLATE_NAME)
+const selectedTemplateDetails = computed(() => {
+  const option = templateOptions.value.find((item) => item.value === formState.templateId)
+  return Array.isArray(option?.details) ? option.details.filter(Boolean) : []
+})
+const satisfiedDetailTags = computed(() => {
+  const keys = formState.templateData.map((item) => (item.key || '').trim()).filter(Boolean)
+  return new Set(keys)
+})
+const allDetailsSatisfied = computed(() => {
+  const tags = selectedTemplateDetails.value
+  if (!tags.length) return false
+  return tags.every((tag) => satisfiedDetailTags.value.has(tag))
+})
 
 const registrationOptions = computed(() => [
   { value: 'ALL', label: t('subscriptionPush.form.registrationOptions.all') },
@@ -112,8 +133,11 @@ const paginationConfig = computed(() => ({
 }))
 
 const addTemplateDataRow = () => {
+  if (allDetailsSatisfied.value) return
   formState.templateData.push({ key: '', value: '' })
 }
+
+const detailTagClass = (tag) => (satisfiedDetailTags.value.has(tag) ? 'tag-satisfied' : 'tag-pending')
 
 const removeTemplateDataRow = (index) => {
   if (formState.templateData.length <= 1) return
@@ -136,6 +160,9 @@ const resetForm = () => {
 const handleTemplateChange = (value, option) => {
   formState.templateId = value
   formState.templateName = option?.label || option?.key || ''
+  const detailsList = Array.isArray(option?.details) ? option.details.filter(Boolean) : []
+  formState.templateData =
+    detailsList.length > 0 ? detailsList.map((key) => ({ key, value: '' })) : [{ key: '', value: '' }]
   if (!canEditLanding.value) {
     formState.pushContent = ''
   }
@@ -269,16 +296,23 @@ const loadPushes = async (pageOverride) => {
     })
     tableData.value = (content || []).map((item) => ({
       ...item,
-      taskSnapshot: item?.lastTaskStatus
-        ? {
-          id: item.lastTaskId,
-          status: item.lastTaskStatus,
-          progressPercent: item.progressPercent,
-          successCount: item.lastSendSuccessCount,
-          failureCount: item.lastSendFailureCount,
-          totalTargets: item.totalTargets ?? item.processedCount,
-        }
-        : null,
+      taskSnapshot:
+        item?.lastTaskId || item?.lastTaskStatus
+          ? (() => {
+            const processed = (item.lastSendSuccessCount || 0) + (item.lastSendFailureCount || 0)
+            const total = item.totalTargets || item.processedCount || processed || 0
+            const percent = total > 0 ? Math.min(Math.round((processed / total) * 100), 100) : 0
+            return {
+              id: item.lastTaskId,
+              status: item.lastTaskStatus || 'PENDING',
+              progressPercent: typeof item.progressPercent === 'number' ? item.progressPercent : percent,
+              successCount: item.lastSendSuccessCount ?? 0,
+              failureCount: item.lastSendFailureCount ?? 0,
+              totalTargets: total || undefined,
+              processedCount: processed || undefined,
+            }
+          })()
+          : null,
     }))
     pagination.total = totalElements
     pagination.current = page
@@ -348,10 +382,12 @@ const getProgressPercent = (task) => {
 const applyTaskUpdate = (task) => {
   if (!task || (!task.pushId && !task.id)) return
   tableData.value = tableData.value.map((row) => {
-    const matches = row.id === task.pushId || row.lastTaskId === task.id
-    if (!matches) return row
+    const matchesByPushId = task.pushId && row.id === task.pushId
+    const matchesByTaskId = task.id && (row.lastTaskId === task.id || row.taskSnapshot?.id === task.id)
+    if (!matchesByPushId && !matchesByTaskId) return row
     return {
       ...row,
+      lastTaskId: task.id ?? row.lastTaskId,
       taskSnapshot: {
         id: task.id ?? row.taskSnapshot?.id,
         pushId: task.pushId ?? row.taskSnapshot?.pushId,
@@ -488,8 +524,14 @@ onBeforeUnmount(() => {
             <div>
               <p class="eyebrow">{{ t('subscriptionPush.form.kvTitle') }}</p>
               <p class="muted">{{ t('subscriptionPush.form.kvHint') }}</p>
+              <div class="detail-tags" v-if="selectedTemplateDetails.length">
+                <span class="detail-tags__label">{{ t('subscriptionPush.form.detailTags') }}</span>
+                <a-tag v-for="tag in selectedTemplateDetails" :key="tag" :color="satisfiedDetailTags.has(tag) ? 'blue' : '#d9d9d9'">
+                  {{ tag }}
+                </a-tag>
+              </div>
             </div>
-            <a-button type="dashed" size="small" @click="addTemplateDataRow">
+            <a-button type="dashed" size="small" @click="addTemplateDataRow" :disabled="allDetailsSatisfied">
               {{ t('subscriptionPush.actions.addKv') }}
             </a-button>
           </div>
@@ -534,56 +576,51 @@ onBeforeUnmount(() => {
             </a-form-item>
           </a-col>
           <a-col :xs="24" :md="12">
-            <a-form-item
-              v-if="formState.registrationRange === 'BETWEEN'"
-              name="registrationDateRange"
-              :label="t('subscriptionPush.form.registrationDateRange')"
-            >
-              <a-range-picker v-model:value="formState.registrationDateRange" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-row :gutter="[16, 8]">
-          <a-col v-if="formState.registrationRange === 'FLP'" :xs="24" :md="12">
-            <a-form-item :label="t('subscriptionPush.form.flpRange')">
-              <div class="range-inputs">
-                <a-input-number
-                  v-model:value="formState.flpMin"
-                  :min="0"
-                  :placeholder="t('subscriptionPush.form.placeholder.rangeStart')"
-                  style="width: 100%"
-                />
-                <span class="range-separator">~</span>
-                <a-input-number
-                  v-model:value="formState.flpMax"
-                  :min="0"
-                  :placeholder="t('subscriptionPush.form.placeholder.rangeEnd')"
-                  style="width: 100%"
-                />
-              </div>
-            </a-form-item>
-          </a-col>
-          <a-col v-if="formState.registrationRange === 'LIKE'" :xs="24" :md="12">
-            <a-form-item :label="t('subscriptionPush.form.likeRange')">
-              <div class="range-inputs">
-                <a-input-number
-                  v-model:value="formState.likeMin"
-                  :min="0"
-                  :precision="0"
-                  :placeholder="t('subscriptionPush.form.placeholder.rangeStart')"
-                  style="width: 100%"
-                />
-                <span class="range-separator">~</span>
-                <a-input-number
-                  v-model:value="formState.likeMax"
-                  :min="0"
-                  :precision="0"
-                  :placeholder="t('subscriptionPush.form.placeholder.rangeEnd')"
-                  style="width: 100%"
-                />
-              </div>
-            </a-form-item>
+            <template v-if="formState.registrationRange === 'BETWEEN'">
+              <a-form-item name="registrationDateRange" :label="t('subscriptionPush.form.registrationDateRange')">
+                <a-range-picker v-model:value="formState.registrationDateRange" style="width: 100%" />
+              </a-form-item>
+            </template>
+            <template v-else-if="formState.registrationRange === 'FLP'">
+              <a-form-item :label="t('subscriptionPush.form.flpRange')">
+                <div class="range-inputs">
+                  <a-input-number
+                    v-model:value="formState.flpMin"
+                    :min="0"
+                    :placeholder="t('subscriptionPush.form.placeholder.rangeStart')"
+                    style="width: 100%"
+                  />
+                  <span class="range-separator">~</span>
+                  <a-input-number
+                    v-model:value="formState.flpMax"
+                    :min="0"
+                    :placeholder="t('subscriptionPush.form.placeholder.rangeEnd')"
+                    style="width: 100%"
+                  />
+                </div>
+              </a-form-item>
+            </template>
+            <template v-else-if="formState.registrationRange === 'LIKE'">
+              <a-form-item :label="t('subscriptionPush.form.likeRange')">
+                <div class="range-inputs">
+                  <a-input-number
+                    v-model:value="formState.likeMin"
+                    :min="0"
+                    :precision="0"
+                    :placeholder="t('subscriptionPush.form.placeholder.rangeStart')"
+                    style="width: 100%"
+                  />
+                  <span class="range-separator">~</span>
+                  <a-input-number
+                    v-model:value="formState.likeMax"
+                    :min="0"
+                    :precision="0"
+                    :placeholder="t('subscriptionPush.form.placeholder.rangeEnd')"
+                    style="width: 100%"
+                  />
+                </div>
+              </a-form-item>
+            </template>
           </a-col>
         </a-row>
 
@@ -799,6 +836,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.detail-tags__label {
+  color: #6b7280;
 }
 
 .template-cell {
