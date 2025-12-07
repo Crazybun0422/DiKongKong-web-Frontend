@@ -8,7 +8,85 @@
     "airspace": "空域地图",
     "user": "用户管理",
     "groups": "小组管理",
+    "subscription": "订阅推送",
     "settings": "设置"
+  },
+  "subscriptionPush": {
+    "eyebrow": "订阅推送",
+    "title": "小程序订阅推送",
+    "subtitle": "选择模板并筛选用户，推送新功能或运营活动。",
+    "meta": {
+      "updatedAt": "模板更新时间 {time}"
+    },
+    "actions": {
+      "reloadTemplates": "刷新模板",
+      "addKv": "新增 KV",
+      "remove": "移除",
+      "updateLanding": "更新落地页 >"
+    },
+    "form": {
+      "template": "模板",
+      "kvTitle": "模板 KV 数据",
+      "kvHint": "按模板字段填写键和值，支持多个条目。",
+      "registrationRange": "发送范围",
+      "registrationDateRange": "注册时间段",
+      "flpRange": "按 FLP 数量",
+      "likeRange": "按获赞数",
+      "placeholder": {
+        "template": "请选择模板（展示名称，提交模板 ID）",
+        "k": "字段 Key",
+        "v": "字段 Value",
+        "registrationRange": "选择注册时间筛选",
+        "rangeStart": "从",
+        "rangeEnd": "到"
+      },
+      "registrationOptions": {
+        "all": "全部",
+        "today": "今日",
+        "last7Days": "近 7 天",
+        "between": "指定日期段",
+        "flp": "按 FLP 数量",
+        "like": "按获赞数"
+      },
+      "validation": {
+        "templateId": "请选择模板",
+        "registrationRange": "请选择发送范围",
+        "registrationDateRange": "请选择起止日期",
+        "flpRange": "FLP 起始值不能大于结束值",
+        "likeRange": "获赞起始值不能大于结束值"
+      },
+      "messages": {
+        "submitSuccess": "订阅推送创建成功",
+        "submitFailed": "创建订阅推送失败，请稍后重试"
+      }
+    },
+    "landing": {
+      "label": "落地页内容",
+      "empty": "仅在选择“运营活动通知”后可编辑落地页内容",
+      "title": "更新落地页内容",
+      "save": "保存",
+      "placeholder": "请输入要展示的运营活动说明，支持图片和富文本。"
+    },
+    "table": {
+      "title": "推送记录",
+      "subtitle": "按创建时间倒序展示最新推送。",
+      "columns": {
+        "template": "模板",
+        "templateData": "模板数据",
+        "registration": "发送范围",
+        "flp": "FLP 数量",
+        "like": "获赞数",
+        "createdAt": "创建时间"
+      },
+      "pagination": {
+        "total": "共 {total} 条记录，当前 {start}-{end}"
+      },
+      "empty": "未填写"
+    },
+    "messages": {
+      "templatesLoadFailed": "模板列表加载失败",
+      "listLoadFailed": "推送列表加载失败"
+    }
   },
   "profile": {
     "menu": "名称",
@@ -695,7 +773,9 @@
   "common": {
     "actions": {
       "save": "保存",
-      "reset": "重新加载"
+      "reset": "重新加载",
+      "cancel": "取消",
+      "confirm": "确定"
     }
   },
   "users": {

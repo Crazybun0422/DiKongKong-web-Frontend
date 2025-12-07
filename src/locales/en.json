@@ -8,7 +8,85 @@
     "airspace": "Airspace Map",
     "user": "User Management",
     "groups": "Group Management",
+    "subscription": "Subscription Push",
     "settings": "Settings"
+  },
+  "subscriptionPush": {
+    "eyebrow": "Subscription",
+    "title": "Weapp Subscription Push",
+    "subtitle": "Pick a template, target users, and send feature or campaign updates.",
+    "meta": {
+      "updatedAt": "Template updated at {time}"
+    },
+    "actions": {
+      "reloadTemplates": "Reload templates",
+      "addKv": "Add KV",
+      "remove": "Remove",
+      "updateLanding": "Update landing page >"
+    },
+    "form": {
+      "template": "Template",
+      "kvTitle": "Template KV data",
+      "kvHint": "Fill key-value pairs that match the template fields.",
+      "registrationRange": "Send to users",
+      "registrationDateRange": "Registration date range",
+      "flpRange": "FLP balance",
+      "likeRange": "Likes",
+      "placeholder": {
+        "template": "Select a template (show name, submit ID)",
+        "k": "Field key",
+        "v": "Field value",
+        "registrationRange": "Choose registration filter",
+        "rangeStart": "From",
+        "rangeEnd": "To"
+      },
+      "registrationOptions": {
+        "all": "All users",
+        "today": "Registered today",
+        "last7Days": "Last 7 days",
+        "between": "Between dates",
+        "flp": "By FLP range",
+        "like": "By likes range"
+      },
+      "validation": {
+        "templateId": "Please choose a template",
+        "registrationRange": "Please choose a send range",
+        "registrationDateRange": "Select start and end dates",
+        "flpRange": "FLP start cannot exceed end",
+        "likeRange": "Like start cannot exceed end"
+      },
+      "messages": {
+        "submitSuccess": "Subscription push created",
+        "submitFailed": "Create failed, please retry"
+      }
+    },
+    "landing": {
+      "label": "Landing content",
+      "empty": "Edit landing content only when using “运营活动通知”",
+      "title": "Update landing content",
+      "save": "Save",
+      "placeholder": "Describe the campaign content; rich text and images are supported."
+    },
+    "table": {
+      "title": "Push history",
+      "subtitle": "Newest pushes are displayed first.",
+      "columns": {
+        "template": "Template",
+        "templateData": "Template data",
+        "registration": "User range",
+        "flp": "FLP",
+        "like": "Likes",
+        "createdAt": "Created at"
+      },
+      "pagination": {
+        "total": "{total} records, showing {start}-{end}"
+      },
+      "empty": "Not set"
+    },
+    "messages": {
+      "templatesLoadFailed": "Failed to load template list",
+      "listLoadFailed": "Failed to load push history"
+    }
   },
   "profile": {
     "menu": "Admin",
@@ -680,7 +758,9 @@
   "common": {
     "actions": {
       "save": "Save",
-      "reset": "Reset"
+      "reset": "Reset",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
     }
   },
   "users": {

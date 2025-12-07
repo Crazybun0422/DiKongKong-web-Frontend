@@ -8,6 +8,7 @@ const AirspaceMapView = () => import('../views/dashboard/AirspaceMapView.vue')
 const UserManagementView = () => import('../views/dashboard/UserManagementView.vue')
 const WorkGroupManagementView = () => import('../views/dashboard/WorkGroupManagementView.vue')
 const SettingsView = () => import('../views/dashboard/SettingsView.vue')
+const SubscriptionPushView = () => import('../views/dashboard/SubscriptionPushView.vue')
 
 const routes = [
   {
@@ -40,6 +41,11 @@ const routes = [
         path: 'groups',
         name: 'groups',
         component: WorkGroupManagementView,
+      },
+      {
+        path: 'subscription-push',
+        name: 'subscriptionPush',
+        component: SubscriptionPushView,
       },
       {
         path: 'settings',

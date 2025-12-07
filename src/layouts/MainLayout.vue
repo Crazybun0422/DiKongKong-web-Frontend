@@ -17,6 +17,7 @@ const menuItems = computed(() => [
   { key: 'airspace', label: t('navigation.airspace'), path: { name: 'airspace' } },
   { key: 'users', label: t('navigation.user'), path: { name: 'users' } },
   { key: 'groups', label: t('navigation.groups'), path: { name: 'groups' } },
+  { key: 'subscriptionPush', label: t('navigation.subscription'), path: { name: 'subscriptionPush' } },
   { key: 'settings', label: t('navigation.settings'), path: { name: 'settings' } },
 ])
 
