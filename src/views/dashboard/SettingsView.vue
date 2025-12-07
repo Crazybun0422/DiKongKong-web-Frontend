@@ -11,6 +11,10 @@ import {
   saveOpenPlatformCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
+  fetchTemplateSettings,
+  saveTemplateSettingsBatch,
+  updateTemplateSetting,
+  deleteTemplateSetting,
 } from '../../services/config'
 import { fetchWechatPayConfig, saveWechatPayConfig } from '../../services/wechatPayConfig'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
@@ -21,6 +25,22 @@ import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 const { t } = useI18n()
 
 const activeTab = ref('invite')
+
+const parseBulkTemplateInput = (input) => {
+  const lines = (input || '').split('\n')
+  const result = new Map()
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+    const parts = trimmed.split(/[,，|\s]+/).filter(Boolean)
+    if (parts.length < 2) return
+    const [templateName, templateId] = parts
+    if (templateName && templateId) {
+      result.set(templateName.trim(), templateId.trim())
+    }
+  })
+  return Array.from(result.entries()).map(([templateName, templateId]) => ({ templateName, templateId }))
+}
 
 const inviteForm = reactive({
   friendRegisterRewardFlp: 0,
@@ -130,6 +150,36 @@ const paymentRules = computed(() => ({
 const paymentLoading = ref(false)
 const paymentSaving = ref(false)
 
+const templateSettings = reactive({
+  templates: {},
+  updatedAt: null,
+})
+const templateSettingsLoading = ref(false)
+const templateSettingsSaving = ref(false)
+const bulkTemplateInput = ref('')
+const templateSettingsColumns = computed(() => [
+  { title: t('settings.templateSettings.columns.templateName'), dataIndex: 'templateName', key: 'templateName' },
+  { title: t('settings.templateSettings.columns.templateId'), dataIndex: 'templateId', key: 'templateId' },
+  { title: t('settings.templateSettings.columns.actions'), key: 'actions', width: 160 },
+])
+const templateSettingsDataSource = computed(() =>
+  Object.entries(templateSettings.templates || {}).map(([templateName, templateId]) => ({
+    templateName,
+    templateId,
+    key: templateName,
+  })),
+)
+const parsedBulkTemplates = computed(() => parseBulkTemplateInput(bulkTemplateInput.value))
+const templateSettingsUpdatedAt = computed(() =>
+  templateSettings.updatedAt ? new Date(templateSettings.updatedAt).toLocaleString() : t('settings.templateSettings.emptyUpdatedAt'),
+)
+const templateEditVisible = ref(false)
+const templateEditSaving = ref(false)
+const templateEditForm = reactive({
+  templateName: '',
+  templateId: '',
+})
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -166,9 +216,9 @@ const loadInviteLogs = async () => {
       ...item,
       user: item?.user
         ? {
-            ...item.user,
-            avatarUrl: resolveProfileAsset(item.user.avatarUrl),
-          }
+          ...item.user,
+          avatarUrl: resolveProfileAsset(item.user.avatarUrl),
+        }
         : item?.user ?? null,
     }))
     inviteLogPagination.total = totalElements
@@ -359,6 +409,86 @@ const submitPaymentForm = async () => {
   }
 }
 
+const loadTemplateSettings = async () => {
+  templateSettingsLoading.value = true
+  try {
+    const data = await fetchTemplateSettings()
+    templateSettings.templates = data?.templates || {}
+    templateSettings.updatedAt = data?.updatedAt || null
+  } catch (error) {
+    console.error('Failed to load template settings', error)
+    message.error(t('settings.templateSettings.messages.loadFailed'))
+  } finally {
+    templateSettingsLoading.value = false
+  }
+}
+
+const submitTemplateSettingsBatch = async () => {
+  if (templateSettingsSaving.value) {
+    return
+  }
+  const payloads = parsedBulkTemplates.value
+  if (!payloads.length) {
+    message.warning(t('settings.templateSettings.messages.emptyInput'))
+    return
+  }
+
+  templateSettingsSaving.value = true
+  try {
+    await saveTemplateSettingsBatch(payloads)
+    message.success(t('settings.templateSettings.messages.saveSuccess', { count: payloads.length }))
+    bulkTemplateInput.value = ''
+    await loadTemplateSettings()
+  } catch (error) {
+    console.error('Failed to save template settings', error)
+    message.error(t('settings.templateSettings.messages.saveFailed'))
+  } finally {
+    templateSettingsSaving.value = false
+  }
+}
+
+const openTemplateEdit = (record) => {
+  templateEditForm.templateName = record?.templateName || ''
+  templateEditForm.templateId = record?.templateId || ''
+  templateEditVisible.value = true
+}
+
+const submitTemplateEdit = async () => {
+  if (!templateEditForm.templateName || !templateEditForm.templateId) {
+    message.warning(t('settings.templateSettings.messages.emptyInput'))
+    return
+  }
+  if (templateEditSaving.value) {
+    return
+  }
+  templateEditSaving.value = true
+  try {
+    await updateTemplateSetting(templateEditForm.templateName, { templateId: templateEditForm.templateId })
+    message.success(t('settings.templateSettings.messages.updateSuccess'))
+    templateEditVisible.value = false
+    await loadTemplateSettings()
+  } catch (error) {
+    console.error('Failed to update template setting', error)
+    message.error(t('settings.templateSettings.messages.updateFailed'))
+  } finally {
+    templateEditSaving.value = false
+  }
+}
+
+const handleDeleteTemplateSetting = async (templateName) => {
+  templateSettingsSaving.value = true
+  try {
+    await deleteTemplateSetting(templateName)
+    message.success(t('settings.templateSettings.messages.deleteSuccess'))
+    await loadTemplateSettings()
+  } catch (error) {
+    console.error('Failed to delete template setting', error)
+    message.error(t('settings.templateSettings.messages.deleteFailed'))
+  } finally {
+    templateSettingsSaving.value = false
+  }
+}
+
 const invitePaginationConfig = computed(() => ({
   current: inviteLogPagination.current,
   pageSize: inviteLogPagination.pageSize,
@@ -386,6 +516,7 @@ onMounted(() => {
   loadCopyContent()
   loadPaymentConfig()
   loadWeappConfig()
+  loadTemplateSettings()
 })
 </script>
 
@@ -521,8 +652,7 @@ onMounted(() => {
                 </a-form-item>
                 <a-form-item name="content" :label="t('settings.copySettings.form.content')">
                   <open-platform-editor v-model="copyForm.content"
-                    :placeholder="t('settings.copySettings.form.placeholder')"
-                    :disabled="copyLoading || copySaving" />
+                    :placeholder="t('settings.copySettings.form.placeholder')" :disabled="copyLoading || copySaving" />
                 </a-form-item>
                 <div class="actions">
                   <a-button type="primary" html-type="submit" :loading="copySaving">
@@ -644,6 +774,94 @@ onMounted(() => {
                 </div>
               </a-form>
             </a-spin>
+
+            <section class="template-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.templateSettings.title') }}</h3>
+                  <p>{{ t('settings.templateSettings.subtitle') }}</p>
+                </div>
+                <div class="template-settings__meta">
+                  <span class="template-settings__updated">
+                    {{ t('settings.templateSettings.updatedAt', { time: templateSettingsUpdatedAt }) }}
+                  </span>
+                  <a-button size="small" @click="loadTemplateSettings" :loading="templateSettingsLoading"
+                    :disabled="templateSettingsSaving">
+                    {{ t('settings.templateSettings.actions.reload') }}
+                  </a-button>
+                </div>
+              </header>
+              <a-spin :spinning="templateSettingsLoading">
+                <a-table :columns="templateSettingsColumns" :data-source="templateSettingsDataSource"
+                  :pagination="false" size="small" row-key="templateName" bordered>
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'actions'">
+                      <a-space>
+                        <a-button type="link" size="small" @click="openTemplateEdit(record)">
+                          {{ t('settings.templateSettings.actions.edit') }}
+                        </a-button>
+                        <a-popconfirm :title="t('settings.templateSettings.actions.deleteConfirm')"
+                          :ok-text="t('common.actions.save')" :cancel-text="t('common.actions.reset')"
+                          @confirm="handleDeleteTemplateSetting(record.templateName)">
+                          <a-button type="link" size="small" danger>
+                            {{ t('settings.templateSettings.actions.delete') }}
+                          </a-button>
+                        </a-popconfirm>
+                      </a-space>
+                    </template>
+                  </template>
+                </a-table>
+              </a-spin>
+            </section>
+
+            <section class="template-bulk">
+              <h3>{{ t('settings.templateSettings.bulk.title') }}</h3>
+              <p class="tab-description">{{ t('settings.templateSettings.bulk.subtitle') }}</p>
+              <a-form layout="vertical" :model="{ bulkTemplateInput: bulkTemplateInput }"
+                @finish="submitTemplateSettingsBatch">
+                <a-form-item :label="t('settings.templateSettings.bulk.inputLabel')">
+                  <a-textarea v-model:value="bulkTemplateInput"
+                    :placeholder="t('settings.templateSettings.bulk.placeholder')"
+                    :auto-size="{ minRows: 4, maxRows: 8 }" />
+                  <div class="template-bulk__helper">
+                    {{ t('settings.templateSettings.bulk.helper') }}
+                  </div>
+                  <!-- <div class="template-bulk__helper template-bulk__helper--warning">
+                    {{ t('settings.templateSettings.bulk.warningSequential') }}
+                  </div> -->
+                  <div class="template-bulk__helper template-bulk__helper--count">
+                    {{ t('settings.templateSettings.bulk.preview', { count: parsedBulkTemplates.length }) }}
+                  </div>
+                </a-form-item>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="templateSettingsSaving">
+                    {{ t('settings.templateSettings.bulk.actions.save') }}
+                  </a-button>
+                  <a-button type="default" @click="loadTemplateSettings"
+                    :disabled="templateSettingsLoading || templateSettingsSaving">
+                    {{ t('settings.templateSettings.bulk.actions.reload') }}
+                  </a-button>
+                  <a-button type="default" @click="bulkTemplateInput = ''" :disabled="templateSettingsSaving">
+                    {{ t('settings.templateSettings.bulk.actions.clear') }}
+                  </a-button>
+                </div>
+              </a-form>
+            </section>
+
+            <a-modal :open="templateEditVisible" :title="t('settings.templateSettings.modal.title')"
+              :confirm-loading="templateEditSaving" :ok-text="t('settings.templateSettings.modal.ok')"
+              :cancel-text="t('settings.templateSettings.modal.cancel')" @ok="submitTemplateEdit"
+              @cancel="templateEditVisible = false">
+              <a-form layout="vertical">
+                <a-form-item :label="t('settings.templateSettings.columns.templateName')">
+                  <a-input v-model:value="templateEditForm.templateName" disabled />
+                </a-form-item>
+                <a-form-item :label="t('settings.templateSettings.columns.templateId')">
+                  <a-input v-model:value="templateEditForm.templateId"
+                    :placeholder="t('settings.templateSettings.modal.placeholder')" />
+                </a-form-item>
+              </a-form>
+            </a-modal>
           </div>
         </a-tab-pane>
       </a-tabs>
@@ -811,6 +1029,43 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: center;
+}
+
+.template-settings,
+.template-bulk {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-settings__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+}
+
+.template-settings__updated {
+  font-size: 0.9rem;
+}
+
+.template-bulk__helper {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.template-bulk__helper--count {
+  color: #111827;
+  font-weight: 600;
+}
+
+.template-bulk__helper--warning {
+  color: #b45309;
 }
 
 @media (max-width: 768px) {

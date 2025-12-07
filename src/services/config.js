@@ -55,6 +55,40 @@ export const savePinReviewRewardConfig = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchTemplateSettings = async () => {
+  const response = await http.get('/config/template-settings')
+  return normalizePagePayload(response, { templates: {}, updatedAt: null })
+}
+
+export const saveTemplateSetting = async (payload) => {
+  const response = await http.post('/config/template-settings', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const saveTemplateSettingsBatch = async (items = []) => {
+  let latest = null
+  for (const item of items) {
+    if (!item?.templateName || !item?.templateId) {
+      continue
+    }
+    latest = await saveTemplateSetting({
+      templateName: item.templateName,
+      templateId: item.templateId,
+    })
+  }
+  return latest
+}
+
+export const updateTemplateSetting = async (templateName, payload) => {
+  const response = await http.put(`/config/template-settings/${encodeURIComponent(templateName)}`, payload)
+  return normalizePagePayload(response, {})
+}
+
+export const deleteTemplateSetting = async (templateName) => {
+  const response = await http.delete(`/config/template-settings/${encodeURIComponent(templateName)}`)
+  return normalizePagePayload(response, {})
+}
+
 export default {
   fetchInviteConfig,
   saveInviteConfig,
@@ -66,4 +100,9 @@ export default {
   saveFlpRewardHelpCopy,
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
+  fetchTemplateSettings,
+  saveTemplateSetting,
+  saveTemplateSettingsBatch,
+  updateTemplateSetting,
+  deleteTemplateSetting,
 }

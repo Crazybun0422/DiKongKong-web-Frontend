@@ -497,10 +497,60 @@
         "secret": "Please enter the App Secret",
         "jwtSecret": "Please enter the JWT secret"
       },
+    "messages": {
+      "loadFailed": "Failed to load mini program settings",
+      "saveSuccess": "Mini program settings saved",
+      "saveFailed": "Failed to save mini program settings"
+    }
+  },
+    "templateSettings": {
+      "title": "Template IDs",
+      "subtitle": "Maintain the template name-to-ID mapping for the mini program and keep it aligned with commercial scenarios.",
+      "updatedAt": "Last synced: {time}",
+      "emptyUpdatedAt": "Not synced yet",
+      "columns": {
+        "templateName": "Template name",
+        "templateId": "Template ID",
+        "actions": "Actions"
+      },
+      "actions": {
+        "reload": "Refresh"
+      },
+      "bulk": {
+        "title": "Bulk add templates",
+        "subtitle": "Paste template name and ID pairs at once. Use only approved IDs for commercial use.",
+        "inputLabel": "Template name & ID list",
+        "placeholder": "e.g.\npayment_success, TPL1234567890\norder_cancel, TPL2345678901",
+        "helper": "One template per line. Separate name and ID with comma, space, or pipe.",
+        "warningSequential": "Saving will call the API sequentially for each template.",
+        "preview": "{count} template(s) will be updated.",
+        "actions": {
+          "save": "Save templates",
+          "reload": "Reload current",
+          "clear": "Clear input"
+        }
+      },
       "messages": {
-        "loadFailed": "Failed to load mini program settings",
-        "saveSuccess": "Mini program settings saved",
-        "saveFailed": "Failed to save mini program settings"
+        "loadFailed": "Failed to load template settings",
+        "saveSuccess": "Saved {count} template(s)",
+        "saveFailed": "Failed to save template settings",
+        "emptyInput": "Add at least one valid template name and ID before saving",
+        "updateSuccess": "Template updated",
+        "updateFailed": "Failed to update template",
+        "deleteSuccess": "Template deleted",
+        "deleteFailed": "Failed to delete template"
+      },
+      "modal": {
+        "title": "Edit template",
+        "placeholder": "Enter the template ID",
+        "ok": "Save",
+        "cancel": "Cancel"
+      },
+      "actions": {
+        "reload": "Refresh",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleteConfirm": "Confirm delete?"
       }
     },
     "tabs": {

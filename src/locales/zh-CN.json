@@ -513,9 +513,59 @@
         "jwtSecret": "请填写 JWT 密钥"
       },
       "messages": {
-        "loadFailed": "小程序配置加载失败",
-        "saveSuccess": "小程序配置已保存",
-        "saveFailed": "小程序配置保存失败"
+      "loadFailed": "小程序配置加载失败",
+      "saveSuccess": "小程序配置已保存",
+      "saveFailed": "小程序配置保存失败"
+    }
+  },
+    "templateSettings": {
+      "title": "模板配置",
+      "subtitle": "维护小程序商业化场景的模板名称与模板ID映射。",
+      "updatedAt": "最近同步：{time}",
+      "emptyUpdatedAt": "暂无同步",
+      "columns": {
+        "templateName": "模板名称",
+        "templateId": "模板ID",
+        "actions": "操作"
+      },
+      "actions": {
+        "reload": "重新加载"
+      },
+      "bulk": {
+        "title": "批量添加模板",
+        "subtitle": "一次性导入多组模板名称与模板ID，确保使用已审核的商业化模板。",
+        "inputLabel": "模板名称与模板ID列表",
+        "placeholder": "示例：\npayment_success, TPL1234567890\norder_cancel, TPL2345678901",
+        "helper": "每行一条记录，模板名称和模板ID可用逗号、空格或竖线分隔。",
+        "warningSequential": "保存会依次调用单条API逐条写入。",
+        "preview": "将更新 {count} 条模板映射。",
+        "actions": {
+          "save": "保存模板",
+          "reload": "重新加载",
+          "clear": "清空输入"
+        }
+      },
+      "messages": {
+        "loadFailed": "模板配置加载失败",
+        "saveSuccess": "已保存 {count} 条模板",
+        "saveFailed": "模板配置保存失败",
+        "emptyInput": "请先填入至少一条有效的模板名称和模板ID",
+        "updateSuccess": "模板已更新",
+        "updateFailed": "模板更新失败",
+        "deleteSuccess": "模板已删除",
+        "deleteFailed": "模板删除失败"
+      },
+      "modal": {
+        "title": "编辑模板",
+        "placeholder": "请输入模板ID",
+        "ok": "保存",
+        "cancel": "取消"
+      },
+      "actions": {
+        "reload": "重新加载",
+        "edit": "编辑",
+        "delete": "删除",
+        "deleteConfirm": "确认删除？"
       }
     },
     "tabs": {
