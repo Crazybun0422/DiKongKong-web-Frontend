@@ -4,7 +4,12 @@ import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchTemplateSettings } from '../../services/config'
-import { createSubscriptionPush, fetchSubscriptionPushes } from '../../services/weappSubscriptions'
+import {
+  createSubscriptionPush,
+  fetchLatestPushContent,
+  fetchSubscriptionPushes,
+  updateLatestPushContent,
+} from '../../services/weappSubscriptions'
 import { API_BASE_URL } from '../../services/http'
 import dayjs from 'dayjs'
 
@@ -21,6 +26,8 @@ const templateSettingsLoading = ref(false)
 const formRef = ref(null)
 const submissionLoading = ref(false)
 const landingModalVisible = ref(false)
+const landingLoading = ref(false)
+const landingSaving = ref(false)
 const listLoading = ref(false)
 const taskSocket = ref(null)
 
@@ -98,7 +105,8 @@ const selectedTemplatePage = computed(() => {
   return option?.page || ''
 })
 
-const canEditLanding = computed(() => selectedTemplateName.value === LANDING_TEMPLATE_NAME)
+// Landing content is now editable for all templates.
+const canEditLanding = computed(() => true)
 const detailKeyMap = computed(() => {
   const option = templateOptions.value.find((item) => item.value === formState.templateId)
   const map = {}
@@ -208,9 +216,6 @@ const handleTemplateChange = (value, option) => {
     detailsList.length > 0
       ? detailsList.map((item) => ({ key: item.field || item.value || '', value: '' }))
       : [{ key: '', value: '' }]
-  if (!canEditLanding.value) {
-    formState.pushContent = ''
-  }
   formState.page = option?.page || ''
 }
 
@@ -295,10 +300,14 @@ const handleSubmit = async () => {
   submissionLoading.value = true
   try {
     const dateRange = formState.registrationDateRange || []
+    const registrationRangeForPayload =
+      formState.registrationRange === 'FLP' || formState.registrationRange === 'LIKE'
+        ? 'ALL'
+        : formState.registrationRange
     const payload = {
       templateId: formState.templateId,
       templateData: buildTemplateDataPayload(),
-      registrationRange: formState.registrationRange,
+      registrationRange: registrationRangeForPayload,
       registrationStart:
         formState.registrationRange === 'BETWEEN' && dateRange?.[0]?.format
           ? dateRange[0].format('YYYY-MM-DD')
@@ -426,8 +435,8 @@ const handleSelectPush = (record) => {
 }
 
 const openLandingModal = () => {
-  if (!canEditLanding.value) return
   landingModalVisible.value = true
+  loadLatestLandingContent()
 }
 
 const closeLandingModal = () => {
@@ -501,6 +510,35 @@ const applyTaskUpdate = (task) => {
       },
     }
   })
+}
+
+const loadLatestLandingContent = async () => {
+  landingLoading.value = true
+  try {
+    const latest = await fetchLatestPushContent()
+    if (typeof latest?.pushContent === 'string') {
+      formState.pushContent = latest.pushContent
+    }
+  } catch (error) {
+    console.error('Failed to load latest landing content', error)
+    message.error(t('subscriptionPush.messages.templatesLoadFailed'))
+  } finally {
+    landingLoading.value = false
+  }
+}
+
+const submitLandingContent = async () => {
+  landingSaving.value = true
+  try {
+    await updateLatestPushContent({ pushContent: formState.pushContent || '' })
+    message.success(t('subscriptionPush.landing.save'))
+    landingModalVisible.value = false
+  } catch (error) {
+    console.error('Failed to update landing content', error)
+    message.error(t('subscriptionPush.form.messages.submitFailed'))
+  } finally {
+    landingSaving.value = false
+  }
 }
 
 const buildWsUrl = () => {
@@ -592,8 +630,8 @@ onBeforeUnmount(() => {
             {{ t('subscriptionPush.meta.updatedAt', { time: new Date(templateSettings.updatedAt).toLocaleString() }) }}
           </span>
         </div>
-      </div>
-      <a-button type="primary" ghost :disabled="!canEditLanding" @click="openLandingModal">
+    </div>
+      <a-button type="primary" ghost @click="openLandingModal">
         {{ t('subscriptionPush.actions.updateLanding') }}
       </a-button>
     </div>
@@ -812,15 +850,17 @@ onBeforeUnmount(() => {
       :title="t('subscriptionPush.landing.title')"
       width="720px"
       :ok-text="t('subscriptionPush.landing.save')"
+      :confirm-loading="landingSaving"
       :cancel-text="t('common.actions.cancel')"
       @cancel="closeLandingModal"
-      @ok="closeLandingModal"
+      @ok="submitLandingContent"
     >
-      <open-platform-editor
-        v-model="formState.pushContent"
-        :placeholder="t('subscriptionPush.landing.placeholder')"
-        :disabled="!canEditLanding"
-      />
+      <a-spin :spinning="landingLoading">
+        <open-platform-editor
+          v-model="formState.pushContent"
+          :placeholder="t('subscriptionPush.landing.placeholder')"
+        />
+      </a-spin>
     </a-modal>
   </div>
 </template>

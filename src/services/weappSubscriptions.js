@@ -23,7 +23,19 @@ export const createSubscriptionPush = async (payload) => {
   return response?.data?.data ?? response?.data ?? {}
 }
 
+export const fetchLatestPushContent = async () => {
+  const response = await http.get('/weapp/subscription-pushes/latest')
+  return response?.data?.data ?? response?.data ?? {}
+}
+
+export const updateLatestPushContent = async ({ pushContent }) => {
+  const response = await http.put('/weapp/subscription-pushes/latest', { pushContent })
+  return response?.data?.data ?? response?.data ?? {}
+}
+
 export default {
   fetchSubscriptionPushes,
   createSubscriptionPush,
+  fetchLatestPushContent,
+  updateLatestPushContent,
 }

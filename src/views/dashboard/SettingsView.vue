@@ -592,36 +592,24 @@ onMounted(() => {
                   </a-button>
                 </div>
               </header>
-              <a-table :columns="inviteColumns" :data-source="inviteLogs" :loading="inviteLogsLoading"
-                :pagination="invitePaginationConfig" row-key="id" @change="handleInviteLogTableChange">
-                <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'page'">
-                      <a-tag v-if="record.page" color="default">{{ record.page }}</a-tag>
-                      <span v-else class="empty-hint">{{ t('settings.templateSettings.emptyPage') }}</span>
+                <a-table :columns="inviteColumns" :data-source="inviteLogs" :loading="inviteLogsLoading"
+                  :pagination="invitePaginationConfig" row-key="id" @change="handleInviteLogTableChange">
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'avatar'">
+                      <a-avatar :src="record?.user?.avatarUrl" :alt="record?.user?.username" />
                     </template>
-                    <template v-else-if="column.key === 'details'">
-                      <div class="kv-tags">
-                        <a-tag v-for="item in record.details" :key="item.field + item.value" color="blue">
-                          {{ item.field }} -> {{ item.value }}
-                        </a-tag>
-                        <span v-if="!record.details?.length" class="empty-hint">
-                          {{ t('settings.templateSettings.emptyDetails') }}
-                        </span>
-                      </div>
+                    <template v-else-if="column.key === 'amount'">
+                      <span :class="['amount', record.operation === 'DECREASE' ? 'negative' : 'positive']">
+                        {{ record.operation === 'DECREASE' ? '-' : '+' }}{{ record.amount ?? 0 }}
+                      </span>
                     </template>
-                    <template v-else-if="column.key === 'actions'">
-                      <a-space>
-                        <a-button type="link" size="small" @click="openTemplateEdit(record)">
-                          {{ t('settings.templateSettings.actions.edit') }}
-                        </a-button>
-                        <a-popconfirm :title="t('settings.templateSettings.actions.deleteConfirm')"
-                          :ok-text="t('common.actions.save')" :cancel-text="t('common.actions.reset')"
-                          @confirm="handleDeleteTemplateSetting(record.templateName)">
-                          <a-button type="link" size="small" danger>
-                            {{ t('settings.templateSettings.actions.delete') }}
-                          </a-button>
-                        </a-popconfirm>
-                      </a-space>
+                    <template v-else-if="column.key === 'operation'">
+                      <a-tag :color="record.operation === 'DECREASE' ? 'red' : 'green'">
+                        {{ t(`settings.invite.logs.operation.${record.operation?.toLowerCase() || 'increase'}`) }}
+                      </a-tag>
+                    </template>
+                    <template v-else-if="column.key === 'createdAt'">
+                      {{ new Date(record.createdAt).toLocaleString() }}
                     </template>
                   </template>
                 </a-table>
@@ -1293,5 +1281,6 @@ onMounted(() => {
   }
 }
 </style>
+
 
 
