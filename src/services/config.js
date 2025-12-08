@@ -83,6 +83,7 @@ export const saveTemplateSettingsBatch = async (items = []) => {
       templateName: item.templateName,
       templateId: item.templateId,
       details: Array.isArray(item.details) ? item.details : [],
+      page: item.page,
     })
   }
   return latest

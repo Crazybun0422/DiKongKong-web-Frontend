@@ -29,6 +29,7 @@
       "kvTitle": "Template KV data",
       "kvHint": "Fill key-value pairs that match the template fields.",
       "detailTags": "Detail fields:",
+      "pageLabel": "Page path",
       "registrationRange": "Send to users",
       "registrationDateRange": "Registration date range",
       "flpRange": "FLP balance",
@@ -600,6 +601,7 @@
       "columns": {
         "templateName": "Template name",
         "templateId": "Template ID",
+        "page": "Page path",
         "details": "Template fields",
         "actions": "Actions"
       },
@@ -616,7 +618,7 @@
         "subtitle": "Import template name, ID, and optional detail fields (keys to be filled).",
         "inputLabel": "Template name, ID, and fields",
         "placeholder": "Example:\npayment_success, TPL1234567890, keyword1, keyword2\norder_cancel | TPL2345678901 | thing1 | thing2",
-        "helper": "One record per line. Template name and ID can be separated by comma/space/pipe; detail fields should use \"field:value\" or \"field=value\".",
+        "helper": "One record per line. Template name and ID can be separated by comma/space/pipe; detail fields should use \"field:value\" or \"field=value\"; add \"page:/pages/detail/index\" to set a jump page (optional).",
         "warningSequential": "Saving will call the API sequentially for each template.",
         "preview": "{count} template(s) will be updated.",
         "previewTitle": "Parsed preview",
@@ -639,13 +641,15 @@
       "modal": {
         "title": "Edit template",
         "placeholder": "Enter the template ID",
+        "pagePlaceholder": "Mini program page path, e.g. pages/home/index (optional)",
         "ok": "Save",
         "cancel": "Cancel",
         "detailsLabel": "Detail fields (one per line)",
         "detailsPlaceholder": "e.g. keyword1\nkeyword2\nthing1",
         "detailsHelper": "Each line is stored into the template detail array."
       },
-      "emptyDetails": "No detail fields"
+      "emptyDetails": "No detail fields",
+      "emptyPage": "No page"
     },
     "tabs": {
       "invite": "Referral rewards",

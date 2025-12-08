@@ -35,6 +35,7 @@ const formState = reactive({
   likeMin: null,
   likeMax: null,
   pushContent: '',
+  page: '',
 })
 
 const tableData = ref([])
@@ -50,11 +51,13 @@ const templateOptions = computed(() =>
   Object.entries(templateSettings.templates || {}).map(([templateName, config]) => {
     const templateId = typeof config === 'string' ? config : config?.templateId
     const details = Array.isArray(config?.details) ? config.details : []
+    const page = typeof config === 'object' ? config?.page || '' : ''
     return {
       label: templateName,
       value: templateId,
       key: templateName,
       details,
+      page,
     }
   }),
 )
@@ -89,6 +92,11 @@ const templateDetailReverseMap = computed(() =>
 const selectedTemplateName = computed(
   () => formState.templateName || templateIdNameMap.value[formState.templateId] || '',
 )
+const selectedTemplatePage = computed(() => {
+  if (formState.page) return formState.page
+  const option = templateOptions.value.find((item) => item.value === formState.templateId)
+  return option?.page || ''
+})
 
 const canEditLanding = computed(() => selectedTemplateName.value === LANDING_TEMPLATE_NAME)
 const detailKeyMap = computed(() => {
@@ -189,6 +197,7 @@ const resetForm = () => {
   formState.likeMin = null
   formState.likeMax = null
   formState.pushContent = ''
+  formState.page = ''
 }
 
 const handleTemplateChange = (value, option) => {
@@ -202,6 +211,7 @@ const handleTemplateChange = (value, option) => {
   if (!canEditLanding.value) {
     formState.pushContent = ''
   }
+  formState.page = option?.page || ''
 }
 
 const handleRegistrationChange = (value) => {
@@ -302,6 +312,7 @@ const handleSubmit = async () => {
       likeMin: formState.registrationRange === 'LIKE' ? toNullableNumber(formState.likeMin, true) : undefined,
       likeMax: formState.registrationRange === 'LIKE' ? toNullableNumber(formState.likeMax, true) : undefined,
       pushContent: formState.pushContent,
+      page: selectedTemplatePage.value || undefined,
     }
 
     await createSubscriptionPush(payload)
@@ -407,6 +418,7 @@ const loadRecordToForm = (record) => {
   formState.likeMin = record.likeMin ?? null
   formState.likeMax = record.likeMax ?? null
   formState.pushContent = record.pushContent || ''
+  formState.page = record.page || ''
 }
 
 const handleSelectPush = (record) => {
@@ -518,6 +530,13 @@ const openTaskSocket = () => {
   const socket = new WebSocket(url)
   taskSocket.value = socket
 
+  const handleSocketTermination = () => {
+    if (taskSocket.value !== socket) return
+    taskSocket.value = null
+    // If the websocket drops, immediately refresh the list in case the task finished quickly.
+    loadPushes(pagination.current)
+  }
+
   socket.addEventListener('message', (event) => {
     try {
       const task = JSON.parse(event.data)
@@ -529,11 +548,10 @@ const openTaskSocket = () => {
 
   socket.addEventListener('error', (error) => {
     console.error('Subscription task websocket error', error)
+    handleSocketTermination()
   })
 
-  socket.addEventListener('close', () => {
-    taskSocket.value = null
-  })
+  socket.addEventListener('close', handleSocketTermination)
 }
 
 watch(
@@ -594,6 +612,10 @@ onBeforeUnmount(() => {
                 :loading="templateSettingsLoading"
                 @change="handleTemplateChange"
               />
+              <div class="template-page" v-if="selectedTemplatePage">
+                <span class="template-page__label">{{ t('subscriptionPush.form.pageLabel') }}</span>
+                <a-tag color="default">{{ selectedTemplatePage }}</a-tag>
+              </div>
             </a-form-item>
           </a-col>
           <a-col :xs="24" :md="12" class="align-end">
@@ -946,6 +968,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.template-page {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #475569;
+}
+
+.template-page__label {
+  font-size: 0.9rem;
 }
 
 .template-name {

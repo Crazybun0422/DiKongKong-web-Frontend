@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
@@ -34,21 +34,32 @@ const parseBulkTemplateInput = (input) => {
   lines.forEach((line) => {
     const trimmed = line.trim()
     if (!trimmed) return
-    const parts = trimmed.split(/[,，|\s]+/).filter(Boolean)
+    const parts = trimmed.split(/[,锛寍\s]+/).filter(Boolean)
     if (parts.length < 2) return
-    const [templateName, templateId, ...details] = parts
+    const [templateName, templateId, ...rest] = parts
     if (templateName && templateId) {
-      const detailPairs = details
-        .map((entry) => entry.split(/[:=]/).map((v) => v.trim()).filter(Boolean))
-        .filter((pair) => pair.length >= 2)
-        .map(([field, value]) => ({ field, value }))
-      result.set(templateName.trim(), { templateId: templateId.trim(), details: detailPairs })
+      const detailPairs = []
+      let page = ''
+      rest.forEach((entry) => {
+        const pageMatch = entry.match(/^page[:=](.+)$/i)
+        if (pageMatch) {
+          page = pageMatch[1].trim()
+          return
+        }
+        const pair = entry.split(/[:=]/).map((v) => v.trim()).filter(Boolean)
+        if (pair.length >= 2) {
+          const [field, value] = pair
+          detailPairs.push({ field, value })
+        }
+      })
+      result.set(templateName.trim(), { templateId: templateId.trim(), details: detailPairs, page })
     }
   })
   return Array.from(result.entries()).map(([templateName, payload]) => ({
     templateName,
     templateId: payload.templateId,
     details: payload.details || [],
+    page: payload.page || '',
   }))
 }
 
@@ -175,6 +186,7 @@ const bulkTemplateInput = ref('')
 const templateSettingsColumns = computed(() => [
   { title: t('settings.templateSettings.columns.templateName'), dataIndex: 'templateName', key: 'templateName' },
   { title: t('settings.templateSettings.columns.templateId'), dataIndex: 'templateId', key: 'templateId' },
+  { title: t('settings.templateSettings.columns.page'), dataIndex: 'page', key: 'page' },
   { title: t('settings.templateSettings.columns.details'), dataIndex: 'details', key: 'details' },
   { title: t('settings.templateSettings.columns.actions'), key: 'actions', width: 180 },
 ])
@@ -182,11 +194,13 @@ const templateSettingsDataSource = computed(() =>
   Object.entries(templateSettings.templates || {}).map(([templateName, config]) => {
     const templateId = typeof config === 'string' ? config : config?.templateId
     const details = Array.isArray(config?.details) ? config.details : []
+    const page = typeof config === 'object' ? config?.page || '' : ''
     return {
       templateName,
       templateId: templateId || '',
       details,
       key: templateName,
+      page,
     }
   }),
 )
@@ -200,6 +214,7 @@ const templateEditForm = reactive({
   templateName: '',
   templateId: '',
   details: [],
+  page: '',
 })
 
 const inviteColumns = computed(() => [
@@ -475,6 +490,7 @@ const openTemplateEdit = (record) => {
   templateEditForm.details = Array.isArray(record?.details)
     ? record.details.map((item) => ({ field: item.field || '', value: item.value || '' }))
     : []
+  templateEditForm.page = record?.page || ''
   templateEditVisible.value = true
 }
 
@@ -498,6 +514,7 @@ const submitTemplateEdit = async () => {
       templateId: templateEditForm.templateId,
       templateName: templateEditForm.templateName,
       details,
+      page: (templateEditForm.page || '').trim() || undefined,
     })
     message.success(t('settings.templateSettings.messages.updateSuccess'))
     templateEditVisible.value = false
@@ -578,24 +595,36 @@ onMounted(() => {
               <a-table :columns="inviteColumns" :data-source="inviteLogs" :loading="inviteLogsLoading"
                 :pagination="invitePaginationConfig" row-key="id" @change="handleInviteLogTableChange">
                 <template #bodyCell="{ column, record }">
-                  <template v-if="column.key === 'avatar'">
-                    <a-avatar :src="record?.user?.avatarUrl" :alt="record?.user?.username" />
+                    <template v-if="column.key === 'page'">
+                      <a-tag v-if="record.page" color="default">{{ record.page }}</a-tag>
+                      <span v-else class="empty-hint">{{ t('settings.templateSettings.emptyPage') }}</span>
+                    </template>
+                    <template v-else-if="column.key === 'details'">
+                      <div class="kv-tags">
+                        <a-tag v-for="item in record.details" :key="item.field + item.value" color="blue">
+                          {{ item.field }} -> {{ item.value }}
+                        </a-tag>
+                        <span v-if="!record.details?.length" class="empty-hint">
+                          {{ t('settings.templateSettings.emptyDetails') }}
+                        </span>
+                      </div>
+                    </template>
+                    <template v-else-if="column.key === 'actions'">
+                      <a-space>
+                        <a-button type="link" size="small" @click="openTemplateEdit(record)">
+                          {{ t('settings.templateSettings.actions.edit') }}
+                        </a-button>
+                        <a-popconfirm :title="t('settings.templateSettings.actions.deleteConfirm')"
+                          :ok-text="t('common.actions.save')" :cancel-text="t('common.actions.reset')"
+                          @confirm="handleDeleteTemplateSetting(record.templateName)">
+                          <a-button type="link" size="small" danger>
+                            {{ t('settings.templateSettings.actions.delete') }}
+                          </a-button>
+                        </a-popconfirm>
+                      </a-space>
+                    </template>
                   </template>
-                  <template v-else-if="column.key === 'amount'">
-                    <span :class="['amount', record.operation === 'DECREASE' ? 'negative' : 'positive']">
-                      {{ record.operation === 'DECREASE' ? '-' : '+' }}{{ record.amount ?? 0 }}
-                    </span>
-                  </template>
-                  <template v-else-if="column.key === 'operation'">
-                    <a-tag :color="record.operation === 'DECREASE' ? 'red' : 'green'">
-                      {{ t(`settings.invite.logs.operation.${record.operation?.toLowerCase() || 'increase'}`) }}
-                    </a-tag>
-                  </template>
-                  <template v-else-if="column.key === 'createdAt'">
-                    {{ new Date(record.createdAt).toLocaleString() }}
-                  </template>
-                </template>
-              </a-table>
+                </a-table>
             </section>
 
             <section class="invite-form">
@@ -830,17 +859,21 @@ onMounted(() => {
                 <a-table :columns="templateSettingsColumns" :data-source="templateSettingsDataSource"
                   :pagination="false" size="small" row-key="templateName" bordered>
                   <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'details'">
+                    <template v-if="column.key === 'page'">
+                      <a-tag v-if="record.page" color="default">{{ record.page }}</a-tag>
+                      <span v-else class="empty-hint">{{ t('settings.templateSettings.emptyPage') }}</span>
+                    </template>
+                    <template v-else-if="column.key === 'details'">
                       <div class="kv-tags">
                         <a-tag v-for="item in record.details" :key="item.field + item.value" color="blue">
-                          {{ item.field }} → {{ item.value }}
+                          {{ item.field }} -> {{ item.value }}
                         </a-tag>
                         <span v-if="!record.details?.length" class="empty-hint">
                           {{ t('settings.templateSettings.emptyDetails') }}
                         </span>
                       </div>
                     </template>
-                    <template v-if="column.key === 'actions'">
+                    <template v-else-if="column.key === 'actions'">
                       <a-space>
                         <a-button type="link" size="small" @click="openTemplateEdit(record)">
                           {{ t('settings.templateSettings.actions.edit') }}
@@ -899,9 +932,12 @@ onMounted(() => {
                         <span class="preview-name">{{ item.templateName }}</span>
                         <span class="preview-id">{{ item.templateId }}</span>
                       </div>
+                      <div class="preview-details" v-if="item.page">
+                        <a-tag color="default">{{ item.page }}</a-tag>
+                      </div>
                       <div class="preview-details" v-if="item.details?.length">
                         <a-tag v-for="detail in item.details" :key="detail.field + detail.value" color="blue">
-                          {{ detail.field }} → {{ detail.value }}
+                          {{ detail.field }} -> {{ detail.value }}
                         </a-tag>
                       </div>
                       <div class="preview-details" v-else>
@@ -924,6 +960,10 @@ onMounted(() => {
                 <a-form-item :label="t('settings.templateSettings.columns.templateId')">
                   <a-input v-model:value="templateEditForm.templateId"
                     :placeholder="t('settings.templateSettings.modal.placeholder')" />
+                </a-form-item>
+                <a-form-item :label="t('settings.templateSettings.columns.page')">
+                  <a-input v-model:value="templateEditForm.page"
+                    :placeholder="t('settings.templateSettings.modal.pagePlaceholder')" allow-clear />
                 </a-form-item>
                 <div class="detail-editor">
                   <div class="detail-editor__header">
@@ -1253,3 +1293,5 @@ onMounted(() => {
   }
 }
 </style>
+
+
