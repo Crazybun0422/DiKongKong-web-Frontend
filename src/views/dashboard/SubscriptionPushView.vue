@@ -125,6 +125,109 @@ const selectedTemplateDetails = computed(() => {
   const option = templateOptions.value.find((item) => item.value === formState.templateId)
   return Array.isArray(option?.details) ? option.details.filter((d) => d?.value || d?.field) : []
 })
+
+const WECHAT_FIELD_DEFAULT_MAX = {
+  thing: 20,
+  number: 32,
+  letter: 32,
+  character_string: 32,
+  date: 32,
+  time: 32,
+  amount: 32,
+  phone_number: 32,
+}
+
+const parseWechatFieldType = (raw) => {
+  if (!raw || typeof raw !== 'string') return null
+  const match = raw.trim().toLowerCase().match(/^([a-z_]+?)(\d+)?$/)
+  if (!match) return null
+  const base = match[1]
+  const baseMax = WECHAT_FIELD_DEFAULT_MAX[base]
+  // Ignore numeric suffix for length; use official default length by base type.
+  const maxLength = baseMax
+  return { base, maxLength }
+}
+
+const detailTypeConstraints = computed(() => {
+  const map = {}
+  selectedTemplateDetails.value.forEach((detail) => {
+    const typeInfo = parseWechatFieldType(detail?.value || '')
+    const displayKey = (detail?.field || '').trim()
+    const valueKey = (detail?.value || '').trim()
+    if (typeInfo) {
+      if (displayKey) map[displayKey] = typeInfo
+      if (valueKey) map[valueKey] = typeInfo
+    }
+  })
+  return map
+})
+
+const getFieldMaxLength = (key) => {
+  const trimmed = (key || '').trim()
+  if (!trimmed) return undefined
+  const resolvedKey = detailKeyMap.value[trimmed] || trimmed
+  const constraint = detailTypeConstraints.value[resolvedKey] || detailTypeConstraints.value[trimmed]
+  return constraint?.maxLength
+}
+
+const getFieldTypeHint = (key) => {
+  const trimmed = (key || '').trim()
+  if (!trimmed) return ''
+  const resolvedKey = detailKeyMap.value[trimmed] || trimmed
+  const constraint = detailTypeConstraints.value[resolvedKey] || detailTypeConstraints.value[trimmed]
+  if (!constraint?.base) return ''
+  switch (constraint.base) {
+    case 'character_string':
+      return t('subscriptionPush.form.hint.characterString')
+    case 'letter':
+      return t('subscriptionPush.form.hint.letter')
+    case 'number':
+      return t('subscriptionPush.form.hint.number')
+    case 'amount':
+      return t('subscriptionPush.form.hint.amount')
+    case 'phone_number':
+      return t('subscriptionPush.form.hint.phone')
+    default:
+      return ''
+  }
+}
+
+const normalizeValueByType = (value, key) => {
+  const trimmedKey = (key || '').trim()
+  if (!trimmedKey) return value
+  const resolvedKey = detailKeyMap.value[trimmedKey] || trimmedKey
+  const constraint = detailTypeConstraints.value[resolvedKey] || detailTypeConstraints.value[trimmedKey]
+  if (!constraint?.base || typeof value !== 'string') return value
+  const raw = value || ''
+  switch (constraint.base) {
+    case 'character_string':
+      // Allow letters, numbers, underscore, hyphen, dot.
+      return raw.replace(/[^a-zA-Z0-9_.-]/g, '')
+    case 'letter':
+      return raw.replace(/[^a-zA-Z]/g, '')
+    case 'number':
+      return raw.replace(/[^0-9]/g, '')
+    case 'amount':
+      // Allow numbers and a single dot.
+      {
+        const cleaned = raw.replace(/[^0-9.]/g, '')
+        const parts = cleaned.split('.')
+        return parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned
+      }
+    case 'phone_number':
+      // Allow digits, plus, minus, spaces.
+      return raw.replace(/[^0-9+\\-\\s]/g, '')
+    default:
+      return value
+  }
+}
+
+const onTemplateValueInput = (item) => {
+  const normalized = normalizeValueByType(item.value, item.key)
+  if (normalized !== item.value) {
+    item.value = normalized
+  }
+}
 const satisfiedDetailTags = computed(() => {
   const keys = formState.templateData.map((item) => (item.key || '').trim()).filter(Boolean)
   return new Set(keys)
@@ -670,6 +773,7 @@ onBeforeUnmount(() => {
             <div>
               <p class="eyebrow">{{ t('subscriptionPush.form.kvTitle') }}</p>
               <p class="muted">{{ t('subscriptionPush.form.kvHint') }}</p>
+              <p class="kv-reminder">{{ t('subscriptionPush.form.typeReminder') }}</p>
               <div class="detail-tags" v-if="selectedTemplateDetails.length">
                 <span class="detail-tags__label">{{ t('subscriptionPush.form.detailTags') }}</span>
                 <a-tag
@@ -695,11 +799,21 @@ onBeforeUnmount(() => {
               <a-input v-model:value="item.key" :placeholder="t('subscriptionPush.form.placeholder.k')" allow-clear />
             </a-col>
             <a-col :xs="24" :md="12">
-              <a-input
-                v-model:value="item.value"
-                :placeholder="t('subscriptionPush.form.placeholder.v')"
-                allow-clear
-              />
+              <div class="kv-input-with-hint">
+                <a-input
+                  v-model:value="item.value"
+                  :placeholder="t('subscriptionPush.form.placeholder.v')"
+                  :maxlength="getFieldMaxLength(item.key)"
+                  @input="onTemplateValueInput(item)"
+                  allow-clear
+                />
+                <span class="kv-hint" v-if="getFieldMaxLength(item.key)">
+                  {{ t('subscriptionPush.form.hint.maxLength', { max: getFieldMaxLength(item.key) }) }}
+                </span>
+                <span class="kv-hint" v-else-if="getFieldTypeHint(item.key)">
+                  {{ getFieldTypeHint(item.key) }}
+                </span>
+              </div>
             </a-col>
             <a-col :xs="24" :md="2" class="kv-row__actions">
               <a-button
@@ -955,6 +1069,18 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
+.kv-input-with-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kv-hint {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
 .kv-row__actions {
   display: flex;
   align-items: center;
@@ -1002,6 +1128,12 @@ onBeforeUnmount(() => {
 
 .detail-tags__label {
   color: #6b7280;
+}
+
+.kv-reminder {
+  margin: 4px 0 0;
+  color: #b45309;
+  font-size: 0.9rem;
 }
 
 .template-cell {

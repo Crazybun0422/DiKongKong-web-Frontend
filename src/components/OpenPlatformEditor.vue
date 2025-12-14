@@ -39,6 +39,7 @@ const editorRef = ref(null)
 const editorContent = ref(props.modelValue || '')
 const isFocused = ref(false)
 const headingValue = ref('paragraph')
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
 const hasContent = computed(() => {
   const html = editorContent.value || ''
@@ -160,6 +161,28 @@ const handleRemoveLink = () => {
   applyCommand('unlink')
 }
 
+const insertImageFromFile = async (file) => {
+  if (!file) return
+  if (file.size > MAX_IMAGE_SIZE) {
+    message.warning('图片限制大小： 5MB')
+    return
+  }
+
+  try {
+    const { url } = await uploadPublicFile(file)
+    if (!url) {
+      throw new Error('Missing image url')
+    }
+
+    ensureEditorFocus()
+    document.execCommand('insertImage', false, url)
+    syncContent()
+  } catch (error) {
+    console.error('Failed to upload image', error)
+    message.error('上传图片失败，请稍后重试')
+  }
+}
+
 const handleSelectImage = () => {
   if (props.disabled) {
     return
@@ -175,25 +198,23 @@ const handleSelectImage = () => {
     if (!file) {
       return
     }
+    await insertImageFromFile(file)
+  }
+}
 
-    if (file.size > 5 * 1024 * 1024) {
-      message.warning('图片大小不能超过 5MB')
-      return
-    }
+const handlePaste = async (event) => {
+  if (props.disabled) return
+  const clipboard = event.clipboardData
+  if (!clipboard) return
 
-    try {
-      const { url } = await uploadPublicFile(file)
-      if (!url) {
-        throw new Error('Missing image url')
-      }
+  const files = Array.from(clipboard.files || []).filter((file) =>
+    file?.type?.toLowerCase().startsWith('image/'),
+  )
+  if (!files.length) return
 
-      ensureEditorFocus()
-      document.execCommand('insertImage', false, url)
-      syncContent()
-    } catch (error) {
-      console.error('Failed to upload image', error)
-      message.error('图片上传失败，请稍后重试')
-    }
+  event.preventDefault()
+  for (const file of files) {
+    await insertImageFromFile(file)
   }
 }
 
@@ -231,13 +252,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="open-platform-editor" :class="{ 'is-disabled': disabled }">
     <div class="open-platform-editor__toolbar">
-      <a-select
-        v-model:value="headingValue"
-        class="open-platform-editor__heading"
-        size="small"
-        :disabled="disabled"
-        @change="handleHeadingChange"
-      >
+      <a-select v-model:value="headingValue" class="open-platform-editor__heading" size="small" :disabled="disabled"
+        @change="handleHeadingChange">
         <a-select-option value="paragraph">正文</a-select-option>
         <a-select-option value="h1">标题一</a-select-option>
         <a-select-option value="h2">标题二</a-select-option>
@@ -245,29 +261,16 @@ onBeforeUnmount(() => {
       </a-select>
       <div class="open-platform-editor__actions">
         <a-tooltip v-for="button in toolbarButtons" :key="button.key" :title="button.label">
-          <a-button
-            type="text"
-            size="small"
-            :disabled="disabled"
-            @mousedown.prevent
-            @click.prevent="button.command"
-          >
+          <a-button type="text" size="small" :disabled="disabled" @mousedown.prevent @click.prevent="button.command">
             <component :is="button.icon" />
           </a-button>
         </a-tooltip>
       </div>
     </div>
     <div class="open-platform-editor__content-wrapper">
-      <div
-        ref="editorRef"
-        class="open-platform-editor__content"
-        :contenteditable="!disabled"
-        @input="handleInput"
-        @focus="handleFocus"
-        @blur="handleBlur"
-        @keyup="detectHeadingFromSelection"
-        @mouseup="detectHeadingFromSelection"
-      ></div>
+      <div ref="editorRef" class="open-platform-editor__content" :contenteditable="!disabled" @input="handleInput"
+        @focus="handleFocus" @blur="handleBlur" @keyup="detectHeadingFromSelection"
+        @mouseup="detectHeadingFromSelection" @paste="handlePaste"></div>
       <div v-if="!hasContent && !isFocused && placeholder" class="open-platform-editor__placeholder">
         {{ placeholder }}
       </div>

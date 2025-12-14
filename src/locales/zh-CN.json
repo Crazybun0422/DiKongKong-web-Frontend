@@ -30,10 +30,19 @@
       "kvHint": "按模板字段填写键和值，支持多个条目。",
       "detailTags": "详情字段：",
       "pageLabel": "跳转页面",
-      "registrationRange": "发送范围",
-      "registrationDateRange": "注册时间段",
-      "flpRange": "按 FLP 数量",
-      "likeRange": "按获赞数",
+        "registrationRange": "发送范围",
+        "registrationDateRange": "注册时间段",
+        "flpRange": "按 FLP 数量",
+        "likeRange": "按获赞数",
+      "hint": {
+        "maxLength": "最多 {max} 个字符",
+        "characterString": "仅限字母、数字、下划线、中划线、点号（不支持中文字符）",
+        "letter": "仅限字母（不支持中文字符）",
+        "number": "仅限数字（不支持中文字符）",
+        "amount": "仅限数字和单个小数点（不支持中文字符）",
+        "phone": "仅限数字、+、-、空格（不支持中文字符）"
+      },
+      "typeReminder": "商业化提醒：请严格按微信模板字段要求填写，部分字段不支持中文字符。",
       "placeholder": {
         "template": "请选择模板（展示名称，提交模板 ID）",
         "k": "字段 Key",

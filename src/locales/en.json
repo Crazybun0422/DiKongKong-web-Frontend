@@ -30,10 +30,19 @@
       "kvHint": "Fill key-value pairs that match the template fields.",
       "detailTags": "Detail fields:",
       "pageLabel": "Page path",
-      "registrationRange": "Send to users",
-      "registrationDateRange": "Registration date range",
-      "flpRange": "FLP balance",
-      "likeRange": "Likes",
+        "registrationRange": "Send to users",
+        "registrationDateRange": "Registration date range",
+        "flpRange": "FLP balance",
+        "likeRange": "Likes",
+      "hint": {
+        "maxLength": "Max {max} chars",
+        "characterString": "Letters, numbers, underscore, hyphen, dot (no Chinese characters)",
+        "letter": "Letters only",
+        "number": "Digits only",
+        "amount": "Digits and a single dot",
+        "phone": "Digits, +, -, and spaces"
+      },
+      "typeReminder": "Commercial reminder: follow WeChat template field rules. Fields above may disallow Chinese characters.",
       "placeholder": {
         "template": "Select a template (show name, submit ID)",
         "k": "Field key",
