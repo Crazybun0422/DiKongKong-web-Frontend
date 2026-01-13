@@ -612,7 +612,47 @@
         "templateId": "Template ID",
         "page": "Page path",
         "details": "Template fields",
+        "autoTask": "Auto task",
         "actions": "Actions"
+      },
+      "autoTask": {
+        "status": {
+          "on": "On",
+          "off": "Off"
+        },
+        "frequencyOptions": {
+          "day": "Day",
+          "week": "Week",
+          "month": "Month"
+        },
+        "conditions": {
+          "userTodayNotCheckin": "User has not checked in today"
+        },
+        "actions": {
+          "addField": "Add field",
+          "removeField": "Remove"
+        },
+        "modal": {
+          "title": "Auto task",
+          "ok": "Save",
+          "cancel": "Cancel",
+          "status": "Auto task status",
+          "disabledHint": "Auto task parameters are ignored when disabled.",
+          "template": "Linked template",
+          "startTime": "Start time",
+          "frequency": "Frequency",
+          "frequencyPlaceholder": "Select frequency",
+          "conditions": "Conditions",
+          "conditionsPlaceholder": "Select conditions",
+          "templateFields": "Template fields",
+          "templateFieldPlaceholder": "Choose template field",
+          "templateValuePlaceholder": "Enter value",
+          "templateFieldsHelper": "Use fields from template settings; submitted as {templateField: value}."
+        },
+        "messages": {
+          "saveSuccess": "Auto task saved",
+          "saveFailed": "Failed to save auto task"
+        }
       },
       "actions": {
         "reload": "Refresh",

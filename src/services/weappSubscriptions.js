@@ -33,9 +33,24 @@ export const updateLatestPushContent = async ({ pushContent }) => {
   return response?.data?.data ?? response?.data ?? {}
 }
 
+export const fetchSubscriptionAutoTask = async (templateId) => {
+  const response = await http.get(`/admin/weapp/subscription-auto-tasks/${encodeURIComponent(templateId)}`)
+  return response?.data?.data ?? response?.data ?? {}
+}
+
+export const saveSubscriptionAutoTask = async (templateId, payload) => {
+  const response = await http.put(
+    `/admin/weapp/subscription-auto-tasks/${encodeURIComponent(templateId)}`,
+    payload,
+  )
+  return response?.data?.data ?? response?.data ?? {}
+}
+
 export default {
   fetchSubscriptionPushes,
   createSubscriptionPush,
   fetchLatestPushContent,
   updateLatestPushContent,
+  fetchSubscriptionAutoTask,
+  saveSubscriptionAutoTask,
 }

@@ -627,7 +627,47 @@
         "templateId": "模板ID",
         "page": "跳转页面",
         "details": "模板详情字段",
+        "autoTask": "自动任务",
         "actions": "操作"
+      },
+      "autoTask": {
+        "status": {
+          "on": "开",
+          "off": "关"
+        },
+        "frequencyOptions": {
+          "day": "天",
+          "week": "周",
+          "month": "月"
+        },
+        "conditions": {
+          "userTodayNotCheckin": "用户是否今日签到"
+        },
+        "actions": {
+          "addField": "新增字段",
+          "removeField": "移除"
+        },
+        "modal": {
+          "title": "自动任务设置",
+          "ok": "保存",
+          "cancel": "取消",
+          "status": "自动任务状态",
+          "disabledHint": "关闭后自动任务参数不生效。",
+          "template": "关联模板",
+          "startTime": "开始时间",
+          "frequency": "推送频率",
+          "frequencyPlaceholder": "请选择推送频率",
+          "conditions": "推送条件",
+          "conditionsPlaceholder": "请选择推送条件",
+          "templateFields": "推送字段",
+          "templateFieldPlaceholder": "选择模板字段",
+          "templateValuePlaceholder": "输入实际值",
+          "templateFieldsHelper": "字段键来自模板配置，提交为 {模板字段: 实际值}。"
+        },
+        "messages": {
+          "saveSuccess": "自动任务已保存",
+          "saveFailed": "自动任务保存失败"
+        }
       },
       "actions": {
         "reload": "重新加载"

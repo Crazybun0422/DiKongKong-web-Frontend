@@ -23,6 +23,7 @@ import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
+import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 
 const { t } = useI18n()
 
@@ -182,12 +183,15 @@ const templateSettings = reactive({
 })
 const templateSettingsLoading = ref(false)
 const templateSettingsSaving = ref(false)
+const templateAutoTaskMap = reactive({})
+const templateAutoTaskLoadingMap = reactive({})
 const bulkTemplateInput = ref('')
 const templateSettingsColumns = computed(() => [
   { title: t('settings.templateSettings.columns.templateName'), dataIndex: 'templateName', key: 'templateName' },
   { title: t('settings.templateSettings.columns.templateId'), dataIndex: 'templateId', key: 'templateId' },
   { title: t('settings.templateSettings.columns.page'), dataIndex: 'page', key: 'page' },
   { title: t('settings.templateSettings.columns.details'), dataIndex: 'details', key: 'details' },
+  { title: t('settings.templateSettings.columns.autoTask'), dataIndex: 'autoTask', key: 'autoTask', width: 120 },
   { title: t('settings.templateSettings.columns.actions'), key: 'actions', width: 180 },
 ])
 const templateSettingsDataSource = computed(() =>
@@ -195,12 +199,16 @@ const templateSettingsDataSource = computed(() =>
     const templateId = typeof config === 'string' ? config : config?.templateId
     const details = Array.isArray(config?.details) ? config.details : []
     const page = typeof config === 'object' ? config?.page || '' : ''
+    const autoTaskMeta = templateId ? templateAutoTaskMap[templateId] : null
+    const autoTaskLoading = templateId ? templateAutoTaskLoadingMap[templateId] : false
     return {
       templateName,
       templateId: templateId || '',
       details,
       key: templateName,
       page,
+      autoTaskEnabled: autoTaskMeta?.enabled ?? false,
+      autoTaskLoading: Boolean(autoTaskLoading),
     }
   }),
 )
@@ -208,6 +216,44 @@ const parsedBulkTemplates = computed(() => parseBulkTemplateInput(bulkTemplateIn
 const templateSettingsUpdatedAt = computed(() =>
   templateSettings.updatedAt ? new Date(templateSettings.updatedAt).toLocaleString() : t('settings.templateSettings.emptyUpdatedAt'),
 )
+const templateDetailsById = computed(() =>
+  Object.entries(templateSettings.templates || {}).reduce((acc, [templateName, config]) => {
+    const templateId = typeof config === 'string' ? config : config?.templateId
+    if (!templateId) return acc
+    const details = Array.isArray(config?.details) ? config.details : []
+    acc[templateId] = {
+      templateName,
+      details,
+    }
+    return acc
+  }, {}),
+)
+const autoTaskFrequencyOptions = computed(() => [
+  { value: 'DAY', label: t('settings.templateSettings.autoTask.frequencyOptions.day') },
+  { value: 'WEEK', label: t('settings.templateSettings.autoTask.frequencyOptions.week') },
+  { value: 'MONTH', label: t('settings.templateSettings.autoTask.frequencyOptions.month') },
+])
+const autoTaskConditionOptions = computed(() => [
+  { value: 'USER_TODAY_NOT_CHECKIN', label: t('settings.templateSettings.autoTask.conditions.userTodayNotCheckin') },
+])
+const autoTaskTemplateDisplay = computed(() => {
+  if (autoTaskForm.templateName && autoTaskForm.templateId) {
+    return `${autoTaskForm.templateName} (${autoTaskForm.templateId})`
+  }
+  return autoTaskForm.templateName || autoTaskForm.templateId || ''
+})
+const autoTaskTemplateFieldOptions = computed(() => {
+  const templateInfo = templateDetailsById.value[autoTaskForm.templateId]
+  const details = templateInfo?.details || []
+  return details.map((item) => {
+    const valueKey = (item?.value || item?.field || '').trim()
+    const label = (item?.field || item?.value || '').trim()
+    return {
+      value: valueKey,
+      label: label || valueKey,
+    }
+  }).filter((item) => item.value)
+})
 const templateEditVisible = ref(false)
 const templateEditSaving = ref(false)
 const templateEditForm = reactive({
@@ -215,6 +261,18 @@ const templateEditForm = reactive({
   templateId: '',
   details: [],
   page: '',
+})
+const autoTaskEditVisible = ref(false)
+const autoTaskEditSaving = ref(false)
+const autoTaskEditLoading = ref(false)
+const autoTaskForm = reactive({
+  templateName: '',
+  templateId: '',
+  enabled: false,
+  startTime: '',
+  frequency: '',
+  conditionKeys: [],
+  templateFields: [],
 })
 
 const inviteColumns = computed(() => [
@@ -452,6 +510,7 @@ const loadTemplateSettings = async () => {
     const data = await fetchTemplateSettings()
     templateSettings.templates = data?.templates || {}
     templateSettings.updatedAt = data?.updatedAt || null
+    await loadAllAutoTaskConfigs()
   } catch (error) {
     console.error('Failed to load template settings', error)
     message.error(t('settings.templateSettings.messages.loadFailed'))
@@ -524,6 +583,131 @@ const submitTemplateEdit = async () => {
     message.error(t('settings.templateSettings.messages.updateFailed'))
   } finally {
     templateEditSaving.value = false
+  }
+}
+
+const normalizeAutoTaskConfig = (raw) => {
+  if (!raw) {
+    return {
+      enabled: false,
+      startTime: '',
+      frequency: '',
+      conditionKeys: [],
+      templateFields: [],
+    }
+  }
+  const conditionKeys = Array.isArray(raw?.conditionKeys) ? raw.conditionKeys : []
+  const templateFields = Array.isArray(raw?.templateFields) ? raw.templateFields : []
+  const hasParams =
+    Boolean(raw?.startTime) ||
+    Boolean(raw?.frequency) ||
+    conditionKeys.length > 0 ||
+    templateFields.length > 0
+  return {
+    enabled: Boolean(hasParams),
+    startTime: raw?.startTime || '',
+    frequency: raw?.frequency || '',
+    conditionKeys,
+    templateFields,
+  }
+}
+
+const mapTemplateFieldsToRows = (templateFields = []) => {
+  const rows = []
+  templateFields.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') return
+    Object.entries(entry).forEach(([field, value]) => {
+      if (!field) return
+      rows.push({ field, value: value ?? '' })
+    })
+  })
+  return rows
+}
+
+const buildAutoTaskTemplateFieldsPayload = () =>
+  (autoTaskForm.templateFields || [])
+    .map((item) => ({
+      field: (item.field || '').trim(),
+      value: typeof item.value === 'string' ? item.value.trim() : item.value ?? '',
+    }))
+    .filter((item) => item.field)
+    .map((item) => ({ [item.field]: item.value }))
+
+const loadAutoTaskConfig = async (templateId) => {
+  if (!templateId) return null
+  templateAutoTaskLoadingMap[templateId] = true
+  try {
+    const data = await fetchSubscriptionAutoTask(templateId)
+    const normalized = normalizeAutoTaskConfig(data)
+    templateAutoTaskMap[templateId] = normalized
+    return normalized
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load auto task config', error)
+    }
+    const normalized = normalizeAutoTaskConfig(null)
+    templateAutoTaskMap[templateId] = normalized
+    return normalized
+  } finally {
+    templateAutoTaskLoadingMap[templateId] = false
+  }
+}
+
+const loadAllAutoTaskConfigs = async () => {
+  const templateIds = Object.values(templateSettings.templates || {})
+    .map((config) => (typeof config === 'string' ? config : config?.templateId))
+    .filter(Boolean)
+  const uniqueIds = Array.from(new Set(templateIds))
+  await Promise.all(uniqueIds.map((templateId) => loadAutoTaskConfig(templateId)))
+}
+
+const openAutoTaskEdit = async (record) => {
+  autoTaskEditLoading.value = true
+  autoTaskForm.templateName = record?.templateName || ''
+  autoTaskForm.templateId = record?.templateId || ''
+  try {
+    const normalized =
+      templateAutoTaskMap[record?.templateId] ?? (await loadAutoTaskConfig(record?.templateId))
+    autoTaskForm.enabled = Boolean(normalized?.enabled)
+    autoTaskForm.startTime = normalized?.startTime || ''
+    autoTaskForm.frequency = normalized?.frequency || ''
+    autoTaskForm.conditionKeys = Array.isArray(normalized?.conditionKeys)
+      ? [...normalized.conditionKeys]
+      : []
+    const rows = mapTemplateFieldsToRows(normalized?.templateFields || [])
+    autoTaskForm.templateFields = rows.length ? rows : [{ field: '', value: '' }]
+    autoTaskEditVisible.value = true
+  } finally {
+    autoTaskEditLoading.value = false
+  }
+}
+
+const submitAutoTaskEdit = async () => {
+  if (!autoTaskForm.templateId) {
+    return
+  }
+  if (autoTaskEditSaving.value) {
+    return
+  }
+  autoTaskEditSaving.value = true
+  try {
+    const payload = autoTaskForm.enabled
+      ? {
+        startTime: autoTaskForm.startTime || undefined,
+        frequency: autoTaskForm.frequency || undefined,
+        conditionKeys: Array.isArray(autoTaskForm.conditionKeys) ? autoTaskForm.conditionKeys : [],
+        templateFields: buildAutoTaskTemplateFieldsPayload(),
+      }
+      : {}
+    await saveSubscriptionAutoTask(autoTaskForm.templateId, payload)
+    message.success(t('settings.templateSettings.autoTask.messages.saveSuccess'))
+    autoTaskEditVisible.value = false
+    await loadAutoTaskConfig(autoTaskForm.templateId)
+  } catch (error) {
+    console.error('Failed to update auto task config', error)
+    message.error(t('settings.templateSettings.autoTask.messages.saveFailed'))
+  } finally {
+    autoTaskEditSaving.value = false
   }
 }
 
@@ -861,6 +1045,16 @@ onMounted(() => {
                         </span>
                       </div>
                     </template>
+                    <template v-else-if="column.key === 'autoTask'">
+                      <a-button type="link" size="small" :loading="record.autoTaskLoading"
+                        @click="openAutoTaskEdit(record)">
+                        {{
+                          record.autoTaskEnabled
+                            ? t('settings.templateSettings.autoTask.status.on')
+                            : t('settings.templateSettings.autoTask.status.off')
+                        }}
+                      </a-button>
+                    </template>
                     <template v-else-if="column.key === 'actions'">
                       <a-space>
                         <a-button type="link" size="small" @click="openTemplateEdit(record)">
@@ -974,6 +1168,68 @@ onMounted(() => {
                   </div>
                 </div>
               </a-form>
+            </a-modal>
+
+            <a-modal :open="autoTaskEditVisible" :title="t('settings.templateSettings.autoTask.modal.title')"
+              :confirm-loading="autoTaskEditSaving" :ok-text="t('settings.templateSettings.autoTask.modal.ok')"
+              :cancel-text="t('settings.templateSettings.autoTask.modal.cancel')" @ok="submitAutoTaskEdit"
+              @cancel="autoTaskEditVisible = false">
+              <a-spin :spinning="autoTaskEditLoading">
+                <a-form layout="vertical">
+                  <a-form-item :label="t('settings.templateSettings.autoTask.modal.status')">
+                    <a-radio-group v-model:value="autoTaskForm.enabled">
+                      <a-radio :value="true">{{ t('settings.templateSettings.autoTask.status.on') }}</a-radio>
+                      <a-radio :value="false">{{ t('settings.templateSettings.autoTask.status.off') }}</a-radio>
+                    </a-radio-group>
+                    <div v-if="!autoTaskForm.enabled" class="auto-task-hint">
+                      {{ t('settings.templateSettings.autoTask.modal.disabledHint') }}
+                    </div>
+                  </a-form-item>
+                  <a-form-item :label="t('settings.templateSettings.autoTask.modal.template')">
+                    <a-input :value="autoTaskTemplateDisplay" disabled />
+                  </a-form-item>
+                  <a-form-item :label="t('settings.templateSettings.autoTask.modal.startTime')">
+                    <a-time-picker v-model:value="autoTaskForm.startTime" value-format="HH:mm" format="HH:mm"
+                      :disabled="!autoTaskForm.enabled" style="width: 100%" />
+                  </a-form-item>
+                  <a-form-item :label="t('settings.templateSettings.autoTask.modal.frequency')">
+                    <a-select v-model:value="autoTaskForm.frequency" :options="autoTaskFrequencyOptions"
+                      :disabled="!autoTaskForm.enabled"
+                      :placeholder="t('settings.templateSettings.autoTask.modal.frequencyPlaceholder')" allow-clear />
+                  </a-form-item>
+                  <a-form-item :label="t('settings.templateSettings.autoTask.modal.conditions')">
+                    <a-select v-model:value="autoTaskForm.conditionKeys" :options="autoTaskConditionOptions"
+                      :disabled="!autoTaskForm.enabled" mode="multiple" allow-clear
+                      :placeholder="t('settings.templateSettings.autoTask.modal.conditionsPlaceholder')" />
+                  </a-form-item>
+                  <div class="detail-editor">
+                    <div class="detail-editor__header">
+                      <span>{{ t('settings.templateSettings.autoTask.modal.templateFields') }}</span>
+                      <a-button size="small" type="dashed" :disabled="!autoTaskForm.enabled"
+                        @click="autoTaskForm.templateFields.push({ field: '', value: '' })">
+                        {{ t('settings.templateSettings.autoTask.actions.addField') }}
+                      </a-button>
+                    </div>
+                    <div class="detail-editor__rows">
+                      <div v-for="(item, index) in autoTaskForm.templateFields" :key="index"
+                        class="detail-row detail-row--auto-task">
+                        <a-select v-model:value="item.field" :options="autoTaskTemplateFieldOptions"
+                          :disabled="!autoTaskForm.enabled" allow-clear
+                          :placeholder="t('settings.templateSettings.autoTask.modal.templateFieldPlaceholder')" />
+                        <a-input v-model:value="item.value" :disabled="!autoTaskForm.enabled"
+                          :placeholder="t('settings.templateSettings.autoTask.modal.templateValuePlaceholder')" />
+                        <a-button type="link" danger size="small" :disabled="!autoTaskForm.enabled"
+                          @click="autoTaskForm.templateFields.splice(index, 1)">
+                          {{ t('settings.templateSettings.autoTask.actions.removeField') }}
+                        </a-button>
+                      </div>
+                    </div>
+                    <div class="template-bulk__helper">
+                      {{ t('settings.templateSettings.autoTask.modal.templateFieldsHelper') }}
+                    </div>
+                  </div>
+                </a-form>
+              </a-spin>
             </a-modal>
           </div>
         </a-tab-pane>
@@ -1246,6 +1502,12 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 8px;
+}
+
+.auto-task-hint {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {
