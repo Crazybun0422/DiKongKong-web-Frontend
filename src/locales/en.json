@@ -647,7 +647,7 @@
           "templateFields": "Template fields",
           "templateFieldPlaceholder": "Choose template field",
           "templateValuePlaceholder": "Enter value",
-          "templateFieldsHelper": "Use fields from template settings; submitted as {templateField: value}."
+          "templateFieldsHelper": "Use fields from template settings; submitted as templateField=value."
         },
         "messages": {
           "saveSuccess": "Auto task saved",
@@ -705,7 +705,82 @@
       "mapSettlement": "Merchant onboarding",
       "copySettings": "Copy settings",
       "payment": "Payment settings",
-      "weapp": "Mini program"
+      "weapp": "Mini program",
+      "lottery": "Lottery settings"
+    },
+    "lottery": {
+      "title": "Commercial lottery settings",
+      "subtitle": "Configure 8 prize tiers and probabilities for the Sunday draw experience.",
+      "tabs": {
+        "prizes": "Prize config",
+        "logs": "Draw logs"
+      },
+      "meta": {
+        "updatedAt": "Updated at {time}",
+        "emptyUpdatedAt": "Not synced yet",
+        "tiers": "8 prize tiers"
+      },
+      "actions": {
+        "save": "Save config",
+        "reload": "Reload"
+      },
+      "prizes": {
+        "title": "Prize & probability setup",
+        "subtitle": "Total probability must be 100% for commercial rollout.",
+        "level": "Prize level {level}",
+        "levelTag": "Level {level}",
+        "type": {
+          "flp": "FLP reward",
+          "other": "Other prize"
+        },
+        "fields": {
+          "type": "Prize type",
+          "flpCount": "FLP amount",
+          "description": "Prize name",
+          "imageUrl": "Prize image",
+          "probability": "Probability (%)"
+        },
+        "placeholders": {
+          "description": "Example: annual membership, coupon, merchandise",
+          "flpCount": "Enter FLP amount",
+          "imageUrl": "Auto-filled after upload",
+          "probability": "Enter percentage"
+        },
+        "upload": "Upload image",
+        "uploadReplace": "Replace image",
+        "uploadRemove": "Remove",
+        "uploadSuccess": "Image uploaded",
+        "uploadFailed": "Image upload failed",
+        "totalProbability": "Total probability",
+        "totalHint": "Adjust to 100% to enable saving.",
+        "totalHintReady": "Probability is valid and ready to save.",
+        "alertTitle": "Commercial tip",
+        "alertDescription": "Highlight value and benefits in copy. Use high-res 1:1 images for better conversion."
+      },
+      "logs": {
+        "title": "Lottery draw logs",
+        "subtitle": "Latest draw records with filtering by feature code.",
+        "searchPlaceholder": "Filter by feature code",
+        "search": "Search",
+        "emptyPrize": "No prize",
+        "columns": {
+          "id": "Log ID",
+          "featureCode": "Feature code",
+          "username": "Username",
+          "prizeDescription": "Prize",
+          "createdAt": "Draw time"
+        },
+        "pagination": {
+          "total": "{total} total · Showing {start}-{end}"
+        }
+      },
+      "messages": {
+        "loadFailed": "Failed to load lottery config",
+        "saveSuccess": "Lottery config saved",
+        "saveFailed": "Failed to save lottery config",
+        "invalidProbability": "Total probability must equal 100%",
+        "logLoadFailed": "Failed to load lottery logs"
+      }
     },
     "invite": {
       "logs": {

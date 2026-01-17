@@ -662,7 +662,7 @@
           "templateFields": "推送字段",
           "templateFieldPlaceholder": "选择模板字段",
           "templateValuePlaceholder": "输入实际值",
-          "templateFieldsHelper": "字段键来自模板配置，提交为 {模板字段: 实际值}。"
+          "templateFieldsHelper": "字段键来自模板配置，提交格式：模板字段=实际值。"
         },
         "messages": {
           "saveSuccess": "自动任务已保存",
@@ -723,7 +723,82 @@
       "mapSettlement": "地图商户入驻配置",
       "copySettings": "文案设置",
       "payment": "支付设置",
-      "weapp": "小程序设置"
+      "weapp": "小程序设置",
+      "lottery": "抽奖设置"
+    },
+    "lottery": {
+      "title": "抽奖商业化配置",
+      "subtitle": "配置 8 档奖项与概率，面向周日抽奖活动的运营展示。",
+      "tabs": {
+        "prizes": "奖项配置",
+        "logs": "抽奖日志"
+      },
+      "meta": {
+        "updatedAt": "更新时间：{time}",
+        "emptyUpdatedAt": "尚未同步",
+        "tiers": "8 档奖项"
+      },
+      "actions": {
+        "save": "保存配置",
+        "reload": "重新加载"
+      },
+      "prizes": {
+        "title": "奖项与概率配置",
+        "subtitle": "奖项概率总和必须为 100%，用于商业化展示的中奖引导。",
+        "level": "奖项等级 {level}",
+        "levelTag": "等级 {level}",
+        "type": {
+          "flp": "FLP 奖励",
+          "other": "其他奖项"
+        },
+        "fields": {
+          "type": "奖项类型",
+          "flpCount": "FLP 数量",
+          "description": "奖项名称",
+          "imageUrl": "奖项图片",
+          "probability": "中奖概率 (%)"
+        },
+        "placeholders": {
+          "description": "示例：年度会员、优惠券、周边礼包",
+          "flpCount": "请输入 FLP 数量",
+          "imageUrl": "上传图片后自动填充",
+          "probability": "请输入百分比"
+        },
+        "upload": "上传图片",
+        "uploadReplace": "更换图片",
+        "uploadRemove": "移除",
+        "uploadSuccess": "图片上传成功",
+        "uploadFailed": "图片上传失败",
+        "totalProbability": "总概率",
+        "totalHint": "请调整至 100%，否则无法保存。",
+        "totalHintReady": "概率校验通过，可以保存。",
+        "alertTitle": "商业化提示",
+        "alertDescription": "奖项文案建议突出价值感与权益说明，图片建议使用 1:1 高清素材。"
+      },
+      "logs": {
+        "title": "抽奖日志",
+        "subtitle": "按最新抽奖记录展示，支持按低空号筛选。",
+        "searchPlaceholder": "按低空号筛选",
+        "search": "查询",
+        "emptyPrize": "未命中奖项",
+        "columns": {
+          "id": "记录ID",
+          "featureCode": "低空号",
+          "username": "用户名",
+          "prizeDescription": "奖项",
+          "createdAt": "抽奖时间"
+        },
+        "pagination": {
+          "total": "共 {total} 条 · 当前 {start}-{end}"
+        }
+      },
+      "messages": {
+        "loadFailed": "抽奖配置加载失败",
+        "saveSuccess": "抽奖配置已保存",
+        "saveFailed": "抽奖配置保存失败",
+        "invalidProbability": "奖项概率总和必须为 100%",
+        "logLoadFailed": "抽奖日志加载失败"
+      }
     },
     "invite": {
       "logs": {

@@ -24,6 +24,8 @@ import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
+import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
+import { buildDownloadUrl, extractObjectName, uploadPublicFile } from '../../services/files'
 
 const { t } = useI18n()
 
@@ -275,6 +277,86 @@ const autoTaskForm = reactive({
   templateFields: [],
 })
 
+const lotteryActiveTab = ref('prizes')
+const lotteryConfigLoading = ref(false)
+const lotteryConfigSaving = ref(false)
+const lotteryConfigUpdatedAt = ref(null)
+const lotteryPrizeForm = ref([])
+const lotteryUploadLoadingMap = reactive({})
+const lotteryLogs = ref([])
+const lotteryLogsLoading = ref(false)
+const lotteryLogPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
+const lotteryLogFilters = reactive({
+  featureCode: '',
+})
+
+const createDefaultLotteryPrizes = () =>
+  Array.from({ length: 8 }, (_, index) => ({
+    level: index + 1,
+    flp: false,
+    flpCount: '',
+    description: '',
+    imageUrl: '',
+    probability: 0,
+  }))
+
+lotteryPrizeForm.value = createDefaultLotteryPrizes()
+
+const normalizeLotteryPrizes = (prizes = []) => {
+  const map = new Map((prizes || []).map((item) => [Number(item?.level), item]))
+  return Array.from({ length: 8 }, (_, index) => {
+    const level = index + 1
+    const source = map.get(level) || {}
+    return {
+      level,
+      flp: Boolean(source.flp),
+      flpCount: source.flp ? String(source.flpCount ?? '') : '',
+      description: source.description ?? '',
+      imageUrl: extractObjectName(source.imageUrl ?? ''),
+      probability: Number(source.probability ?? 0),
+    }
+  })
+}
+
+const lotteryProbabilityTotal = computed(() =>
+  lotteryPrizeForm.value.reduce((sum, item) => sum + Number(item.probability || 0), 0),
+)
+const lotteryProbabilityValid = computed(() => Math.abs(lotteryProbabilityTotal.value - 100) < 0.001)
+const lotteryProbabilityStatus = computed(() => {
+  if (lotteryProbabilityValid.value) return 'success'
+  return lotteryProbabilityTotal.value > 100 ? 'exception' : 'active'
+})
+const lotteryProbabilityDisplay = computed(() =>
+  Math.min(100, Math.max(0, Number(lotteryProbabilityTotal.value.toFixed(2)))),
+)
+const lotteryUpdatedAtDisplay = computed(() =>
+  lotteryConfigUpdatedAt.value
+    ? new Date(lotteryConfigUpdatedAt.value).toLocaleString()
+    : t('settings.lottery.meta.emptyUpdatedAt'),
+)
+
+const getLotteryImageUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
+const formatProbabilityValue = (value) => {
+  if (value === null || value === undefined || value === '') return ''
+  const numeric = Number(value)
+  if (Number.isNaN(numeric)) return ''
+  return numeric.toFixed(10).replace(/\.?0+$/, '')
+}
+
+const parseProbabilityValue = (value) => {
+  if (value === null || value === undefined) return ''
+  const cleaned = String(value).replace(/[^\d.]/g, '')
+  const firstDot = cleaned.indexOf('.')
+  if (firstDot === -1) return cleaned
+  const head = cleaned.slice(0, firstDot + 1)
+  const tail = cleaned.slice(firstDot + 1).replace(/\./g, '')
+  return head + tail
+}
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -282,6 +364,14 @@ const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.amount'), dataIndex: 'amount', key: 'amount', width: 140 },
   { title: t('settings.invite.logs.columns.operation'), dataIndex: 'operation', key: 'operation', width: 140 },
   { title: t('settings.invite.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const lotteryLogColumns = computed(() => [
+  { title: t('settings.lottery.logs.columns.id'), dataIndex: 'id', key: 'id', width: 120 },
+  { title: t('settings.lottery.logs.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode' },
+  { title: t('settings.lottery.logs.columns.username'), dataIndex: 'username', key: 'username' },
+  { title: t('settings.lottery.logs.columns.prizeDescription'), dataIndex: 'prizeDescription', key: 'prize' },
+  { title: t('settings.lottery.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
 ])
 
 const loadInviteConfig = async () => {
@@ -725,6 +815,120 @@ const handleDeleteTemplateSetting = async (templateName) => {
   }
 }
 
+const loadLotteryConfig = async () => {
+  lotteryConfigLoading.value = true
+  try {
+    const data = await fetchLotteryConfig()
+    lotteryPrizeForm.value = normalizeLotteryPrizes(data?.prizes)
+    lotteryConfigUpdatedAt.value = data?.updatedAt || null
+  } catch (error) {
+    console.error('Failed to load lottery config', error)
+    message.error(t('settings.lottery.messages.loadFailed'))
+  } finally {
+    lotteryConfigLoading.value = false
+  }
+}
+
+const submitLotteryConfig = async () => {
+  if (!lotteryProbabilityValid.value) {
+    message.warning(t('settings.lottery.messages.invalidProbability'))
+    return
+  }
+  if (lotteryConfigSaving.value) {
+    return
+  }
+  lotteryConfigSaving.value = true
+  try {
+    const prizes = lotteryPrizeForm.value.map((item) => ({
+      level: item.level,
+      flp: Boolean(item.flp),
+      flpCount: item.flp ? String(item.flpCount || '').trim() || null : null,
+      description: item.flp ? '' : (item.description || '').trim(),
+      imageUrl: item.flp ? '' : extractObjectName(item.imageUrl || ''),
+      probability: Number(item.probability || 0),
+    }))
+    await saveLotteryConfig({ prizes })
+    message.success(t('settings.lottery.messages.saveSuccess'))
+    await loadLotteryConfig()
+  } catch (error) {
+    console.error('Failed to save lottery config', error)
+    message.error(t('settings.lottery.messages.saveFailed'))
+  } finally {
+    lotteryConfigSaving.value = false
+  }
+}
+
+const loadLotteryLogs = async () => {
+  lotteryLogsLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchLotteryLogs({
+      page: lotteryLogPagination.current,
+      size: lotteryLogPagination.pageSize,
+      featureCode: lotteryLogFilters.featureCode.trim() || undefined,
+    })
+    lotteryLogs.value = content || []
+    lotteryLogPagination.total = totalElements
+    lotteryLogPagination.current = page
+    lotteryLogPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load lottery logs', error)
+    message.error(t('settings.lottery.messages.logLoadFailed'))
+  } finally {
+    lotteryLogsLoading.value = false
+  }
+}
+
+const handleLotteryLogSearch = () => {
+  lotteryLogPagination.current = 1
+  loadLotteryLogs()
+}
+
+const handleLotteryLogTableChange = (pager) => {
+  lotteryLogPagination.current = pager?.current ?? 1
+  lotteryLogPagination.pageSize = pager?.pageSize ?? lotteryLogPagination.pageSize
+  loadLotteryLogs()
+}
+
+const handleLotteryImageUpload = async (prize, event) => {
+  const file = event?.target?.files?.[0]
+  if (!file || !prize) {
+    return
+  }
+  lotteryUploadLoadingMap[prize.level] = true
+  try {
+    const result = await uploadPublicFile(file)
+    prize.imageUrl = result?.objectName || extractObjectName(result?.url || '') || ''
+    message.success(t('settings.lottery.prizes.uploadSuccess'))
+  } catch (error) {
+    console.error('Failed to upload lottery image', error)
+    message.error(t('settings.lottery.prizes.uploadFailed'))
+  } finally {
+    lotteryUploadLoadingMap[prize.level] = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const removeLotteryImage = (prize) => {
+  if (!prize) return
+  prize.imageUrl = ''
+}
+
+const lotteryPaginationConfig = computed(() => ({
+  current: lotteryLogPagination.current,
+  pageSize: lotteryLogPagination.pageSize,
+  total: lotteryLogPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.lottery.logs.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 const invitePaginationConfig = computed(() => ({
   current: inviteLogPagination.current,
   pageSize: inviteLogPagination.pageSize,
@@ -753,6 +957,8 @@ onMounted(() => {
   loadPaymentConfig()
   loadWeappConfig()
   loadTemplateSettings()
+  loadLotteryConfig()
+  loadLotteryLogs()
 })
 </script>
 
@@ -1233,6 +1439,158 @@ onMounted(() => {
             </a-modal>
           </div>
         </a-tab-pane>
+
+        <a-tab-pane key="lottery" :tab="t('settings.tabs.lottery')">
+          <div class="tab-section">
+            <header class="lottery-hero">
+              <div>
+                <h3>{{ t('settings.lottery.title') }}</h3>
+                <p>{{ t('settings.lottery.subtitle') }}</p>
+              </div>
+            </header>
+
+            <a-tabs v-model:activeKey="lotteryActiveTab" class="lottery-tabs">
+              <a-tab-pane key="prizes" :tab="t('settings.lottery.tabs.prizes')">
+                <section class="lottery-prize-config">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.lottery.prizes.title') }}</h3>
+                      <p>{{ t('settings.lottery.prizes.subtitle') }}</p>
+                    </div>
+                    <div class="lottery-prize-actions">
+                      <a-button type="default" @click="loadLotteryConfig" :loading="lotteryConfigLoading"
+                        :disabled="lotteryConfigSaving">
+                        {{ t('settings.lottery.actions.reload') }}
+                      </a-button>
+                      <a-button type="primary" @click="submitLotteryConfig" :loading="lotteryConfigSaving"
+                        :disabled="!lotteryProbabilityValid">
+                        {{ t('settings.lottery.actions.save') }}
+                      </a-button>
+                    </div>
+                  </header>
+
+                  <div class="lottery-probability">
+                    <div class="lottery-probability__summary">
+                      <span>{{ t('settings.lottery.prizes.totalProbability') }}</span>
+                      <strong
+                        :class="['lottery-probability__value', lotteryProbabilityValid ? 'is-valid' : 'is-invalid']">
+                        {{ formatProbabilityValue(lotteryProbabilityTotal) }}%
+                      </strong>
+                    </div>
+                    <a-progress :percent="lotteryProbabilityDisplay" :status="lotteryProbabilityStatus" />
+                    <p class="lottery-probability__hint">
+                      {{
+                        lotteryProbabilityValid
+                          ? t('settings.lottery.prizes.totalHintReady')
+                          : t('settings.lottery.prizes.totalHint')
+                      }}
+                    </p>
+                  </div>
+
+                  <a-spin :spinning="lotteryConfigLoading">
+                    <div class="lottery-prize-grid">
+                      <div v-for="prize in lotteryPrizeForm" :key="prize.level" class="lottery-prize-card">
+                        <div class="lottery-prize-card__header">
+                          <span class="lottery-prize-level">
+                            {{ t('settings.lottery.prizes.level', { level: prize.level }) }}
+                          </span>
+                          <a-tag color="geekblue">{{ t('settings.lottery.prizes.levelTag', { level: prize.level }) }}</a-tag>
+                        </div>
+                        <a-form layout="vertical" :model="prize">
+                          <a-form-item :label="t('settings.lottery.prizes.fields.type')">
+                            <a-radio-group v-model:value="prize.flp">
+                              <a-radio :value="true">{{ t('settings.lottery.prizes.type.flp') }}</a-radio>
+                              <a-radio :value="false">{{ t('settings.lottery.prizes.type.other') }}</a-radio>
+                            </a-radio-group>
+                          </a-form-item>
+                          <a-form-item v-if="prize.flp" :label="t('settings.lottery.prizes.fields.flpCount')">
+                            <a-input v-model:value="prize.flpCount" inputmode="decimal"
+                              :placeholder="t('settings.lottery.prizes.placeholders.flpCount')" />
+                          </a-form-item>
+                          <template v-else>
+                            <a-form-item :label="t('settings.lottery.prizes.fields.description')">
+                              <a-input v-model:value="prize.description"
+                                :placeholder="t('settings.lottery.prizes.placeholders.description')" allow-clear />
+                            </a-form-item>
+                            <a-form-item :label="t('settings.lottery.prizes.fields.imageUrl')">
+                              <div class="lottery-upload">
+                                <label class="lottery-upload__trigger">
+                                  <input class="lottery-upload__input" type="file" accept="image/*"
+                                    :disabled="lotteryUploadLoadingMap[prize.level]"
+                                    @change="(event) => handleLotteryImageUpload(prize, event)" />
+                                  <a-button type="dashed" :loading="lotteryUploadLoadingMap[prize.level]">
+                                    {{ prize.imageUrl ? t('settings.lottery.prizes.uploadReplace') : t('settings.lottery.prizes.upload') }}
+                                  </a-button>
+                                </label>
+                                <span v-if="prize.imageUrl" class="lottery-upload__name">
+                                  {{ prize.imageUrl }}
+                                </span>
+                                <a-button v-if="prize.imageUrl" type="link" danger size="small"
+                                  @click="removeLotteryImage(prize)">
+                                  {{ t('settings.lottery.prizes.uploadRemove') }}
+                                </a-button>
+                              </div>
+                            </a-form-item>
+                          </template>
+                          <a-form-item :label="t('settings.lottery.prizes.fields.probability')">
+                            <a-input-number v-model:value="prize.probability" :min="0" :max="100"
+                              :step="0.0000000001" :precision="10" style="width: 100%"
+                              :formatter="formatProbabilityValue" :parser="parseProbabilityValue"
+                              :placeholder="t('settings.lottery.prizes.placeholders.probability')" />
+                          </a-form-item>
+                        </a-form>
+                        <div v-if="!prize.flp && prize.imageUrl" class="lottery-prize-preview">
+                          <img :src="getLotteryImageUrl(prize.imageUrl)"
+                            :alt="prize.description || `Prize ${prize.level}`" />
+                        </div>
+                      </div>
+                    </div>
+                  </a-spin>
+                  <div class="actions">
+                    <a-button type="primary" @click="submitLotteryConfig" :loading="lotteryConfigSaving"
+                      :disabled="!lotteryProbabilityValid">
+                      {{ t('settings.lottery.actions.save') }}
+                    </a-button>
+                    <a-button type="default" @click="loadLotteryConfig" :disabled="lotteryConfigSaving">
+                      {{ t('settings.lottery.actions.reload') }}
+                    </a-button>
+                  </div>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="logs" :tab="t('settings.lottery.tabs.logs')">
+                <section class="lottery-logs">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.lottery.logs.title') }}</h3>
+                      <p>{{ t('settings.lottery.logs.subtitle') }}</p>
+                    </div>
+                    <div class="filters">
+                      <a-input v-model:value="lotteryLogFilters.featureCode"
+                        :placeholder="t('settings.lottery.logs.searchPlaceholder')" allow-clear class="filter-input" />
+                      <a-button type="primary" @click="handleLotteryLogSearch">
+                        {{ t('settings.lottery.logs.search') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <a-table :columns="lotteryLogColumns" :data-source="lotteryLogs" :loading="lotteryLogsLoading"
+                    :pagination="lotteryPaginationConfig" row-key="id" @change="handleLotteryLogTableChange">
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'prize'">
+                        <a-tag color="gold">
+                          {{ record.prizeDescription || t('settings.lottery.logs.emptyPrize') }}
+                        </a-tag>
+                      </template>
+                      <template v-else-if="column.key === 'createdAt'">
+                        {{ new Date(record.createdAt).toLocaleString() }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-tab-pane>
+            </a-tabs>
+          </div>
+        </a-tab-pane>
       </a-tabs>
     </a-card>
   </div>
@@ -1447,6 +1805,167 @@ onMounted(() => {
   color: #b45309;
 }
 
+.lottery-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #e0f2fe 100%);
+  border: 1px solid #e5e7eb;
+}
+
+.lottery-hero h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.2rem;
+}
+
+.lottery-hero p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.lottery-hero__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.lottery-hero__updated {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.lottery-prize-config,
+.lottery-logs {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lottery-prize-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.lottery-probability {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lottery-probability__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #374151;
+  font-weight: 600;
+}
+
+.lottery-probability__value {
+  font-size: 1.1rem;
+}
+
+.lottery-probability__value.is-valid {
+  color: #059669;
+}
+
+.lottery-probability__value.is-invalid {
+  color: #dc2626;
+}
+
+.lottery-probability__hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.lottery-prize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.lottery-prize-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.lottery-prize-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lottery-prize-level {
+  font-weight: 600;
+  color: #111827;
+}
+
+.lottery-prize-preview {
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lottery-prize-preview img {
+  max-width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.lottery-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lottery-upload__trigger {
+  position: relative;
+  display: inline-flex;
+}
+
+.lottery-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.lottery-upload__name {
+  color: #374151;
+  font-size: 0.9rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .template-bulk__layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -1534,6 +2053,21 @@ onMounted(() => {
   }
 
   .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lottery-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lottery-hero__meta {
+    align-items: flex-start;
+  }
+
+  .lottery-prize-actions {
+    width: 100%;
     flex-direction: column;
     align-items: stretch;
   }

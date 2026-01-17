@@ -36,6 +36,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const editorRef = ref(null)
+const imageInputRef = ref(null)
 const editorContent = ref(props.modelValue || '')
 const isFocused = ref(false)
 const headingValue = ref('paragraph')
@@ -187,19 +188,20 @@ const handleSelectImage = () => {
   if (props.disabled) {
     return
   }
+  imageInputRef.value?.click()
+}
 
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-  input.click()
-
-  input.onchange = async () => {
-    const file = input.files?.[0]
-    if (!file) {
-      return
-    }
-    await insertImageFromFile(file)
+const handleImageChange = async (event) => {
+  if (props.disabled) {
+    return
   }
+  const input = event?.target
+  const file = input?.files?.[0]
+  if (!file) {
+    return
+  }
+  await insertImageFromFile(file)
+  input.value = ''
 }
 
 const handlePaste = async (event) => {
@@ -230,7 +232,7 @@ const toolbarButtons = [
   { key: 'align-right', icon: AlignRightOutlined, command: () => applyCommand('justifyRight'), label: '右对齐' },
   { key: 'link', icon: LinkOutlined, command: handleCreateLink, label: '添加链接' },
   { key: 'unlink', icon: ClearOutlined, command: handleRemoveLink, label: '移除链接' },
-  { key: 'image', icon: PictureOutlined, command: handleSelectImage, label: '插入图片' },
+  { key: 'image', icon: PictureOutlined, isUpload: true, command: handleSelectImage, label: '插入图片' },
 ]
 
 onMounted(() => {
@@ -261,12 +263,18 @@ onBeforeUnmount(() => {
       </a-select>
       <div class="open-platform-editor__actions">
         <a-tooltip v-for="button in toolbarButtons" :key="button.key" :title="button.label">
-          <a-button type="text" size="small" :disabled="disabled" @mousedown.prevent @click.prevent="button.command">
+          <a-button v-if="button.isUpload" type="text" size="small" :disabled="disabled" @click="button.command">
+            <component :is="button.icon" />
+          </a-button>
+          <a-button v-else type="text" size="small" :disabled="disabled" @mousedown.prevent
+            @click.prevent="button.command">
             <component :is="button.icon" />
           </a-button>
         </a-tooltip>
       </div>
     </div>
+    <input ref="imageInputRef" type="file" accept="image/*" class="open-platform-editor__file-input"
+      @change="handleImageChange" />
     <div class="open-platform-editor__content-wrapper">
       <div ref="editorRef" class="open-platform-editor__content" :contenteditable="!disabled" @input="handleInput"
         @focus="handleFocus" @blur="handleBlur" @keyup="detectHeadingFromSelection"
@@ -335,6 +343,10 @@ onBeforeUnmount(() => {
 .open-platform-editor__content img {
   max-width: 100%;
   height: auto;
+}
+
+.open-platform-editor__file-input {
+  display: none;
 }
 
 .open-platform-editor__placeholder {
