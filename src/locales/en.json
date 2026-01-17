@@ -706,7 +706,65 @@
       "copySettings": "Copy settings",
       "payment": "Payment settings",
       "weapp": "Mini program",
+      "newbieTasks": "Newbie task settings",
       "lottery": "Lottery settings"
+    },
+    "newbieTasks": {
+      "meta": {
+        "updatedAt": "Updated at {time}",
+        "emptyUpdatedAt": "Not synced yet"
+      },
+      "actions": {
+        "save": "Save config",
+        "reload": "Reload",
+        "delete": "Delete config"
+      },
+      "template": {
+        "title": "Newbie task template",
+        "subtitle": "Maintain the ordered list of newbie tasks shown to users.",
+        "listTitle": "Task list",
+        "fields": {
+          "index": "Task index",
+          "name": "Task name",
+          "description": "Task description",
+          "buttonText": "Button text"
+        },
+        "actions": {
+          "add": "Add task",
+          "remove": "Remove"
+        },
+        "confirmDelete": "Delete the newbie task template?",
+        "messages": {
+          "loadFailed": "Failed to load newbie task template",
+          "saveSuccess": "Newbie task template saved",
+          "saveFailed": "Failed to save newbie task template",
+          "deleteSuccess": "Newbie task template deleted",
+          "deleteFailed": "Failed to delete newbie task template",
+          "empty": "Add at least one task with index and name"
+        }
+      },
+      "netdisk": {
+        "title": "Netdisk gift links",
+        "subtitle": "Maintain the shared netdisk gift links configuration.",
+        "listTitle": "Netdisk links",
+        "fields": {
+          "name": "Netdisk name",
+          "url": "Netdisk URL"
+        },
+        "actions": {
+          "add": "Add netdisk",
+          "remove": "Remove"
+        },
+        "confirmDelete": "Delete the netdisk gift config?",
+        "messages": {
+          "loadFailed": "Failed to load netdisk gift config",
+          "saveSuccess": "Netdisk gift config saved",
+          "saveFailed": "Failed to save netdisk gift config",
+          "deleteSuccess": "Netdisk gift config deleted",
+          "deleteFailed": "Failed to delete netdisk gift config",
+          "empty": "Add at least one netdisk name and URL"
+        }
+      }
     },
     "lottery": {
       "title": "Commercial lottery settings",

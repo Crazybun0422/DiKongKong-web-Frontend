@@ -25,6 +25,14 @@ import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
+import {
+  fetchNewbieTaskTemplate,
+  saveNewbieTaskTemplate,
+  deleteNewbieTaskTemplate,
+  fetchNetdiskGiftConfig,
+  saveNetdiskGiftConfig,
+  deleteNetdiskGiftConfig,
+} from '../../services/newbieTasks'
 import { buildDownloadUrl, extractObjectName, uploadPublicFile } from '../../services/files'
 
 const { t } = useI18n()
@@ -277,6 +285,31 @@ const autoTaskForm = reactive({
   templateFields: [],
 })
 
+const newbieTaskTemplateLoading = ref(false)
+const newbieTaskTemplateSaving = ref(false)
+const newbieTaskTemplateUpdatedAt = ref(null)
+const newbieTaskTemplateForm = ref([])
+
+const netdiskGiftLoading = ref(false)
+const netdiskGiftSaving = ref(false)
+const netdiskGiftUpdatedAt = ref(null)
+const netdiskGiftForm = ref([])
+
+const createNewbieTaskRow = () => ({
+  index: null,
+  name: '',
+  description: '',
+  buttonText: '',
+})
+
+const createNetdiskLinkRow = () => ({
+  name: '',
+  url: '',
+})
+
+newbieTaskTemplateForm.value = [createNewbieTaskRow()]
+netdiskGiftForm.value = [createNetdiskLinkRow()]
+
 const lotteryActiveTab = ref('prizes')
 const lotteryConfigLoading = ref(false)
 const lotteryConfigSaving = ref(false)
@@ -337,6 +370,18 @@ const lotteryUpdatedAtDisplay = computed(() =>
   lotteryConfigUpdatedAt.value
     ? new Date(lotteryConfigUpdatedAt.value).toLocaleString()
     : t('settings.lottery.meta.emptyUpdatedAt'),
+)
+
+const newbieTaskTemplateUpdatedAtDisplay = computed(() =>
+  newbieTaskTemplateUpdatedAt.value
+    ? new Date(newbieTaskTemplateUpdatedAt.value).toLocaleString()
+    : t('settings.newbieTasks.meta.emptyUpdatedAt'),
+)
+
+const netdiskGiftUpdatedAtDisplay = computed(() =>
+  netdiskGiftUpdatedAt.value
+    ? new Date(netdiskGiftUpdatedAt.value).toLocaleString()
+    : t('settings.newbieTasks.meta.emptyUpdatedAt'),
 )
 
 const getLotteryImageUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
@@ -815,6 +860,154 @@ const handleDeleteTemplateSetting = async (templateName) => {
   }
 }
 
+const normalizeNewbieTasks = (tasks = []) => {
+  const rows = (tasks || []).map((item) => ({
+    index: Number.isFinite(Number(item?.index)) ? Number(item?.index) : null,
+    name: item?.name ?? '',
+    description: item?.description ?? '',
+    buttonText: item?.buttonText ?? '',
+  }))
+  return rows.length ? rows : [createNewbieTaskRow()]
+}
+
+const normalizeNetdiskLinks = (links = []) => {
+  const rows = (links || []).map((item) => ({
+    name: item?.name ?? '',
+    url: item?.url ?? '',
+  }))
+  return rows.length ? rows : [createNetdiskLinkRow()]
+}
+
+const loadNewbieTaskTemplate = async () => {
+  newbieTaskTemplateLoading.value = true
+  try {
+    const data = await fetchNewbieTaskTemplate()
+    newbieTaskTemplateForm.value = normalizeNewbieTasks(data?.tasks)
+    newbieTaskTemplateUpdatedAt.value = data?.updatedAt || null
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      newbieTaskTemplateForm.value = [createNewbieTaskRow()]
+      newbieTaskTemplateUpdatedAt.value = null
+      return
+    }
+    console.error('Failed to load newbie task template', error)
+    message.error(t('settings.newbieTasks.template.messages.loadFailed'))
+  } finally {
+    newbieTaskTemplateLoading.value = false
+  }
+}
+
+const submitNewbieTaskTemplate = async () => {
+  if (newbieTaskTemplateSaving.value) {
+    return
+  }
+  const tasks = (newbieTaskTemplateForm.value || [])
+    .map((item) => ({
+      index: Number(item?.index),
+      name: (item?.name || '').trim(),
+      description: (item?.description || '').trim(),
+      buttonText: (item?.buttonText || '').trim(),
+    }))
+    .filter((item) => Number.isFinite(item.index) && item.name)
+  if (!tasks.length) {
+    message.warning(t('settings.newbieTasks.template.messages.empty'))
+    return
+  }
+  newbieTaskTemplateSaving.value = true
+  try {
+    await saveNewbieTaskTemplate({ tasks })
+    message.success(t('settings.newbieTasks.template.messages.saveSuccess'))
+    await loadNewbieTaskTemplate()
+  } catch (error) {
+    console.error('Failed to save newbie task template', error)
+    message.error(t('settings.newbieTasks.template.messages.saveFailed'))
+  } finally {
+    newbieTaskTemplateSaving.value = false
+  }
+}
+
+const handleDeleteNewbieTaskTemplate = async () => {
+  if (newbieTaskTemplateSaving.value) {
+    return
+  }
+  newbieTaskTemplateSaving.value = true
+  try {
+    await deleteNewbieTaskTemplate()
+    newbieTaskTemplateForm.value = [createNewbieTaskRow()]
+    newbieTaskTemplateUpdatedAt.value = null
+    message.success(t('settings.newbieTasks.template.messages.deleteSuccess'))
+  } catch (error) {
+    console.error('Failed to delete newbie task template', error)
+    message.error(t('settings.newbieTasks.template.messages.deleteFailed'))
+  } finally {
+    newbieTaskTemplateSaving.value = false
+  }
+}
+
+const loadNetdiskGiftConfig = async () => {
+  netdiskGiftLoading.value = true
+  try {
+    const data = await fetchNetdiskGiftConfig()
+    netdiskGiftForm.value = normalizeNetdiskLinks(data?.links)
+    netdiskGiftUpdatedAt.value = data?.updatedAt || null
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      netdiskGiftForm.value = [createNetdiskLinkRow()]
+      netdiskGiftUpdatedAt.value = null
+      return
+    }
+    console.error('Failed to load netdisk gift config', error)
+    message.error(t('settings.newbieTasks.netdisk.messages.loadFailed'))
+  } finally {
+    netdiskGiftLoading.value = false
+  }
+}
+
+const submitNetdiskGiftConfig = async () => {
+  if (netdiskGiftSaving.value) {
+    return
+  }
+  const links = (netdiskGiftForm.value || [])
+    .map((item) => ({
+      name: (item?.name || '').trim(),
+      url: (item?.url || '').trim(),
+    }))
+    .filter((item) => item.name && item.url)
+  if (!links.length) {
+    message.warning(t('settings.newbieTasks.netdisk.messages.empty'))
+    return
+  }
+  netdiskGiftSaving.value = true
+  try {
+    await saveNetdiskGiftConfig({ links })
+    message.success(t('settings.newbieTasks.netdisk.messages.saveSuccess'))
+    await loadNetdiskGiftConfig()
+  } catch (error) {
+    console.error('Failed to save netdisk gift config', error)
+    message.error(t('settings.newbieTasks.netdisk.messages.saveFailed'))
+  } finally {
+    netdiskGiftSaving.value = false
+  }
+}
+
+const handleDeleteNetdiskGiftConfig = async () => {
+  if (netdiskGiftSaving.value) {
+    return
+  }
+  netdiskGiftSaving.value = true
+  try {
+    await deleteNetdiskGiftConfig()
+    netdiskGiftForm.value = [createNetdiskLinkRow()]
+    netdiskGiftUpdatedAt.value = null
+    message.success(t('settings.newbieTasks.netdisk.messages.deleteSuccess'))
+  } catch (error) {
+    console.error('Failed to delete netdisk gift config', error)
+    message.error(t('settings.newbieTasks.netdisk.messages.deleteFailed'))
+  } finally {
+    netdiskGiftSaving.value = false
+  }
+}
+
 const loadLotteryConfig = async () => {
   lotteryConfigLoading.value = true
   try {
@@ -957,6 +1150,8 @@ onMounted(() => {
   loadPaymentConfig()
   loadWeappConfig()
   loadTemplateSettings()
+  loadNewbieTaskTemplate()
+  loadNetdiskGiftConfig()
   loadLotteryConfig()
   loadLotteryLogs()
 })
@@ -1440,6 +1635,113 @@ onMounted(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="newbie-tasks" :tab="t('settings.tabs.newbieTasks')">
+          <div class="tab-section">
+            <section class="newbie-task-config">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.newbieTasks.template.title') }}</h3>
+                  <p>{{ t('settings.newbieTasks.template.subtitle') }}</p>
+                </div>
+                <div class="actions">
+                  <a-button type="default" @click="loadNewbieTaskTemplate" :loading="newbieTaskTemplateLoading"
+                    :disabled="newbieTaskTemplateSaving">
+                    {{ t('settings.newbieTasks.actions.reload') }}
+                  </a-button>
+                  <a-button type="primary" @click="submitNewbieTaskTemplate" :loading="newbieTaskTemplateSaving">
+                    {{ t('settings.newbieTasks.actions.save') }}
+                  </a-button>
+                  <a-popconfirm :title="t('settings.newbieTasks.template.confirmDelete')"
+                    @confirm="handleDeleteNewbieTaskTemplate">
+                    <a-button danger :disabled="newbieTaskTemplateSaving">
+                      {{ t('settings.newbieTasks.actions.delete') }}
+                    </a-button>
+                  </a-popconfirm>
+                </div>
+              </header>
+              <div class="newbie-task-meta">
+                <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: newbieTaskTemplateUpdatedAtDisplay }) }}</span>
+              </div>
+              <a-spin :spinning="newbieTaskTemplateLoading">
+                <div class="detail-editor">
+                  <div class="detail-editor__header">
+                    <span>{{ t('settings.newbieTasks.template.listTitle') }}</span>
+                    <a-button size="small" type="dashed" @click="newbieTaskTemplateForm.push(createNewbieTaskRow())">
+                      {{ t('settings.newbieTasks.template.actions.add') }}
+                    </a-button>
+                  </div>
+                  <div class="detail-editor__rows">
+                    <div v-for="(item, index) in newbieTaskTemplateForm" :key="index"
+                      class="newbie-task-row newbie-task-row--task">
+                      <a-input-number v-model:value="item.index" :min="1" style="width: 120px"
+                        :placeholder="t('settings.newbieTasks.template.fields.index')" />
+                      <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.template.fields.name')"
+                        allow-clear />
+                      <a-input v-model:value="item.description"
+                        :placeholder="t('settings.newbieTasks.template.fields.description')" allow-clear />
+                      <a-input v-model:value="item.buttonText"
+                        :placeholder="t('settings.newbieTasks.template.fields.buttonText')" allow-clear />
+                      <a-button type="link" danger size="small"
+                        @click="newbieTaskTemplateForm.splice(index, 1)">
+                        {{ t('settings.newbieTasks.template.actions.remove') }}
+                      </a-button>
+                    </div>
+                  </div>
+                </div>
+              </a-spin>
+            </section>
+
+            <section class="newbie-task-config">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.newbieTasks.netdisk.title') }}</h3>
+                  <p>{{ t('settings.newbieTasks.netdisk.subtitle') }}</p>
+                </div>
+                <div class="actions">
+                  <a-button type="default" @click="loadNetdiskGiftConfig" :loading="netdiskGiftLoading"
+                    :disabled="netdiskGiftSaving">
+                    {{ t('settings.newbieTasks.actions.reload') }}
+                  </a-button>
+                  <a-button type="primary" @click="submitNetdiskGiftConfig" :loading="netdiskGiftSaving">
+                    {{ t('settings.newbieTasks.actions.save') }}
+                  </a-button>
+                  <a-popconfirm :title="t('settings.newbieTasks.netdisk.confirmDelete')"
+                    @confirm="handleDeleteNetdiskGiftConfig">
+                    <a-button danger :disabled="netdiskGiftSaving">
+                      {{ t('settings.newbieTasks.actions.delete') }}
+                    </a-button>
+                  </a-popconfirm>
+                </div>
+              </header>
+              <div class="newbie-task-meta">
+                <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: netdiskGiftUpdatedAtDisplay }) }}</span>
+              </div>
+              <a-spin :spinning="netdiskGiftLoading">
+                <div class="detail-editor">
+                  <div class="detail-editor__header">
+                    <span>{{ t('settings.newbieTasks.netdisk.listTitle') }}</span>
+                    <a-button size="small" type="dashed" @click="netdiskGiftForm.push(createNetdiskLinkRow())">
+                      {{ t('settings.newbieTasks.netdisk.actions.add') }}
+                    </a-button>
+                  </div>
+                  <div class="detail-editor__rows">
+                    <div v-for="(item, index) in netdiskGiftForm" :key="index"
+                      class="newbie-task-row newbie-task-row--link">
+                      <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.netdisk.fields.name')"
+                        allow-clear />
+                      <a-input v-model:value="item.url" :placeholder="t('settings.newbieTasks.netdisk.fields.url')"
+                        allow-clear />
+                      <a-button type="link" danger size="small" @click="netdiskGiftForm.splice(index, 1)">
+                        {{ t('settings.newbieTasks.netdisk.actions.remove') }}
+                      </a-button>
+                    </div>
+                  </div>
+                </div>
+              </a-spin>
+            </section>
+          </div>
+        </a-tab-pane>
+
         <a-tab-pane key="lottery" :tab="t('settings.tabs.lottery')">
           <div class="tab-section">
             <header class="lottery-hero">
@@ -1805,6 +2107,35 @@ onMounted(() => {
   color: #b45309;
 }
 
+.newbie-task-config {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.newbie-task-meta {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.newbie-task-row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+
+.newbie-task-row--task {
+  grid-template-columns: 120px 1fr 1.2fr 1fr auto;
+}
+
+.newbie-task-row--link {
+  grid-template-columns: 1fr 1.2fr auto;
+}
+
 .lottery-hero {
   display: flex;
   justify-content: space-between;
@@ -2073,6 +2404,11 @@ onMounted(() => {
   }
 
   .template-bulk__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .newbie-task-row--task,
+  .newbie-task-row--link {
     grid-template-columns: 1fr;
   }
 }

@@ -304,6 +304,8 @@ components:
           type: string
         description:
           type: string
+        buttonText:
+          type: string
       required:
         - index
         - name
@@ -330,6 +332,8 @@ components:
         name:
           type: string
         description:
+          type: string
+        buttonText:
           type: string
     NetdiskGiftConfigRequest:
       type: object
@@ -389,6 +393,8 @@ components:
         name:
           type: string
         description:
+          type: string
+        buttonText:
           type: string
         completed:
           type: boolean
