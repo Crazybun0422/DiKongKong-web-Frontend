@@ -38,6 +38,32 @@ export const fetchAdminUsers = async ({
   return toPageResult(data, { page, size })
 }
 
+export const fetchAdminUserCheckins = async ({ page = 1, size = 10, sortOrder } = {}) => {
+  const params = {
+    page: Math.max(page - 1, 0),
+    size,
+    sortOrder: sortOrder ?? 'DESC',
+  }
+
+  const response = await http.get('/admin/users/checkins', { params })
+  const data = response?.data?.data ?? {}
+  return toPageResult(data, { page, size })
+}
+
+export const fetchAdminUserNewbieTasks = async ({ page = 1, size = 10, sortOrder } = {}) => {
+  const params = {
+    page: Math.max(page - 1, 0),
+    size,
+    sortOrder: sortOrder ?? 'DESC',
+  }
+
+  const response = await http.get('/admin/users/newbie-tasks', { params })
+  const data = response?.data?.data ?? {}
+  return toPageResult(data, { page, size })
+}
+
 export default {
   fetchAdminUsers,
+  fetchAdminUserCheckins,
+  fetchAdminUserNewbieTasks,
 }

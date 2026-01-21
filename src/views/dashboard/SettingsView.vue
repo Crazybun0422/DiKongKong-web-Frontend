@@ -25,6 +25,7 @@ import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
+import { fetchAdminUserCheckins, fetchAdminUserNewbieTasks } from '../../services/adminUsers'
 import {
   fetchNewbieTaskTemplate,
   saveNewbieTaskTemplate,
@@ -289,6 +290,14 @@ const newbieTaskTemplateLoading = ref(false)
 const newbieTaskTemplateSaving = ref(false)
 const newbieTaskTemplateUpdatedAt = ref(null)
 const newbieTaskTemplateForm = ref([])
+const newbieTaskActiveTab = ref('template')
+const newbieTaskStats = ref([])
+const newbieTaskStatsLoading = ref(false)
+const newbieTaskStatsPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
 
 const netdiskGiftLoading = ref(false)
 const netdiskGiftSaving = ref(false)
@@ -325,6 +334,13 @@ const lotteryLogPagination = reactive({
 })
 const lotteryLogFilters = reactive({
   featureCode: '',
+})
+const checkinLogs = ref([])
+const checkinLogsLoading = ref(false)
+const checkinLogPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
 })
 
 const createDefaultLotteryPrizes = () =>
@@ -385,6 +401,7 @@ const netdiskGiftUpdatedAtDisplay = computed(() =>
 )
 
 const getLotteryImageUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '-')
 const formatProbabilityValue = (value) => {
   if (value === null || value === undefined || value === '') return ''
   const numeric = Number(value)
@@ -417,6 +434,28 @@ const lotteryLogColumns = computed(() => [
   { title: t('settings.lottery.logs.columns.username'), dataIndex: 'username', key: 'username' },
   { title: t('settings.lottery.logs.columns.prizeDescription'), dataIndex: 'prizeDescription', key: 'prize' },
   { title: t('settings.lottery.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const checkinLogColumns = computed(() => [
+  { title: t('settings.lottery.checkins.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode' },
+  { title: t('settings.lottery.checkins.columns.username'), dataIndex: 'username', key: 'username' },
+  { title: t('settings.lottery.checkins.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 120 },
+  { title: t('settings.lottery.checkins.columns.registeredAt'), dataIndex: 'registeredAt', key: 'registeredAt', width: 200 },
+  {
+    title: t('settings.lottery.checkins.columns.weeklyContinuousDays'),
+    dataIndex: 'weeklyContinuousDays',
+    key: 'weeklyContinuousDays',
+    width: 160,
+  },
+  { title: t('settings.lottery.checkins.columns.checkinTimes'), dataIndex: 'checkinTimes', key: 'checkinTimes' },
+])
+
+const newbieTaskStatsColumns = computed(() => [
+  { title: t('settings.newbieTasks.stats.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode' },
+  { title: t('settings.newbieTasks.stats.columns.username'), dataIndex: 'username', key: 'username' },
+  { title: t('settings.newbieTasks.stats.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 120 },
+  { title: t('settings.newbieTasks.stats.columns.registeredAt'), dataIndex: 'registeredAt', key: 'registeredAt', width: 200 },
+  { title: t('settings.newbieTasks.stats.columns.tasks'), dataIndex: 'tasks', key: 'tasks' },
 ])
 
 const loadInviteConfig = async () => {
@@ -1008,6 +1047,40 @@ const handleDeleteNetdiskGiftConfig = async () => {
   }
 }
 
+const loadNewbieTaskStats = async () => {
+  newbieTaskStatsLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchAdminUserNewbieTasks({
+      page: newbieTaskStatsPagination.current,
+      size: newbieTaskStatsPagination.pageSize,
+    })
+    newbieTaskStats.value = (content || []).map((item) => {
+      const tasks = Array.isArray(item?.tasks)
+        ? [...item.tasks].sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))
+        : []
+      return {
+        ...item,
+        avatarUrl: resolveProfileAsset(item?.avatarUrl),
+        tasks,
+      }
+    })
+    newbieTaskStatsPagination.total = totalElements
+    newbieTaskStatsPagination.current = page
+    newbieTaskStatsPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load newbie task stats', error)
+    message.error(t('settings.newbieTasks.stats.messages.loadFailed'))
+  } finally {
+    newbieTaskStatsLoading.value = false
+  }
+}
+
+const handleNewbieTaskStatsTableChange = (pager) => {
+  newbieTaskStatsPagination.current = pager?.current ?? 1
+  newbieTaskStatsPagination.pageSize = pager?.pageSize ?? newbieTaskStatsPagination.pageSize
+  loadNewbieTaskStats()
+}
+
 const loadLotteryConfig = async () => {
   lotteryConfigLoading.value = true
   try {
@@ -1071,6 +1144,29 @@ const loadLotteryLogs = async () => {
   }
 }
 
+const loadCheckinLogs = async () => {
+  checkinLogsLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchAdminUserCheckins({
+      page: checkinLogPagination.current,
+      size: checkinLogPagination.pageSize,
+    })
+    checkinLogs.value = (content || []).map((item) => ({
+      ...item,
+      avatarUrl: resolveProfileAsset(item?.avatarUrl),
+      checkinTimes: Array.isArray(item?.checkinTimes) ? item.checkinTimes : [],
+    }))
+    checkinLogPagination.total = totalElements
+    checkinLogPagination.current = page
+    checkinLogPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load checkin logs', error)
+    message.error(t('settings.lottery.checkins.messages.loadFailed'))
+  } finally {
+    checkinLogsLoading.value = false
+  }
+}
+
 const handleLotteryLogSearch = () => {
   lotteryLogPagination.current = 1
   loadLotteryLogs()
@@ -1080,6 +1176,12 @@ const handleLotteryLogTableChange = (pager) => {
   lotteryLogPagination.current = pager?.current ?? 1
   lotteryLogPagination.pageSize = pager?.pageSize ?? lotteryLogPagination.pageSize
   loadLotteryLogs()
+}
+
+const handleCheckinLogTableChange = (pager) => {
+  checkinLogPagination.current = pager?.current ?? 1
+  checkinLogPagination.pageSize = pager?.pageSize ?? checkinLogPagination.pageSize
+  loadCheckinLogs()
 }
 
 const handleLotteryImageUpload = async (prize, event) => {
@@ -1122,6 +1224,34 @@ const lotteryPaginationConfig = computed(() => ({
     }),
 }))
 
+const checkinPaginationConfig = computed(() => ({
+  current: checkinLogPagination.current,
+  pageSize: checkinLogPagination.pageSize,
+  total: checkinLogPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.lottery.checkins.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
+const newbieTaskStatsPaginationConfig = computed(() => ({
+  current: newbieTaskStatsPagination.current,
+  pageSize: newbieTaskStatsPagination.pageSize,
+  total: newbieTaskStatsPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.newbieTasks.stats.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 const invitePaginationConfig = computed(() => ({
   current: inviteLogPagination.current,
   pageSize: inviteLogPagination.pageSize,
@@ -1151,9 +1281,11 @@ onMounted(() => {
   loadWeappConfig()
   loadTemplateSettings()
   loadNewbieTaskTemplate()
+  loadNewbieTaskStats()
   loadNetdiskGiftConfig()
   loadLotteryConfig()
   loadLotteryLogs()
+  loadCheckinLogs()
 })
 </script>
 
@@ -1637,108 +1769,161 @@ onMounted(() => {
 
         <a-tab-pane key="newbie-tasks" :tab="t('settings.tabs.newbieTasks')">
           <div class="tab-section">
-            <section class="newbie-task-config">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.newbieTasks.template.title') }}</h3>
-                  <p>{{ t('settings.newbieTasks.template.subtitle') }}</p>
-                </div>
-                <div class="actions">
-                  <a-button type="default" @click="loadNewbieTaskTemplate" :loading="newbieTaskTemplateLoading"
-                    :disabled="newbieTaskTemplateSaving">
-                    {{ t('settings.newbieTasks.actions.reload') }}
-                  </a-button>
-                  <a-button type="primary" @click="submitNewbieTaskTemplate" :loading="newbieTaskTemplateSaving">
-                    {{ t('settings.newbieTasks.actions.save') }}
-                  </a-button>
-                  <a-popconfirm :title="t('settings.newbieTasks.template.confirmDelete')"
-                    @confirm="handleDeleteNewbieTaskTemplate">
-                    <a-button danger :disabled="newbieTaskTemplateSaving">
-                      {{ t('settings.newbieTasks.actions.delete') }}
-                    </a-button>
-                  </a-popconfirm>
-                </div>
-              </header>
-              <div class="newbie-task-meta">
-                <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: newbieTaskTemplateUpdatedAtDisplay }) }}</span>
-              </div>
-              <a-spin :spinning="newbieTaskTemplateLoading">
-                <div class="detail-editor">
-                  <div class="detail-editor__header">
-                    <span>{{ t('settings.newbieTasks.template.listTitle') }}</span>
-                    <a-button size="small" type="dashed" @click="newbieTaskTemplateForm.push(createNewbieTaskRow())">
-                      {{ t('settings.newbieTasks.template.actions.add') }}
-                    </a-button>
-                  </div>
-                  <div class="detail-editor__rows">
-                    <div v-for="(item, index) in newbieTaskTemplateForm" :key="index"
-                      class="newbie-task-row newbie-task-row--task">
-                      <a-input-number v-model:value="item.index" :min="1" style="width: 120px"
-                        :placeholder="t('settings.newbieTasks.template.fields.index')" />
-                      <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.template.fields.name')"
-                        allow-clear />
-                      <a-input v-model:value="item.description"
-                        :placeholder="t('settings.newbieTasks.template.fields.description')" allow-clear />
-                      <a-input v-model:value="item.buttonText"
-                        :placeholder="t('settings.newbieTasks.template.fields.buttonText')" allow-clear />
-                      <a-button type="link" danger size="small"
-                        @click="newbieTaskTemplateForm.splice(index, 1)">
-                        {{ t('settings.newbieTasks.template.actions.remove') }}
-                      </a-button>
+            <a-tabs v-model:activeKey="newbieTaskActiveTab" class="newbie-task-tabs">
+              <a-tab-pane key="template" :tab="t('settings.newbieTasks.tabs.template')">
+                <div class="tab-section">
+                  <section class="newbie-task-config">
+                    <header class="section-header">
+                      <div>
+                        <h3>{{ t('settings.newbieTasks.template.title') }}</h3>
+                        <p>{{ t('settings.newbieTasks.template.subtitle') }}</p>
+                      </div>
+                      <div class="actions">
+                        <a-button type="default" @click="loadNewbieTaskTemplate" :loading="newbieTaskTemplateLoading"
+                          :disabled="newbieTaskTemplateSaving">
+                          {{ t('settings.newbieTasks.actions.reload') }}
+                        </a-button>
+                        <a-button type="primary" @click="submitNewbieTaskTemplate" :loading="newbieTaskTemplateSaving">
+                          {{ t('settings.newbieTasks.actions.save') }}
+                        </a-button>
+                        <a-popconfirm :title="t('settings.newbieTasks.template.confirmDelete')"
+                          @confirm="handleDeleteNewbieTaskTemplate">
+                          <a-button danger :disabled="newbieTaskTemplateSaving">
+                            {{ t('settings.newbieTasks.actions.delete') }}
+                          </a-button>
+                        </a-popconfirm>
+                      </div>
+                    </header>
+                    <div class="newbie-task-meta">
+                      <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: newbieTaskTemplateUpdatedAtDisplay }) }}</span>
                     </div>
-                  </div>
-                </div>
-              </a-spin>
-            </section>
+                    <a-spin :spinning="newbieTaskTemplateLoading">
+                      <div class="detail-editor">
+                        <div class="detail-editor__header">
+                          <span>{{ t('settings.newbieTasks.template.listTitle') }}</span>
+                          <a-button size="small" type="dashed" @click="newbieTaskTemplateForm.push(createNewbieTaskRow())">
+                            {{ t('settings.newbieTasks.template.actions.add') }}
+                          </a-button>
+                        </div>
+                        <div class="detail-editor__rows">
+                          <div v-for="(item, index) in newbieTaskTemplateForm" :key="index"
+                            class="newbie-task-row newbie-task-row--task">
+                            <a-input-number v-model:value="item.index" :min="1" style="width: 120px"
+                              :placeholder="t('settings.newbieTasks.template.fields.index')" />
+                            <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.template.fields.name')"
+                              allow-clear />
+                            <a-input v-model:value="item.description"
+                              :placeholder="t('settings.newbieTasks.template.fields.description')" allow-clear />
+                            <a-input v-model:value="item.buttonText"
+                              :placeholder="t('settings.newbieTasks.template.fields.buttonText')" allow-clear />
+                            <a-button type="link" danger size="small"
+                              @click="newbieTaskTemplateForm.splice(index, 1)">
+                              {{ t('settings.newbieTasks.template.actions.remove') }}
+                            </a-button>
+                          </div>
+                        </div>
+                      </div>
+                    </a-spin>
+                  </section>
 
-            <section class="newbie-task-config">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.newbieTasks.netdisk.title') }}</h3>
-                  <p>{{ t('settings.newbieTasks.netdisk.subtitle') }}</p>
-                </div>
-                <div class="actions">
-                  <a-button type="default" @click="loadNetdiskGiftConfig" :loading="netdiskGiftLoading"
-                    :disabled="netdiskGiftSaving">
-                    {{ t('settings.newbieTasks.actions.reload') }}
-                  </a-button>
-                  <a-button type="primary" @click="submitNetdiskGiftConfig" :loading="netdiskGiftSaving">
-                    {{ t('settings.newbieTasks.actions.save') }}
-                  </a-button>
-                  <a-popconfirm :title="t('settings.newbieTasks.netdisk.confirmDelete')"
-                    @confirm="handleDeleteNetdiskGiftConfig">
-                    <a-button danger :disabled="netdiskGiftSaving">
-                      {{ t('settings.newbieTasks.actions.delete') }}
-                    </a-button>
-                  </a-popconfirm>
-                </div>
-              </header>
-              <div class="newbie-task-meta">
-                <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: netdiskGiftUpdatedAtDisplay }) }}</span>
-              </div>
-              <a-spin :spinning="netdiskGiftLoading">
-                <div class="detail-editor">
-                  <div class="detail-editor__header">
-                    <span>{{ t('settings.newbieTasks.netdisk.listTitle') }}</span>
-                    <a-button size="small" type="dashed" @click="netdiskGiftForm.push(createNetdiskLinkRow())">
-                      {{ t('settings.newbieTasks.netdisk.actions.add') }}
-                    </a-button>
-                  </div>
-                  <div class="detail-editor__rows">
-                    <div v-for="(item, index) in netdiskGiftForm" :key="index"
-                      class="newbie-task-row newbie-task-row--link">
-                      <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.netdisk.fields.name')"
-                        allow-clear />
-                      <a-input v-model:value="item.url" :placeholder="t('settings.newbieTasks.netdisk.fields.url')"
-                        allow-clear />
-                      <a-button type="link" danger size="small" @click="netdiskGiftForm.splice(index, 1)">
-                        {{ t('settings.newbieTasks.netdisk.actions.remove') }}
-                      </a-button>
+                  <section class="newbie-task-config">
+                    <header class="section-header">
+                      <div>
+                        <h3>{{ t('settings.newbieTasks.netdisk.title') }}</h3>
+                        <p>{{ t('settings.newbieTasks.netdisk.subtitle') }}</p>
+                      </div>
+                      <div class="actions">
+                        <a-button type="default" @click="loadNetdiskGiftConfig" :loading="netdiskGiftLoading"
+                          :disabled="netdiskGiftSaving">
+                          {{ t('settings.newbieTasks.actions.reload') }}
+                        </a-button>
+                        <a-button type="primary" @click="submitNetdiskGiftConfig" :loading="netdiskGiftSaving">
+                          {{ t('settings.newbieTasks.actions.save') }}
+                        </a-button>
+                        <a-popconfirm :title="t('settings.newbieTasks.netdisk.confirmDelete')"
+                          @confirm="handleDeleteNetdiskGiftConfig">
+                          <a-button danger :disabled="netdiskGiftSaving">
+                            {{ t('settings.newbieTasks.actions.delete') }}
+                          </a-button>
+                        </a-popconfirm>
+                      </div>
+                    </header>
+                    <div class="newbie-task-meta">
+                      <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: netdiskGiftUpdatedAtDisplay }) }}</span>
                     </div>
-                  </div>
+                    <a-spin :spinning="netdiskGiftLoading">
+                      <div class="detail-editor">
+                        <div class="detail-editor__header">
+                          <span>{{ t('settings.newbieTasks.netdisk.listTitle') }}</span>
+                          <a-button size="small" type="dashed" @click="netdiskGiftForm.push(createNetdiskLinkRow())">
+                            {{ t('settings.newbieTasks.netdisk.actions.add') }}
+                          </a-button>
+                        </div>
+                        <div class="detail-editor__rows">
+                          <div v-for="(item, index) in netdiskGiftForm" :key="index"
+                            class="newbie-task-row newbie-task-row--link">
+                            <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.netdisk.fields.name')"
+                              allow-clear />
+                            <a-input v-model:value="item.url" :placeholder="t('settings.newbieTasks.netdisk.fields.url')"
+                              allow-clear />
+                            <a-button type="link" danger size="small" @click="netdiskGiftForm.splice(index, 1)">
+                              {{ t('settings.newbieTasks.netdisk.actions.remove') }}
+                            </a-button>
+                          </div>
+                        </div>
+                      </div>
+                    </a-spin>
+                  </section>
                 </div>
-              </a-spin>
-            </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="stats" :tab="t('settings.newbieTasks.tabs.stats')">
+                <div class="tab-section">
+                  <section class="newbie-task-config">
+                    <header class="section-header">
+                      <div>
+                        <h3>{{ t('settings.newbieTasks.stats.title') }}</h3>
+                        <p>{{ t('settings.newbieTasks.stats.subtitle') }}</p>
+                      </div>
+                    </header>
+                    <a-table :columns="newbieTaskStatsColumns" :data-source="newbieTaskStats"
+                      :loading="newbieTaskStatsLoading" :pagination="newbieTaskStatsPaginationConfig"
+                      :row-key="(record) => `${record.featureCode || 'unknown'}-${record.registeredAt || ''}`"
+                      @change="handleNewbieTaskStatsTableChange">
+                      <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'avatar'">
+                          <a-avatar :src="record.avatarUrl" :alt="record.username" />
+                        </template>
+                        <template v-else-if="column.key === 'registeredAt'">
+                          {{ formatDateTime(record.registeredAt) }}
+                        </template>
+                        <template v-else-if="column.key === 'tasks'">
+                          <a-space wrap size="4">
+                            <a-tag v-for="task in record.tasks || []" :key="`${task.index}-${task.name}`"
+                              :color="task.completed ? 'green' : 'default'">
+                              {{
+                                t('settings.newbieTasks.stats.taskLabel', {
+                                  index: task.index ?? '-',
+                                  name: task.name || t('settings.newbieTasks.stats.unnamed'),
+                                })
+                              }}
+                              {{
+                                task.completed
+                                  ? t('settings.newbieTasks.stats.status.completed')
+                                  : t('settings.newbieTasks.stats.status.pending')
+                              }}
+                            </a-tag>
+                            <span v-if="!record.tasks?.length" class="empty-hint">
+                              {{ t('settings.newbieTasks.stats.empty') }}
+                            </span>
+                          </a-space>
+                        </template>
+                      </template>
+                    </a-table>
+                  </section>
+                </div>
+              </a-tab-pane>
+            </a-tabs>
           </div>
         </a-tab-pane>
 
@@ -1885,6 +2070,40 @@ onMounted(() => {
                       </template>
                       <template v-else-if="column.key === 'createdAt'">
                         {{ new Date(record.createdAt).toLocaleString() }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="checkins" :tab="t('settings.lottery.tabs.checkins')">
+                <section class="lottery-logs">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.lottery.checkins.title') }}</h3>
+                      <p>{{ t('settings.lottery.checkins.subtitle') }}</p>
+                    </div>
+                  </header>
+                  <a-table :columns="checkinLogColumns" :data-source="checkinLogs" :loading="checkinLogsLoading"
+                    :pagination="checkinPaginationConfig"
+                    :row-key="(record) => `${record.featureCode || 'unknown'}-${record.registeredAt || ''}`"
+                    @change="handleCheckinLogTableChange">
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'avatar'">
+                        <a-avatar :src="record.avatarUrl" :alt="record.username" />
+                      </template>
+                      <template v-else-if="column.key === 'registeredAt'">
+                        {{ formatDateTime(record.registeredAt) }}
+                      </template>
+                      <template v-else-if="column.key === 'checkinTimes'">
+                        <a-space wrap size="4">
+                          <a-tag v-for="time in record.checkinTimes || []" :key="time" color="blue">
+                            {{ formatDateTime(time) }}
+                          </a-tag>
+                          <span v-if="!record.checkinTimes?.length" class="empty-hint">
+                            {{ t('settings.lottery.checkins.emptyTimes') }}
+                          </span>
+                        </a-space>
                       </template>
                     </template>
                   </a-table>

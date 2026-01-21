@@ -737,6 +737,10 @@
         "reload": "重新加载",
         "delete": "删除配置"
       },
+      "tabs": {
+        "template": "新人任务模板",
+        "stats": "任务完成统计数据"
+      },
       "template": {
         "title": "新人任务模板",
         "subtitle": "维护新人任务列表模板，按顺序展示任务内容。",
@@ -759,6 +763,30 @@
           "deleteSuccess": "新人任务模板已删除",
           "deleteFailed": "新人任务模板删除失败",
           "empty": "请至少填写一条任务（序号和名称必填）"
+        }
+      },
+      "stats": {
+        "title": "任务完成统计数据",
+        "subtitle": "分页查看用户的新手任务完成情况。",
+        "columns": {
+          "featureCode": "低空号",
+          "username": "用户名",
+          "avatar": "头像",
+          "registeredAt": "注册时间",
+          "tasks": "任务完成情况"
+        },
+        "status": {
+          "completed": "已完成",
+          "pending": "未完成"
+        },
+        "taskLabel": "任务{index}：{name}",
+        "unnamed": "未命名任务",
+        "empty": "暂无任务记录",
+        "pagination": {
+          "total": "共 {total} 条 · 当前 {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "任务完成统计加载失败"
         }
       },
       "netdisk": {
@@ -789,7 +817,8 @@
       "subtitle": "配置 8 档奖项与概率，面向周日抽奖活动的运营展示。",
       "tabs": {
         "prizes": "奖项配置",
-        "logs": "抽奖日志"
+        "logs": "抽奖日志",
+        "checkins": "签到日志"
       },
       "meta": {
         "updatedAt": "更新时间：{time}",
@@ -848,6 +877,25 @@
         },
         "pagination": {
           "total": "共 {total} 条 · 当前 {start}-{end}"
+        }
+      },
+      "checkins": {
+        "title": "签到日志",
+        "subtitle": "查看用户本周签到记录与连续天数。",
+        "emptyTimes": "暂无签到记录",
+        "columns": {
+          "featureCode": "低空号",
+          "username": "用户名",
+          "avatar": "头像",
+          "registeredAt": "注册时间",
+          "weeklyContinuousDays": "本周连续签到天数",
+          "checkinTimes": "签到时间"
+        },
+        "pagination": {
+          "total": "共 {total} 条 · 当前 {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "签到日志加载失败"
         }
       },
       "messages": {

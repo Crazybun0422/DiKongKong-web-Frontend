@@ -719,6 +719,10 @@
         "reload": "Reload",
         "delete": "Delete config"
       },
+      "tabs": {
+        "template": "Newbie task template",
+        "stats": "Task completion stats"
+      },
       "template": {
         "title": "Newbie task template",
         "subtitle": "Maintain the ordered list of newbie tasks shown to users.",
@@ -741,6 +745,30 @@
           "deleteSuccess": "Newbie task template deleted",
           "deleteFailed": "Failed to delete newbie task template",
           "empty": "Add at least one task with index and name"
+        }
+      },
+      "stats": {
+        "title": "Task completion stats",
+        "subtitle": "Review paginated completion status for newbie tasks.",
+        "columns": {
+          "featureCode": "Feature code",
+          "username": "Username",
+          "avatar": "Avatar",
+          "registeredAt": "Registered at",
+          "tasks": "Task completion"
+        },
+        "status": {
+          "completed": "Completed",
+          "pending": "Pending"
+        },
+        "taskLabel": "Task {index}: {name}",
+        "unnamed": "Untitled task",
+        "empty": "No task records",
+        "pagination": {
+          "total": "Total {total} records · Showing {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "Failed to load task completion stats"
         }
       },
       "netdisk": {
@@ -771,7 +799,8 @@
       "subtitle": "Configure 8 prize tiers and probabilities for the Sunday draw experience.",
       "tabs": {
         "prizes": "Prize config",
-        "logs": "Draw logs"
+        "logs": "Draw logs",
+        "checkins": "Check-in logs"
       },
       "meta": {
         "updatedAt": "Updated at {time}",
@@ -830,6 +859,25 @@
         },
         "pagination": {
           "total": "{total} total · Showing {start}-{end}"
+        }
+      },
+      "checkins": {
+        "title": "Check-in logs",
+        "subtitle": "Review weekly check-in records and streak counts.",
+        "emptyTimes": "No check-in records",
+        "columns": {
+          "featureCode": "Feature code",
+          "username": "Username",
+          "avatar": "Avatar",
+          "registeredAt": "Registered at",
+          "weeklyContinuousDays": "Weekly streak days",
+          "checkinTimes": "Check-in times"
+        },
+        "pagination": {
+          "total": "Total {total} records · Showing {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "Failed to load check-in logs"
         }
       },
       "messages": {
