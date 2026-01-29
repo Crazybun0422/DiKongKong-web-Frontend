@@ -96,6 +96,21 @@ paths:
           schema:
             type: string
           description: 要过滤的用户特征码，仅管理员查询时生效。
+        - in: query
+          name: logType
+          schema:
+            type: string
+            enum:
+              - INVITE
+              - PIN_REVIEW
+              - CHECKIN
+              - LOTTERY
+          description: |
+            日志类型筛选，可选值：
+            - INVITE：拉新相关奖励日志（好友注册、好友首次标记奖励）
+            - PIN_REVIEW：标记审核奖励日志（A级、B级）
+            - CHECKIN：签到奖励日志
+            - LOTTERY：抽奖奖励日志
       responses:
         '200':
           description: OK

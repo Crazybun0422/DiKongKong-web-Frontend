@@ -55,6 +55,22 @@ export const saveInviteGuideCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchFontFileConfig = async () => {
+  const response = await http.get('/config/font-file')
+  return normalizePagePayload(response, {})
+}
+
+export const uploadFontFileConfig = async (file, version) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('version', version)
+
+  const response = await http.post('/config/font-file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return normalizePagePayload(response, {})
+}
+
 export const fetchPinReviewRewardConfig = async () => {
   const response = await http.get('/config/pin-review-reward')
   return normalizePagePayload(response, { approvedARewardFlp: 0, approvedBRewardFlp: 0 })
@@ -110,6 +126,8 @@ export default {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchFontFileConfig,
+  uploadFontFileConfig,
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
   fetchTemplateSettings,

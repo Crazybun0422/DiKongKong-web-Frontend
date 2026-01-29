@@ -13,6 +13,8 @@ import {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchFontFileConfig,
+  uploadFontFileConfig,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
@@ -99,6 +101,7 @@ const inviteLogPagination = reactive({
 })
 const inviteLogFilters = reactive({
   featureCode: '',
+  logType: 'INVITE',
 })
 
 const mapForm = reactive({
@@ -319,6 +322,18 @@ const createNetdiskLinkRow = () => ({
 newbieTaskTemplateForm.value = [createNewbieTaskRow()]
 netdiskGiftForm.value = [createNetdiskLinkRow()]
 
+const fontFileConfig = reactive({
+  fileName: '',
+  version: '',
+})
+const fontFileForm = reactive({
+  fileName: '',
+  version: '',
+})
+const fontFileLoading = ref(false)
+const fontFileSaving = ref(false)
+const fontFileSelected = ref(null)
+
 const lotteryActiveTab = ref('prizes')
 const lotteryConfigLoading = ref(false)
 const lotteryConfigSaving = ref(false)
@@ -419,6 +434,33 @@ const parseProbabilityValue = (value) => {
   return head + tail
 }
 
+const parseFontVersion = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const parts = raw.split('.')
+  const major = Number(parts[0])
+  const minor = Number(parts[1] ?? 0)
+  const patch = Number(parts[2] ?? 0)
+  if (!Number.isInteger(major) || major < 0) return null
+  if (!Number.isInteger(minor) || minor < 0) return null
+  if (!Number.isInteger(patch) || patch < 0) return null
+  return { major, minor, patch }
+}
+
+const getNextFontVersion = (value) => {
+  const parsed = parseFontVersion(value)
+  if (!parsed) return '1.0.0'
+  return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`
+}
+
+const resetFontFileForm = (currentVersion = '') => {
+  fontFileForm.fileName = ''
+  fontFileForm.version = getNextFontVersion(currentVersion)
+  fontFileSelected.value = null
+}
+
+const fontFileDownloadUrl = computed(() => buildDownloadUrl(fontFileConfig.fileName || ''))
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -426,6 +468,14 @@ const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.amount'), dataIndex: 'amount', key: 'amount', width: 140 },
   { title: t('settings.invite.logs.columns.operation'), dataIndex: 'operation', key: 'operation', width: 140 },
   { title: t('settings.invite.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const inviteLogTypeOptions = computed(() => [
+  { value: '', label: t('settings.invite.logs.logTypes.all') },
+  { value: 'INVITE', label: t('settings.invite.logs.logTypes.invite') },
+  { value: 'PIN_REVIEW', label: t('settings.invite.logs.logTypes.pinReview') },
+  { value: 'CHECKIN', label: t('settings.invite.logs.logTypes.checkin') },
+  { value: 'LOTTERY', label: t('settings.invite.logs.logTypes.lottery') },
 ])
 
 const lotteryLogColumns = computed(() => [
@@ -479,6 +529,7 @@ const loadInviteLogs = async () => {
       page: inviteLogPagination.current,
       size: inviteLogPagination.pageSize,
       featureCode: inviteLogFilters.featureCode.trim() || undefined,
+      logType: inviteLogFilters.logType || undefined,
     })
     const filteredContent = (content || []).filter((item) => item?.operation === 'INCREASE')
     inviteLogs.value = filteredContent.map((item) => ({
@@ -502,6 +553,13 @@ const loadInviteLogs = async () => {
 }
 
 const handleInviteLogSearch = () => {
+  inviteLogPagination.current = 1
+  loadInviteLogs()
+}
+
+const handleInviteLogTypeChange = (value) => {
+  if (inviteLogFilters.logType === value) return
+  inviteLogFilters.logType = value
   inviteLogPagination.current = 1
   loadInviteLogs()
 }
@@ -1047,6 +1105,69 @@ const handleDeleteNetdiskGiftConfig = async () => {
   }
 }
 
+const loadFontFileConfig = async () => {
+  fontFileLoading.value = true
+  try {
+    const data = await fetchFontFileConfig()
+    fontFileConfig.fileName = extractObjectName(data?.fileName || '')
+    fontFileConfig.version = data?.version || ''
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load font config', error)
+      message.error(t('settings.system.font.messages.loadFailed'))
+    }
+    fontFileConfig.fileName = ''
+    fontFileConfig.version = ''
+  } finally {
+    fontFileLoading.value = false
+    resetFontFileForm(fontFileConfig.version)
+  }
+}
+
+const handleFontFileSelect = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  fontFileSelected.value = file
+  fontFileForm.fileName = file.name || ''
+  if (!fontFileForm.version) {
+    fontFileForm.version = getNextFontVersion(fontFileConfig.version)
+  }
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearFontFileSelection = () => {
+  fontFileSelected.value = null
+  fontFileForm.fileName = ''
+}
+
+const submitFontFileForm = async () => {
+  if (!fontFileSelected.value) {
+    message.warning(t('settings.system.font.messages.noFile'))
+    return
+  }
+  const version = (fontFileForm.version || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.font.messages.noVersion'))
+    return
+  }
+  if (fontFileSaving.value) {
+    return
+  }
+  fontFileSaving.value = true
+  try {
+    await uploadFontFileConfig(fontFileSelected.value, version)
+    message.success(t('settings.system.font.messages.uploadSuccess'))
+    await loadFontFileConfig()
+  } catch (error) {
+    console.error('Failed to upload font file', error)
+    message.error(t('settings.system.font.messages.uploadFailed'))
+  } finally {
+    fontFileSaving.value = false
+  }
+}
+
 const loadNewbieTaskStats = async () => {
   newbieTaskStatsLoading.value = true
   try {
@@ -1283,6 +1404,7 @@ onMounted(() => {
   loadNewbieTaskTemplate()
   loadNewbieTaskStats()
   loadNetdiskGiftConfig()
+  loadFontFileConfig()
   loadLotteryConfig()
   loadLotteryLogs()
   loadCheckinLogs()
@@ -1295,17 +1417,28 @@ onMounted(() => {
       <a-tabs v-model:activeKey="activeTab">
         <a-tab-pane key="invite" :tab="t('settings.tabs.invite')">
           <div class="tab-section">
-            <section class="invite-table">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.invite.logs.title') }}</h3>
-                  <p>{{ t('settings.invite.logs.subtitle') }}</p>
-                </div>
-                <div class="filters">
-                  <a-input v-model:value="inviteLogFilters.featureCode"
-                    :placeholder="t('settings.invite.logs.searchPlaceholder')" allow-clear class="filter-input" />
-                  <a-button type="primary" @click="handleInviteLogSearch">
-                    {{ t('settings.invite.logs.search') }}
+                <section class="invite-table">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.invite.logs.title') }}</h3>
+                      <p>{{ t('settings.invite.logs.subtitle') }}</p>
+                    </div>
+                    <div class="filters">
+                      <div class="filter-tags">
+                        <a-tag
+                          v-for="item in inviteLogTypeOptions"
+                          :key="item.value || 'all'"
+                          :color="inviteLogFilters.logType === item.value ? 'blue' : 'default'"
+                          class="filter-tag"
+                          @click="handleInviteLogTypeChange(item.value)"
+                        >
+                          {{ item.label }}
+                        </a-tag>
+                      </div>
+                      <a-input v-model:value="inviteLogFilters.featureCode"
+                        :placeholder="t('settings.invite.logs.searchPlaceholder')" allow-clear class="filter-input" />
+                      <a-button type="primary" @click="handleInviteLogSearch">
+                        {{ t('settings.invite.logs.search') }}
                   </a-button>
                 </div>
               </header>
@@ -2112,6 +2245,76 @@ onMounted(() => {
             </a-tabs>
           </div>
         </a-tab-pane>
+
+        <a-tab-pane key="system" :tab="t('settings.tabs.system')">
+          <div class="tab-section">
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.font.title') }}</h3>
+                  <p>{{ t('settings.system.font.subtitle') }}</p>
+                </div>
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.font.currentVersionLabel') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ fontFileConfig.version || t('settings.system.font.emptyVersion') }}
+                  </span>
+                </div>
+              </header>
+              <a-spin :spinning="fontFileLoading">
+                <div class="system-font-current">
+                  <span class="system-font-current__label">
+                    {{ t('settings.system.font.currentFileLabel') }}
+                  </span>
+                  <a v-if="fontFileConfig.fileName" :href="fontFileDownloadUrl" target="_blank" rel="noreferrer">
+                    {{ fontFileConfig.fileName }}
+                  </a>
+                  <span v-else class="empty-hint">{{ t('settings.system.font.emptyFile') }}</span>
+                </div>
+                <a-form layout="vertical" :model="fontFileForm" @finish="submitFontFileForm">
+                  <a-form-item :label="t('settings.system.font.fields.file')">
+                    <div class="system-font-upload">
+                      <label class="system-font-upload__trigger">
+                        <input class="system-font-upload__input" type="file" accept=".ttf,.otf,.woff,.woff2"
+                          :disabled="fontFileSaving" @change="handleFontFileSelect" />
+                        <a-button type="dashed" :loading="fontFileSaving">
+                          {{
+                            fontFileForm.fileName
+                              ? t('settings.system.font.actions.replaceFile')
+                              : t('settings.system.font.actions.selectFile')
+                          }}
+                        </a-button>
+                      </label>
+                      <span v-if="fontFileForm.fileName" class="system-font-upload__name">
+                        {{ fontFileForm.fileName }}
+                      </span>
+                      <a-button v-if="fontFileForm.fileName" type="link" danger size="small"
+                        @click="clearFontFileSelection">
+                        {{ t('settings.system.font.actions.removeFile') }}
+                      </a-button>
+                    </div>
+                    <div class="system-font-helper">{{ t('settings.system.font.helper') }}</div>
+                  </a-form-item>
+                  <a-form-item :label="t('settings.system.font.fields.version')">
+                    <a-input v-model:value="fontFileForm.version"
+                      :placeholder="t('settings.system.font.placeholders.version')" />
+                  </a-form-item>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="fontFileSaving">
+                      {{ t('settings.system.font.actions.upload') }}
+                    </a-button>
+                    <a-button type="default" @click="loadFontFileConfig"
+                      :disabled="fontFileLoading || fontFileSaving">
+                      {{ t('settings.system.font.actions.reload') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
+          </div>
+        </a-tab-pane>
       </a-tabs>
     </a-card>
   </div>
@@ -2184,6 +2387,19 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.filter-tag {
+  cursor: pointer;
+  user-select: none;
 }
 
 .filter-input {
@@ -2334,6 +2550,77 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.system-settings {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.system-settings__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.system-settings__meta-value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.system-font-current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: #374151;
+}
+
+.system-font-current__label {
+  font-weight: 600;
+  color: #111827;
+}
+
+.system-font-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.system-font-upload__trigger {
+  position: relative;
+  display: inline-flex;
+}
+
+.system-font-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.system-font-upload__name {
+  color: #374151;
+  font-size: 0.9rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-font-helper {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.9rem;
 }
 
 .newbie-task-meta {

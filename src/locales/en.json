@@ -707,7 +707,8 @@
       "payment": "Payment settings",
       "weapp": "Mini program",
       "newbieTasks": "Newbie task settings",
-      "lottery": "Lottery settings"
+      "lottery": "Lottery settings",
+      "system": "System settings"
     },
     "newbieTasks": {
       "meta": {
@@ -888,6 +889,38 @@
         "logLoadFailed": "Failed to load lottery logs"
       }
     },
+    "system": {
+      "font": {
+        "title": "Font file settings",
+        "subtitle": "Upload and configure the font file used in the console.",
+        "currentFileLabel": "Current font file",
+        "currentVersionLabel": "Current version",
+        "emptyFile": "No font file uploaded",
+        "emptyVersion": "Not set",
+        "fields": {
+          "file": "Font file",
+          "version": "Version"
+        },
+        "placeholders": {
+          "version": "e.g. 1.0.1"
+        },
+        "helper": "Supports TTF/OTF/WOFF/WOFF2. The patch version defaults to +1; you can edit it manually.",
+        "actions": {
+          "selectFile": "Choose file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "upload": "Upload & save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "noFile": "Please choose a font file first",
+          "noVersion": "Please enter a version",
+          "uploadSuccess": "Font file updated",
+          "uploadFailed": "Font upload failed",
+          "loadFailed": "Failed to load font config"
+        }
+      }
+    },
     "invite": {
       "logs": {
         "title": "Referral token logs",
@@ -908,6 +941,13 @@
         "operation": {
           "increase": "Increase",
           "decrease": "Decrease"
+        },
+        "logTypes": {
+          "all": "All",
+          "invite": "Referral",
+          "pinReview": "Pin review",
+          "checkin": "Check-in",
+          "lottery": "Lottery"
         }
       },
       "form": {

@@ -194,6 +194,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /api/newbie-tasks/popup/close:
+    post:
+      summary: Close the 30-second popup
+      description: User only. Persists the 30-second popup flag to false.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNewbieTaskPopupResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
   /api/newbie-tasks/reward:
     post:
       summary: Claim newbie task reward
@@ -274,6 +291,17 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/NewbieTaskRewardResponse'
+    ApiResponseNewbieTaskPopupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          $ref: '#/components/schemas/NewbieTaskPopupResponse'
     ApiResponseObject:
       type: object
       properties:
@@ -306,6 +334,8 @@ components:
           type: string
         buttonText:
           type: string
+        qrCodeUrl:
+          type: string
       required:
         - index
         - name
@@ -335,6 +365,11 @@ components:
           type: string
         buttonText:
           type: string
+        qrCodeUrl:
+          type: string
+        qrCodeUploadedAt:
+          type: string
+          format: date-time
     NetdiskGiftConfigRequest:
       type: object
       properties:
@@ -385,6 +420,14 @@ components:
             $ref: '#/components/schemas/NewbieTaskItemResponse'
         rewardAvailable:
           type: boolean
+        showThirtySecondPopup:
+          type: boolean
+          description: True on first view; false after closing the popup.
+    NewbieTaskPopupResponse:
+      type: object
+      properties:
+        showThirtySecondPopup:
+          type: boolean
     NewbieTaskItemResponse:
       type: object
       properties:
@@ -395,6 +438,8 @@ components:
         description:
           type: string
         buttonText:
+          type: string
+        qrCodeUrl:
           type: string
         completed:
           type: boolean

@@ -8,7 +8,7 @@ const toPageResult = (payload = {}, defaults = {}) => ({
   totalPages: payload.totalPages ?? defaults.totalPages ?? 0,
 })
 
-export const fetchFlpLogs = async ({ page = 1, size = 10, featureCode } = {}) => {
+export const fetchFlpLogs = async ({ page = 1, size = 10, featureCode, logType } = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
     size,
@@ -16,6 +16,10 @@ export const fetchFlpLogs = async ({ page = 1, size = 10, featureCode } = {}) =>
 
   if (featureCode) {
     params.featureCode = featureCode
+  }
+
+  if (logType) {
+    params.logType = logType
   }
 
   const response = await http.get('/flp/logs', { params })

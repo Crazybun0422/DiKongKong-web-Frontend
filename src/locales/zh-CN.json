@@ -725,7 +725,8 @@
       "payment": "支付设置",
       "weapp": "小程序设置",
       "newbieTasks": "新人任务设置",
-      "lottery": "抽奖设置"
+      "lottery": "抽奖设置",
+      "system": "系统设置"
     },
     "newbieTasks": {
       "meta": {
@@ -906,6 +907,38 @@
         "logLoadFailed": "抽奖日志加载失败"
       }
     },
+    "system": {
+      "font": {
+        "title": "字体文件设置",
+        "subtitle": "上传并配置管理端使用的字体文件。",
+        "currentFileLabel": "当前字体文件",
+        "currentVersionLabel": "当前版本",
+        "emptyFile": "暂无字体文件",
+        "emptyVersion": "未设置",
+        "fields": {
+          "file": "字体文件",
+          "version": "版本号"
+        },
+        "placeholders": {
+          "version": "例如 1.0.1"
+        },
+        "helper": "支持 TTF/OTF/WOFF/WOFF2，默认会在当前版本基础上小版本号 +1，可手动修改。",
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "upload": "上传并保存",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "noFile": "请先选择字体文件",
+          "noVersion": "请填写版本号",
+          "uploadSuccess": "字体文件已更新",
+          "uploadFailed": "字体文件上传失败",
+          "loadFailed": "字体配置加载失败"
+        }
+      }
+    },
     "invite": {
       "logs": {
         "title": "拉新TOKEN日志",
@@ -926,6 +959,13 @@
         "operation": {
           "increase": "增加",
           "decrease": "减少"
+        },
+        "logTypes": {
+          "all": "全部",
+          "invite": "拉新",
+          "pinReview": "标注审核",
+          "checkin": "签到",
+          "lottery": "抽奖"
         }
       },
       "form": {
