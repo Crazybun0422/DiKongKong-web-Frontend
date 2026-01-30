@@ -317,6 +317,8 @@ components:
     NewbieTaskTemplateRequest:
       type: object
       properties:
+        qrCodeUrl:
+          type: string
         tasks:
           type: array
           items:
@@ -334,8 +336,6 @@ components:
           type: string
         buttonText:
           type: string
-        qrCodeUrl:
-          type: string
       required:
         - index
         - name
@@ -344,6 +344,11 @@ components:
       properties:
         id:
           type: string
+        qrCodeUrl:
+          type: string
+        qrCodeUploadedAt:
+          type: string
+          format: date-time
         tasks:
           type: array
           items:
@@ -365,11 +370,6 @@ components:
           type: string
         buttonText:
           type: string
-        qrCodeUrl:
-          type: string
-        qrCodeUploadedAt:
-          type: string
-          format: date-time
     NetdiskGiftConfigRequest:
       type: object
       properties:
@@ -418,6 +418,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NewbieTaskItemResponse'
+        qrCodeUrl:
+          type: string
         rewardAvailable:
           type: boolean
         showThirtySecondPopup:
@@ -438,8 +440,6 @@ components:
         description:
           type: string
         buttonText:
-          type: string
-        qrCodeUrl:
           type: string
         completed:
           type: boolean

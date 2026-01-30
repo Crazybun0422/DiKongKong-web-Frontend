@@ -535,6 +535,10 @@
       "confirmDelete": "Delete",
       "cancel": "Cancel"
     },
+    "mapType": {
+      "standard": "Standard",
+      "satellite": "Satellite"
+    },
     "search": {
       "placeholder": "Search location",
       "button": "Search",
@@ -732,7 +736,17 @@
           "index": "Task index",
           "name": "Task name",
           "description": "Task description",
-          "buttonText": "Button text"
+          "buttonText": "Button text",
+          "qrCode": "QR code"
+        },
+        "qrCode": {
+          "upload": "Upload QR",
+          "uploadReplace": "Replace QR",
+          "remove": "Remove",
+          "uploadedAt": "Last upload: {time}",
+          "emptyUploadedAt": "Not uploaded yet",
+          "uploadSuccess": "QR code uploaded",
+          "uploadFailed": "Failed to upload QR code"
         },
         "actions": {
           "add": "Add task",

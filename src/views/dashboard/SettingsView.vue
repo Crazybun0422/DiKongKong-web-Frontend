@@ -301,6 +301,9 @@ const newbieTaskStatsPagination = reactive({
   pageSize: 10,
   total: 0,
 })
+const newbieTaskQrCodeUrl = ref('')
+const newbieTaskQrCodeUploadedAt = ref(null)
+const newbieTaskQrUploadLoading = ref(false)
 
 const netdiskGiftLoading = ref(false)
 const netdiskGiftSaving = ref(false)
@@ -981,10 +984,14 @@ const loadNewbieTaskTemplate = async () => {
     const data = await fetchNewbieTaskTemplate()
     newbieTaskTemplateForm.value = normalizeNewbieTasks(data?.tasks)
     newbieTaskTemplateUpdatedAt.value = data?.updatedAt || null
+    newbieTaskQrCodeUrl.value = extractObjectName(data?.qrCodeUrl ?? '')
+    newbieTaskQrCodeUploadedAt.value = data?.qrCodeUploadedAt ?? null
   } catch (error) {
     if (error?.response?.status === 404) {
       newbieTaskTemplateForm.value = [createNewbieTaskRow()]
       newbieTaskTemplateUpdatedAt.value = null
+      newbieTaskQrCodeUrl.value = ''
+      newbieTaskQrCodeUploadedAt.value = null
       return
     }
     console.error('Failed to load newbie task template', error)
@@ -1012,7 +1019,10 @@ const submitNewbieTaskTemplate = async () => {
   }
   newbieTaskTemplateSaving.value = true
   try {
-    await saveNewbieTaskTemplate({ tasks })
+    await saveNewbieTaskTemplate({
+      tasks,
+      qrCodeUrl: extractObjectName(newbieTaskQrCodeUrl.value || ''),
+    })
     message.success(t('settings.newbieTasks.template.messages.saveSuccess'))
     await loadNewbieTaskTemplate()
   } catch (error) {
@@ -1032,6 +1042,8 @@ const handleDeleteNewbieTaskTemplate = async () => {
     await deleteNewbieTaskTemplate()
     newbieTaskTemplateForm.value = [createNewbieTaskRow()]
     newbieTaskTemplateUpdatedAt.value = null
+    newbieTaskQrCodeUrl.value = ''
+    newbieTaskQrCodeUploadedAt.value = null
     message.success(t('settings.newbieTasks.template.messages.deleteSuccess'))
   } catch (error) {
     console.error('Failed to delete newbie task template', error)
@@ -1039,6 +1051,38 @@ const handleDeleteNewbieTaskTemplate = async () => {
   } finally {
     newbieTaskTemplateSaving.value = false
   }
+}
+
+const getNewbieTaskQrCodeUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
+
+const formatNewbieTaskQrUploadedAt = (value) =>
+  value ? new Date(value).toLocaleString() : t('settings.newbieTasks.template.qrCode.emptyUploadedAt')
+
+const handleNewbieTaskQrUpload = async (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) {
+    return
+  }
+  newbieTaskQrUploadLoading.value = true
+  try {
+    const result = await uploadPublicFile(file)
+    newbieTaskQrCodeUrl.value = result?.objectName || extractObjectName(result?.url || '') || ''
+    newbieTaskQrCodeUploadedAt.value = new Date().toISOString()
+    message.success(t('settings.newbieTasks.template.qrCode.uploadSuccess'))
+  } catch (error) {
+    console.error('Failed to upload newbie task qr code', error)
+    message.error(t('settings.newbieTasks.template.qrCode.uploadFailed'))
+  } finally {
+    newbieTaskQrUploadLoading.value = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const removeNewbieTaskQrCode = () => {
+  newbieTaskQrCodeUrl.value = ''
+  newbieTaskQrCodeUploadedAt.value = null
 }
 
 const loadNetdiskGiftConfig = async () => {
@@ -1932,6 +1976,42 @@ onMounted(() => {
                     </div>
                     <a-spin :spinning="newbieTaskTemplateLoading">
                       <div class="detail-editor">
+                        <div class="newbie-task-qrcode">
+                          <span class="newbie-task-qrcode__label">
+                            {{ t('settings.newbieTasks.template.fields.qrCode') }}
+                          </span>
+                          <div class="newbie-task-upload">
+                            <label class="newbie-task-upload__trigger">
+                              <input class="newbie-task-upload__input" type="file" accept="image/*"
+                                :disabled="newbieTaskQrUploadLoading" @change="handleNewbieTaskQrUpload" />
+                              <a-button type="dashed" size="small" :loading="newbieTaskQrUploadLoading">
+                                {{
+                                  newbieTaskQrCodeUrl
+                                    ? t('settings.newbieTasks.template.qrCode.uploadReplace')
+                                    : t('settings.newbieTasks.template.qrCode.upload')
+                                }}
+                              </a-button>
+                            </label>
+                            <span v-if="newbieTaskQrCodeUrl" class="newbie-task-upload__name">
+                              {{ newbieTaskQrCodeUrl }}
+                            </span>
+                            <a-button v-if="newbieTaskQrCodeUrl" type="link" danger size="small"
+                              @click="removeNewbieTaskQrCode">
+                              {{ t('settings.newbieTasks.template.qrCode.remove') }}
+                            </a-button>
+                            <span class="newbie-task-upload__time">
+                              {{
+                                t('settings.newbieTasks.template.qrCode.uploadedAt', {
+                                  time: formatNewbieTaskQrUploadedAt(newbieTaskQrCodeUploadedAt),
+                                })
+                              }}
+                            </span>
+                            <div v-if="newbieTaskQrCodeUrl" class="newbie-task-qr-preview">
+                              <img :src="getNewbieTaskQrCodeUrl(newbieTaskQrCodeUrl)"
+                                :alt="t('settings.newbieTasks.template.fields.qrCode')" />
+                            </div>
+                          </div>
+                        </div>
                         <div class="detail-editor__header">
                           <span>{{ t('settings.newbieTasks.template.listTitle') }}</span>
                           <a-button size="small" type="dashed" @click="newbieTaskTemplateForm.push(createNewbieTaskRow())">
@@ -2640,6 +2720,71 @@ onMounted(() => {
 
 .newbie-task-row--link {
   grid-template-columns: 1fr 1.2fr auto;
+}
+
+.newbie-task-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.newbie-task-upload__trigger {
+  position: relative;
+  display: inline-flex;
+}
+
+.newbie-task-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.newbie-task-upload__name {
+  color: #374151;
+  font-size: 0.9rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newbie-task-upload__time {
+  width: 100%;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.newbie-task-qrcode {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.newbie-task-qrcode__label {
+  font-weight: 600;
+  color: #111827;
+}
+
+.newbie-task-qr-preview {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.newbie-task-qr-preview img {
+  max-width: 120px;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f3f4f6;
+  padding: 4px;
 }
 
 .lottery-hero {

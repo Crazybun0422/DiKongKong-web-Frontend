@@ -209,6 +209,7 @@ const typeOptions = computed(() => [
 ])
 
 const mapReady = computed(() => !!mapInstance.value)
+const mapType = ref('STANDARD')
 
 const hasDrawnGeometry = computed(() => {
   if (formState.type === 'CIRCLE') {
@@ -259,6 +260,27 @@ const disableSubmit = computed(() => {
 const searchOptions = computed(() =>
   searchResults.value.map((item) => ({ value: item.key, label: item.label })),
 )
+
+const mapTypeOptions = computed(() => [
+  { value: 'STANDARD', label: t('noFlyZone.mapType.standard') },
+  { value: 'SATELLITE', label: t('noFlyZone.mapType.satellite') },
+])
+
+const mapTypeIdForKey = (key) => {
+  if (!window.qq?.maps?.MapTypeId) return null
+  return key === 'SATELLITE' ? window.qq.maps.MapTypeId.HYBRID : window.qq.maps.MapTypeId.ROADMAP
+}
+
+const applyMapTypeToMap = () => {
+  if (!mapInstance.value || typeof mapInstance.value.setMapTypeId !== 'function') return
+  const mapTypeId = mapTypeIdForKey(mapType.value)
+  if (!mapTypeId) return
+  try {
+    mapInstance.value.setMapTypeId(mapTypeId)
+  } catch (error) {
+    console.error('Failed to set map type', error)
+  }
+}
 
 const highlightStyle = {
   polygon: {
@@ -2420,6 +2442,15 @@ watch(
   { flush: 'sync' },
 )
 
+watch(mapType, () => {
+  if (!mapReady.value) return
+  applyMapTypeToMap()
+})
+
+watch(mapReady, (ready) => {
+  if (ready) applyMapTypeToMap()
+})
+
 onMounted(() => {
   initializeMap2D()
 })
@@ -2449,6 +2480,7 @@ const initializeMap2D = async () => {
       zoomControl: true,
       mapTypeControl: false,
     })
+    applyMapTypeToMap()
     await loadMerchantMarkers()
     await loadZoneList()
   } catch (error) {
@@ -2824,6 +2856,9 @@ const handleSearchClear = () => {
               </template>
             </a-auto-complete>
           </div>
+          <div class="map-layer-toggle" :class="{ 'map-layer-toggle--disabled': !mapReady }">
+            <a-segmented v-model:value="mapType" :options="mapTypeOptions" size="small" :disabled="!mapReady" />
+          </div>
           <div v-if="!mapReady" class="map-placeholder">
             <a-spin :spinning="true" />
             <span>{{ t('noFlyZone.messages.mapLoading') }}</span>
@@ -2992,6 +3027,25 @@ const handleSearchClear = () => {
 
 .map-search-input {
   width: 100%;
+}
+
+.map-layer-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.map-layer-toggle :deep(.ant-segmented) {
+  background: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.map-layer-toggle--disabled {
+  opacity: 0.65;
 }
 
 .map-search-empty {

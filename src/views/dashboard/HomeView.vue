@@ -214,7 +214,7 @@ const layerForm = reactive({
 
 const mapTypeIdForKey = (key) => {
   if (!window.qq?.maps?.MapTypeId) return null
-  return key === 'SATELLITE' ? window.qq.maps.MapTypeId.SATELLITE : window.qq.maps.MapTypeId.ROADMAP
+  return key === 'SATELLITE' ? window.qq.maps.MapTypeId.HYBRID : window.qq.maps.MapTypeId.ROADMAP
 }
 
 const applyMapTypeToMap = () => {

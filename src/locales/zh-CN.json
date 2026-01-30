@@ -550,6 +550,10 @@
       "confirmDelete": "确认删除",
       "cancel": "取消"
     },
+    "mapType": {
+      "standard": "标准图",
+      "satellite": "卫星图"
+    },
     "search": {
       "placeholder": "搜地点",
       "button": "搜索",
@@ -750,7 +754,17 @@
           "index": "任务序号",
           "name": "任务名称",
           "description": "任务说明",
-          "buttonText": "按钮文案"
+          "buttonText": "按钮文案",
+          "qrCode": "二维码"
+        },
+        "qrCode": {
+          "upload": "上传二维码",
+          "uploadReplace": "更换二维码",
+          "remove": "移除",
+          "uploadedAt": "上次上传：{time}",
+          "emptyUploadedAt": "尚未上传",
+          "uploadSuccess": "二维码上传成功",
+          "uploadFailed": "二维码上传失败"
         },
         "actions": {
           "add": "新增任务",
