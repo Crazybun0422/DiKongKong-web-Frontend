@@ -535,6 +535,20 @@
       "edgeDistancePlaceholder": "请输入沿边距离",
       "edgeDistanceHint": "将在中心线两侧各偏移该距离生成禁飞区域。"
     },
+    "imageOverlay": {
+      "title": "图片叠加",
+      "upload": "上传图片",
+      "replace": "替换图片",
+      "remove": "移除图片",
+      "opacity": "透明度",
+      "scale": "图片比例",
+      "penetrate": "渗透地图",
+      "place": "点击地图放置",
+      "placeCenter": "放到当前中心",
+      "placingHint": "请点击地图放置图片位置",
+      "uploadHint": "支持 PNG/JPG，最大 5MB，可直接粘贴剪切板图片；比例最大可覆盖整个地图",
+      "uploadError": "图片格式或大小不符合要求"
+    },
     "actions": {
       "startDrawing": "开始绘制",
       "drawing": "绘制中...",

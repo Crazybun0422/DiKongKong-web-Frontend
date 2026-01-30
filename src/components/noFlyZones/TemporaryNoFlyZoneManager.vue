@@ -5,6 +5,7 @@ import { EditOutlined, DeleteOutlined, EnvironmentOutlined } from '@ant-design/i
 import { useI18n } from 'vue-i18n'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
 import { wgs84ToGcj02 } from '../../utils/coords'
+import MapImageOverlayControl from './MapImageOverlayControl.vue'
 import {
   createNoFlyZone,
   deleteNoFlyZone,
@@ -2745,6 +2746,12 @@ const handleSearchClear = () => {
               </a-button> -->
             </a-space>
           </div>
+          <MapImageOverlayControl
+            :map="mapInstance"
+            :map-ready="mapReady"
+            :map-container="mapContainer"
+            :disabled="isDrawing"
+          />
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required">
@@ -2918,6 +2925,7 @@ const handleSearchClear = () => {
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
   gap: 16px;
+  align-items: start;
 }
 
 .control-panel,
