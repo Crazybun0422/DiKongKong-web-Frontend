@@ -2677,6 +2677,8 @@ const handleSearchClear = () => {
     <div class="manager-content">
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
+          <MapImageOverlayControl :map="mapInstance" :map-ready="mapReady" :map-container="mapContainer"
+            :disabled="isDrawing" />
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required">
@@ -2746,12 +2748,6 @@ const handleSearchClear = () => {
               </a-button> -->
             </a-space>
           </div>
-          <MapImageOverlayControl
-            :map="mapInstance"
-            :map-ready="mapReady"
-            :map-container="mapContainer"
-            :disabled="isDrawing"
-          />
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required">
@@ -3019,7 +3015,7 @@ const handleSearchClear = () => {
 .map-container {
   position: relative;
   width: 100%;
-  height: 600px;
+  height: 1020px;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -3089,7 +3085,7 @@ const handleSearchClear = () => {
   }
 
   .map-container {
-    height: 420px;
+    height: 1020px;
   }
 }
 </style>

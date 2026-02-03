@@ -718,6 +718,83 @@
       "emptyDetails": "No detail fields",
       "emptyPage": "No page"
     },
+    "reportEntry": {
+      "title": "Report entry settings",
+      "subtitle": "Configure report regions and jump guidance.",
+      "table": {
+        "province": "Province",
+        "area": "Report area",
+        "actions": "Actions"
+      },
+      "area": {
+        "nationwide": "Nationwide",
+        "allProvince": "All province"
+      },
+      "dialog": {
+        "placeholder": "Dialog copy goes here"
+      },
+      "form": {
+        "area": "Report region",
+        "miniProgram": "Mini program jump",
+        "appId": "Mini program AppID",
+        "path": "Mini program path",
+        "guide": "Guidance",
+        "publicAccountLink": "Official account article link",
+        "videoAccountId": "Video account ID",
+        "videoId": "Video ID"
+      },
+      "guide": {
+        "publicAccount": "Official account article",
+        "video": "Video account video"
+      },
+      "placeholders": {
+        "appId": "Enter appid",
+        "path": "Enter path",
+        "publicAccountLink": "Enter article link",
+        "videoAccountId": "Enter video account ID",
+        "videoId": "Enter video ID"
+      },
+      "search": {
+        "placeholder": "Search province/city/county"
+      },
+      "drawer": {
+        "createTitle": "Create report entry",
+        "editTitle": "Edit report entry"
+      },
+      "actions": {
+        "create": "Create",
+        "edit": "Edit",
+        "delete": "Delete",
+        "saveDialog": "Save",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "deleteConfirmTitle": "Delete report entry",
+        "deleteConfirmContent": "Delete the report entry for \"{name}\"?"
+      },
+      "validation": {
+        "area": "Select a report region",
+        "appId": "Enter the mini program AppID",
+        "path": "Enter the mini program path",
+        "publicAccountLink": "Enter the official account article link",
+        "videoAccountId": "Enter the video account ID",
+        "videoId": "Enter the video ID"
+      },
+      "messages": {
+        "loadFailed": "Failed to load report entries",
+        "loadDialogFailed": "Failed to load dialog copy",
+        "createSuccess": "Report entry created",
+        "updateSuccess": "Report entry updated",
+        "saveSuccess": "Report entry settings saved",
+        "saveFailed": "Failed to save report entry",
+        "deleteSuccess": "Report entry deleted",
+        "deleteFailed": "Failed to delete report entry",
+        "selectOne": "Select a report entry first",
+        "dialogRequired": "Enter dialog copy"
+      },
+      "pagination": {
+        "total": "{total} total · {start}-{end}"
+      }
+    },
     "tabs": {
       "invite": "Referral rewards",
       "mapSettlement": "Merchant onboarding",
@@ -726,6 +803,7 @@
       "weapp": "Mini program",
       "newbieTasks": "Newbie task settings",
       "lottery": "Lottery settings",
+      "reportEntry": "Report entry",
       "system": "System settings"
     },
     "newbieTasks": {

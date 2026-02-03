@@ -736,6 +736,83 @@
       "emptyDetails": "未配置详情字段",
       "emptyPage": "未配置页面"
     },
+    "reportEntry": {
+      "title": "报备设置",
+      "subtitle": "配置报备地区与跳转指引信息。",
+      "table": {
+        "province": "省份",
+        "area": "报备地区",
+        "actions": "操作"
+      },
+      "area": {
+        "nationwide": "全国",
+        "allProvince": "全省"
+      },
+      "dialog": {
+        "placeholder": "此处为弹窗文案"
+      },
+      "form": {
+        "area": "报备地区",
+        "miniProgram": "跳转小程序",
+        "appId": "小程序 AppID",
+        "path": "小程序路径",
+        "guide": "申请指引",
+        "publicAccountLink": "公众号文章链接",
+        "videoAccountId": "视频号 ID",
+        "videoId": "视频 ID"
+      },
+      "guide": {
+        "publicAccount": "跳转公众号-文章",
+        "video": "跳转视频号-视频"
+      },
+      "placeholders": {
+        "appId": "请输入 appid",
+        "path": "请输入路径",
+        "publicAccountLink": "请输入公众号文章链接",
+        "videoAccountId": "请输入视频号ID",
+        "videoId": "请输入视频ID"
+      },
+      "search": {
+        "placeholder": "搜索省/市/县"
+      },
+      "drawer": {
+        "createTitle": "新建报备配置",
+        "editTitle": "编辑报备配置"
+      },
+      "actions": {
+        "create": "新建",
+        "edit": "编辑",
+        "delete": "删除",
+        "saveDialog": "保存配置",
+        "confirm": "确定",
+        "cancel": "取消",
+        "deleteConfirmTitle": "确认删除报备配置",
+        "deleteConfirmContent": "确认删除“{name}”的报备配置吗？"
+      },
+      "validation": {
+        "area": "请选择报备地区",
+        "appId": "请输入小程序 AppID",
+        "path": "请输入小程序路径",
+        "publicAccountLink": "请输入公众号文章链接",
+        "videoAccountId": "请输入视频号 ID",
+        "videoId": "请输入视频 ID"
+      },
+      "messages": {
+        "loadFailed": "报备配置加载失败",
+        "loadDialogFailed": "弹窗文案加载失败",
+        "createSuccess": "报备配置已创建",
+        "updateSuccess": "报备配置已更新",
+        "saveSuccess": "报备配置已保存",
+        "saveFailed": "报备配置保存失败",
+        "deleteSuccess": "报备配置已删除",
+        "deleteFailed": "报备配置删除失败",
+        "selectOne": "请先选择一条报备配置",
+        "dialogRequired": "请填写弹窗文案"
+      },
+      "pagination": {
+        "total": "共 {total} 条 · 当前 {start}-{end}"
+      }
+    },
     "tabs": {
       "invite": "拉新奖励配置",
       "mapSettlement": "地图商户入驻配置",
@@ -744,6 +821,7 @@
       "weapp": "小程序设置",
       "newbieTasks": "新人任务设置",
       "lottery": "抽奖设置",
+      "reportEntry": "报备设置",
       "system": "系统设置"
     },
     "newbieTasks": {

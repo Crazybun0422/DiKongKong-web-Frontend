@@ -1,6 +1,6 @@
 ﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import {
   fetchInviteConfig,
@@ -37,6 +37,16 @@ import {
   deleteNetdiskGiftConfig,
 } from '../../services/newbieTasks'
 import { buildDownloadUrl, extractObjectName, uploadPublicFile } from '../../services/files'
+import {
+  fetchReportEntries,
+  fetchReportEntryDialogText,
+  saveReportEntryDialogText,
+  createReportEntry,
+  updateReportEntry,
+  deleteReportEntry,
+} from '../../services/reportEntries'
+import reportEntryRegions from '../../data/reportEntryRegions'
+import detailIcon from '../../assets/img/detail.png'
 
 const { t } = useI18n()
 
@@ -361,6 +371,32 @@ const checkinLogPagination = reactive({
   total: 0,
 })
 
+const reportEntryList = ref([])
+const reportEntryLoading = ref(false)
+const reportEntrySaving = ref(false)
+const reportEntryConfigSaving = ref(false)
+const reportEntryDrawerVisible = ref(false)
+const reportEntryEditingId = ref(null)
+const reportEntryFormRef = ref(null)
+const reportEntrySelectedKeys = ref([])
+const reportEntrySelectedId = ref(null)
+const reportEntryDialogText = ref('')
+const reportEntryDeletedIds = ref([])
+const reportEntryPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
+const reportEntryForm = reactive({
+  areaPath: [],
+  miniProgramAppId: '',
+  miniProgramPath: '',
+  guideType: 'publicAccount',
+  publicAccountLink: '',
+  videoAccountId: '',
+  videoId: '',
+})
+
 const createDefaultLotteryPrizes = () =>
   Array.from({ length: 8 }, (_, index) => ({
     level: index + 1,
@@ -437,6 +473,62 @@ const parseProbabilityValue = (value) => {
   return head + tail
 }
 
+const buildReportEntryTree = (nodes = [], parentPath = []) =>
+  nodes.map((node) => {
+    const currentPath = [...parentPath, node.name]
+    const treeNode = {
+      title: node.name,
+      key: currentPath.join('/'),
+      path: currentPath,
+      selectable: true,
+    }
+    if (Array.isArray(node.children) && node.children.length) {
+      treeNode.children = buildReportEntryTree(node.children, currentPath)
+    }
+    return treeNode
+  })
+
+const resolveReportEntryRegion = (path = []) => {
+  if (!Array.isArray(path) || !path.length) {
+    return { province: '', city: null, county: null }
+  }
+  const normalized = path[0] === '全国' ? path.slice(1) : path
+  if (!normalized.length) {
+    return { province: '全国', city: null, county: null }
+  }
+  const [province, city, county] = normalized
+  return {
+    province: province || '',
+    city: city || null,
+    county: county || null,
+  }
+}
+
+const buildReportEntryAreaPath = (entry) => {
+  const path = ['全国']
+  if (!entry?.province) return path
+  if (entry.province && entry.province !== '全国') {
+    path.push(entry.province)
+  }
+  if (entry.city) path.push(entry.city)
+  if (entry.county) path.push(entry.county)
+  return path
+}
+
+const createTempReportEntryId = () =>
+  `temp-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+
+const isTempReportEntryId = (id) => String(id || '').startsWith('temp-')
+
+const updateReportEntryInList = (id, updater) => {
+  const index = reportEntryList.value.findIndex((item) => item.id === id)
+  if (index === -1) return null
+  const current = reportEntryList.value[index]
+  const next = typeof updater === 'function' ? updater(current) : { ...current, ...updater }
+  reportEntryList.value.splice(index, 1, next)
+  return next
+}
+
 const parseFontVersion = (value) => {
   const raw = String(value || '').trim()
   if (!raw) return null
@@ -510,6 +602,85 @@ const newbieTaskStatsColumns = computed(() => [
   { title: t('settings.newbieTasks.stats.columns.registeredAt'), dataIndex: 'registeredAt', key: 'registeredAt', width: 200 },
   { title: t('settings.newbieTasks.stats.columns.tasks'), dataIndex: 'tasks', key: 'tasks' },
 ])
+
+const reportEntryTreeData = computed(() => buildReportEntryTree(reportEntryRegions))
+const reportEntryDefaultExpandedKeys = ['全国']
+const reportEntrySearch = ref('')
+const reportEntryTreeExpandedKeys = ref(reportEntryDefaultExpandedKeys)
+const reportEntryAutoExpandParent = ref(false)
+const reportEntryTreeFilterResult = computed(() => {
+  const keyword = reportEntrySearch.value.trim()
+  if (!keyword) {
+    return { tree: reportEntryTreeData.value, expandedKeys: reportEntryDefaultExpandedKeys }
+  }
+  const lowerKeyword = keyword.toLowerCase()
+  const expandedKeys = new Set()
+  const filterNodes = (nodes) =>
+    (nodes || []).reduce((acc, node) => {
+      const title = String(node?.title || '')
+      const matched = title.toLowerCase().includes(lowerKeyword)
+      const children = Array.isArray(node?.children) ? node.children : []
+      const filteredChildren = filterNodes(children)
+      if (filteredChildren.length) {
+        expandedKeys.add(node.key)
+      }
+      if (matched || filteredChildren.length) {
+        acc.push({
+          ...node,
+          children: filteredChildren.length ? filteredChildren : undefined,
+        })
+      }
+      return acc
+    }, [])
+  return { tree: filterNodes(reportEntryTreeData.value), expandedKeys: Array.from(expandedKeys) }
+})
+const reportEntryColumns = computed(() => [
+  { title: t('settings.reportEntry.table.province'), dataIndex: 'province', key: 'province', width: 160 },
+  { title: t('settings.reportEntry.table.area'), dataIndex: 'area', key: 'area' },
+  { title: t('settings.reportEntry.table.actions'), key: 'actions', width: 120 },
+])
+const reportEntryRules = computed(() => ({
+  areaPath: [
+    {
+      validator: (_, value) =>
+        Array.isArray(value) && value.length
+          ? Promise.resolve()
+          : Promise.reject(new Error(t('settings.reportEntry.validation.area'))),
+    },
+  ],
+  miniProgramAppId: [{ required: true, message: t('settings.reportEntry.validation.appId') }],
+  miniProgramPath: [{ required: false, message: t('settings.reportEntry.validation.path') }],
+  publicAccountLink: [
+    {
+      validator: () => {
+        if (reportEntryForm.guideType !== 'publicAccount') return Promise.resolve()
+        return reportEntryForm.publicAccountLink?.trim()
+          ? Promise.resolve()
+          : Promise.reject(new Error(t('settings.reportEntry.validation.publicAccountLink')))
+      },
+    },
+  ],
+  videoAccountId: [
+    {
+      validator: () => {
+        if (reportEntryForm.guideType !== 'video') return Promise.resolve()
+        return reportEntryForm.videoAccountId?.trim()
+          ? Promise.resolve()
+          : Promise.reject(new Error(t('settings.reportEntry.validation.videoAccountId')))
+      },
+    },
+  ],
+  videoId: [
+    {
+      validator: () => {
+        if (reportEntryForm.guideType !== 'video') return Promise.resolve()
+        return reportEntryForm.videoId?.trim()
+          ? Promise.resolve()
+          : Promise.reject(new Error(t('settings.reportEntry.validation.videoId')))
+      },
+    },
+  ],
+}))
 
 const loadInviteConfig = async () => {
   inviteLoading.value = true
@@ -1349,6 +1520,255 @@ const handleCheckinLogTableChange = (pager) => {
   loadCheckinLogs()
 }
 
+const formatReportEntryArea = (entry) => {
+  if (!entry) return '-'
+  if (entry.county) {
+    return entry.city ? `${entry.city} / ${entry.county}` : entry.county
+  }
+  if (entry.city) return entry.city
+  if (entry.province === '全国') return t('settings.reportEntry.area.nationwide')
+  return t('settings.reportEntry.area.allProvince')
+}
+
+const selectReportEntry = (entry) => {
+  if (!entry) {
+    reportEntrySelectedId.value = null
+    return
+  }
+  reportEntrySelectedId.value = entry.id
+}
+
+const reportEntryRowProps = (record) => ({
+  onClick: () => selectReportEntry(record),
+})
+
+const reportEntryRowClassName = (record) =>
+  record?.id && record.id === reportEntrySelectedId.value ? 'report-entry-row--active' : ''
+
+const loadReportEntries = async () => {
+  reportEntryLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchReportEntries({
+      page: reportEntryPagination.current,
+      size: reportEntryPagination.pageSize,
+    })
+    reportEntryList.value = content || []
+    reportEntryDeletedIds.value = []
+    reportEntryPagination.total = totalElements
+    reportEntryPagination.current = page
+    reportEntryPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load report entries', error)
+    message.error(t('settings.reportEntry.messages.loadFailed'))
+  } finally {
+    reportEntryLoading.value = false
+  }
+}
+
+const loadReportEntryDialogText = async () => {
+  try {
+    const data = await fetchReportEntryDialogText()
+    reportEntryDialogText.value = data?.dialogText || ''
+  } catch (error) {
+    console.error('Failed to load report entry dialog text', error)
+    message.error(t('settings.reportEntry.messages.loadDialogFailed'))
+  }
+}
+
+const handleReportEntryTableChange = (pager) => {
+  reportEntryPagination.current = pager?.current ?? 1
+  reportEntryPagination.pageSize = pager?.pageSize ?? reportEntryPagination.pageSize
+  loadReportEntries()
+}
+
+const resetReportEntryForm = () => {
+  reportEntryForm.areaPath = []
+  reportEntryForm.miniProgramAppId = ''
+  reportEntryForm.miniProgramPath = ''
+  reportEntryForm.guideType = 'publicAccount'
+  reportEntryForm.publicAccountLink = ''
+  reportEntryForm.videoAccountId = ''
+  reportEntryForm.videoId = ''
+  reportEntrySelectedKeys.value = []
+  reportEntryFormRef.value?.clearValidate?.()
+}
+
+const openReportEntryDrawer = (entry) => {
+  if (entry) {
+    reportEntryEditingId.value = entry.id
+    reportEntryForm.areaPath = buildReportEntryAreaPath(entry)
+    reportEntrySelectedKeys.value = [reportEntryForm.areaPath.join('/')]
+    reportEntryForm.miniProgramAppId = entry?.miniProgram?.appId || ''
+    reportEntryForm.miniProgramPath = entry?.miniProgram?.path || ''
+    reportEntryForm.publicAccountLink = entry?.guide?.publicAccountLink || ''
+    reportEntryForm.videoAccountId = entry?.guide?.videoAccountId || ''
+    reportEntryForm.videoId = entry?.guide?.videoId || ''
+    reportEntryForm.guideType = reportEntryForm.publicAccountLink ? 'publicAccount' : 'video'
+    selectReportEntry(entry)
+  } else {
+    reportEntryEditingId.value = null
+    resetReportEntryForm()
+  }
+  reportEntryDrawerVisible.value = true
+}
+
+const handleReportEntryAreaCheck = (_, info) => {
+  if (!info?.checked) {
+    reportEntryForm.areaPath = []
+    reportEntrySelectedKeys.value = []
+    return
+  }
+  const nodePath = info?.node?.path || info?.node?.dataRef?.path
+  if (Array.isArray(nodePath)) {
+    reportEntryForm.areaPath = [...nodePath]
+  }
+  reportEntrySelectedKeys.value = info?.node?.key ? [info.node.key] : []
+}
+
+const handleReportEntryTreeExpand = (expandedKeys) => {
+  reportEntryTreeExpandedKeys.value = expandedKeys
+  reportEntryAutoExpandParent.value = false
+}
+
+const buildReportEntryPayloadFromEntry = (entry) => ({
+  province: entry?.province || '',
+  city: entry?.city ?? null,
+  county: entry?.county ?? null,
+  miniProgram: {
+    appId: entry?.miniProgram?.appId || '',
+    path: entry?.miniProgram?.path || '',
+  },
+  guide: {
+    publicAccountLink: entry?.guide?.publicAccountLink || '',
+    videoAccountId: entry?.guide?.videoAccountId || '',
+    videoId: entry?.guide?.videoId || '',
+  },
+})
+
+const submitReportEntryForm = async () => {
+  if (reportEntrySaving.value) return
+  try {
+    await reportEntryFormRef.value?.validate?.()
+  } catch (error) {
+    return
+  }
+  reportEntrySaving.value = true
+  try {
+    const region = resolveReportEntryRegion(reportEntryForm.areaPath)
+    const nextPayload = {
+      province: region.province,
+      city: region.city,
+      county: region.county,
+      miniProgram: {
+        appId: reportEntryForm.miniProgramAppId.trim(),
+        path: reportEntryForm.miniProgramPath.trim(),
+      },
+      guide: {
+        publicAccountLink: reportEntryForm.publicAccountLink.trim(),
+        videoAccountId: reportEntryForm.videoAccountId.trim(),
+        videoId: reportEntryForm.videoId.trim(),
+      },
+    }
+    if (reportEntryEditingId.value) {
+      const updated = updateReportEntryInList(reportEntryEditingId.value, (current) => ({
+        ...current,
+        ...nextPayload,
+      }))
+      if (updated) {
+        selectReportEntry(updated)
+      }
+    } else {
+      const newEntry = {
+        id: createTempReportEntryId(),
+        ...nextPayload,
+      }
+      reportEntryList.value.unshift(newEntry)
+      reportEntryEditingId.value = newEntry.id
+      selectReportEntry(newEntry)
+    }
+    reportEntryDrawerVisible.value = false
+  } catch (error) {
+    console.error('Failed to update report entry draft', error)
+    message.error(t('settings.reportEntry.messages.saveFailed'))
+  } finally {
+    reportEntrySaving.value = false
+  }
+}
+
+const submitReportEntryConfig = async () => {
+  if (reportEntryConfigSaving.value) return
+  const dialogTextValue = reportEntryDialogText.value.trim()
+  if (!dialogTextValue) {
+    message.warning(t('settings.reportEntry.messages.dialogRequired'))
+    return
+  }
+  reportEntryConfigSaving.value = true
+  try {
+    await saveReportEntryDialogText({ dialogText: dialogTextValue })
+    for (const id of reportEntryDeletedIds.value) {
+      await deleteReportEntry(id)
+    }
+    for (const entry of reportEntryList.value) {
+      const payload = buildReportEntryPayloadFromEntry(entry)
+      if (isTempReportEntryId(entry.id)) {
+        const created = await createReportEntry(payload)
+        if (created?.id) {
+          updateReportEntryInList(entry.id, { id: created.id })
+          if (reportEntrySelectedId.value === entry.id) {
+            reportEntrySelectedId.value = created.id
+          }
+        }
+      } else {
+        await updateReportEntry(entry.id, payload)
+      }
+    }
+    reportEntryDeletedIds.value = []
+    message.success(t('settings.reportEntry.messages.saveSuccess'))
+    await loadReportEntries()
+  } catch (error) {
+    console.error('Failed to save report entry config', error)
+    message.error(t('settings.reportEntry.messages.saveFailed'))
+  } finally {
+    reportEntryConfigSaving.value = false
+  }
+}
+
+const handleReportEntryDelete = (entry) => {
+  if (!entry?.id) return
+  Modal.confirm({
+    title: t('settings.reportEntry.actions.deleteConfirmTitle'),
+    content: t('settings.reportEntry.actions.deleteConfirmContent', { name: entry.province || '' }),
+    okText: t('settings.reportEntry.actions.delete'),
+    cancelText: t('settings.reportEntry.actions.cancel'),
+    onOk: async () => {
+      try {
+        if (!isTempReportEntryId(entry.id) && !reportEntryDeletedIds.value.includes(entry.id)) {
+          reportEntryDeletedIds.value.push(entry.id)
+        }
+        reportEntryList.value = reportEntryList.value.filter((item) => item.id !== entry.id)
+        if (reportEntrySelectedId.value === entry.id) {
+          reportEntrySelectedId.value = null
+        }
+        message.success(t('settings.reportEntry.messages.deleteSuccess'))
+      } catch (error) {
+        console.error('Failed to delete report entry', error)
+        message.error(t('settings.reportEntry.messages.deleteFailed'))
+      }
+    },
+  })
+}
+
+const handleReportEntryAction = (actionKey, entry) => {
+  if (!entry) return
+  if (actionKey === 'edit') {
+    openReportEntryDrawer(entry)
+    return
+  }
+  if (actionKey === 'delete') {
+    handleReportEntryDelete(entry)
+  }
+}
+
 const handleLotteryImageUpload = async (prize, event) => {
   const file = event?.target?.files?.[0]
   if (!file || !prize) {
@@ -1431,10 +1851,34 @@ const invitePaginationConfig = computed(() => ({
     }),
 }))
 
+const reportEntryPaginationConfig = computed(() => ({
+  current: reportEntryPagination.current,
+  pageSize: reportEntryPagination.pageSize,
+  total: reportEntryPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.reportEntry.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 watch(copyType, (next, previous) => {
   if (next !== previous) {
     loadCopyContent()
   }
+})
+
+watch(reportEntryTreeFilterResult, (result) => {
+  if (!reportEntrySearch.value.trim()) {
+    reportEntryTreeExpandedKeys.value = reportEntryDefaultExpandedKeys
+    reportEntryAutoExpandParent.value = false
+    return
+  }
+  reportEntryTreeExpandedKeys.value = result.expandedKeys
+  reportEntryAutoExpandParent.value = true
 })
 
 onMounted(() => {
@@ -1452,6 +1896,8 @@ onMounted(() => {
   loadLotteryConfig()
   loadLotteryLogs()
   loadCheckinLogs()
+  loadReportEntries()
+  loadReportEntryDialogText()
 })
 </script>
 
@@ -2326,6 +2772,129 @@ onMounted(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="report-entry" :tab="t('settings.tabs.reportEntry')">
+          <div class="tab-section">
+            <section class="report-entry-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.reportEntry.title') }}</h3>
+                  <p>{{ t('settings.reportEntry.subtitle') }}</p>
+                </div>
+                <a-button type="primary" @click="openReportEntryDrawer()">
+                  {{ t('settings.reportEntry.actions.create') }}
+                </a-button>
+              </header>
+              <div class="report-entry-table">
+                <a-table :columns="reportEntryColumns" :data-source="reportEntryList" :loading="reportEntryLoading"
+                  :pagination="reportEntryPaginationConfig" row-key="id" :custom-row="reportEntryRowProps"
+                  :row-class-name="reportEntryRowClassName" @change="handleReportEntryTableChange">
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'area'">
+                      {{ formatReportEntryArea(record) }}
+                    </template>
+                    <template v-else-if="column.key === 'actions'">
+                      <a-dropdown trigger="click">
+                        <a-button type="text" class="report-entry-action-button">
+                          <img :src="detailIcon" alt="detail" class="report-entry-action-icon" />
+                        </a-button>
+                        <template #overlay>
+                          <a-menu @click="({ key }) => handleReportEntryAction(key, record)">
+                            <a-menu-item key="edit">
+                              {{ t('settings.reportEntry.actions.edit') }}
+                            </a-menu-item>
+                            <a-menu-item key="delete" danger>
+                              {{ t('settings.reportEntry.actions.delete') }}
+                            </a-menu-item>
+                          </a-menu>
+                        </template>
+                      </a-dropdown>
+                    </template>
+                  </template>
+                </a-table>
+              </div>
+              <div class="report-entry-dialog">
+                <a-textarea v-model:value="reportEntryDialogText" :rows="2"
+                  :placeholder="t('settings.reportEntry.dialog.placeholder')" />
+                <a-button type="primary" :loading="reportEntryConfigSaving" :disabled="reportEntryConfigSaving"
+                  @click="submitReportEntryConfig">
+                  {{ t('settings.reportEntry.actions.saveDialog') }}
+                </a-button>
+              </div>
+            </section>
+          </div>
+
+          <a-drawer :open="reportEntryDrawerVisible" placement="right" :width="520"
+            :title="reportEntryEditingId ? t('settings.reportEntry.drawer.editTitle') : t('settings.reportEntry.drawer.createTitle')"
+            :mask-closable="false" @close="reportEntryDrawerVisible = false">
+            <a-form ref="reportEntryFormRef" :model="reportEntryForm" :rules="reportEntryRules" layout="vertical">
+              <div class="report-entry-form-section">
+                <div class="report-entry-form-title">{{ t('settings.reportEntry.form.area') }}</div>
+                <a-form-item name="areaPath">
+                  <div class="report-entry-tree">
+                    <div class="report-entry-search">
+                      <a-input v-model:value="reportEntrySearch" allow-clear
+                        :placeholder="t('settings.reportEntry.search.placeholder')" />
+                    </div>
+                    <a-tree :tree-data="reportEntryTreeFilterResult.tree" :checked-keys="reportEntrySelectedKeys"
+                      :expanded-keys="reportEntryTreeExpandedKeys" :auto-expand-parent="reportEntryAutoExpandParent"
+                      checkable check-strictly block-node @check="handleReportEntryAreaCheck"
+                      @expand="handleReportEntryTreeExpand" />
+                  </div>
+                </a-form-item>
+              </div>
+
+              <div class="report-entry-form-section">
+                <div class="report-entry-form-title">{{ t('settings.reportEntry.form.miniProgram') }}</div>
+                <div class="report-entry-mini-program">
+                  <a-form-item name="miniProgramAppId" :label="t('settings.reportEntry.form.appId')">
+                    <a-input v-model:value="reportEntryForm.miniProgramAppId"
+                      :placeholder="t('settings.reportEntry.placeholders.appId')" />
+                  </a-form-item>
+                  <a-form-item name="miniProgramPath" :label="t('settings.reportEntry.form.path')">
+                    <a-input v-model:value="reportEntryForm.miniProgramPath"
+                      :placeholder="t('settings.reportEntry.placeholders.path')" />
+                  </a-form-item>
+                </div>
+              </div>
+
+              <div class="report-entry-form-section">
+                <div class="report-entry-form-title">{{ t('settings.reportEntry.form.guide') }}</div>
+                <a-form-item name="guideType">
+                  <a-radio-group v-model:value="reportEntryForm.guideType">
+                    <a-radio value="publicAccount">{{ t('settings.reportEntry.guide.publicAccount') }}</a-radio>
+                    <a-radio value="video">{{ t('settings.reportEntry.guide.video') }}</a-radio>
+                  </a-radio-group>
+                </a-form-item>
+                <a-form-item v-if="reportEntryForm.guideType === 'publicAccount'" name="publicAccountLink"
+                  :label="t('settings.reportEntry.form.publicAccountLink')">
+                  <a-input v-model:value="reportEntryForm.publicAccountLink"
+                    :placeholder="t('settings.reportEntry.placeholders.publicAccountLink')" />
+                </a-form-item>
+                <div v-else class="report-entry-guide-video">
+                  <a-form-item name="videoAccountId" :label="t('settings.reportEntry.form.videoAccountId')">
+                    <a-input v-model:value="reportEntryForm.videoAccountId"
+                      :placeholder="t('settings.reportEntry.placeholders.videoAccountId')" />
+                  </a-form-item>
+                  <a-form-item name="videoId" :label="t('settings.reportEntry.form.videoId')">
+                    <a-input v-model:value="reportEntryForm.videoId"
+                      :placeholder="t('settings.reportEntry.placeholders.videoId')" />
+                  </a-form-item>
+                </div>
+              </div>
+            </a-form>
+            <template #footer>
+              <div class="report-entry-drawer-footer">
+                <a-button @click="reportEntryDrawerVisible = false">
+                  {{ t('settings.reportEntry.actions.cancel') }}
+                </a-button>
+                <a-button type="primary" :loading="reportEntrySaving" @click="submitReportEntryForm">
+                  {{ t('settings.reportEntry.actions.confirm') }}
+                </a-button>
+              </div>
+            </template>
+          </a-drawer>
+        </a-tab-pane>
+
         <a-tab-pane key="system" :tab="t('settings.tabs.system')">
           <div class="tab-section">
             <section class="system-settings">
@@ -2630,6 +3199,93 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.report-entry-settings {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.report-entry-table {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.report-entry-action-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-entry-action-icon {
+  width: 22px;
+  height: 22px;
+}
+
+:deep(.report-entry-row--active) {
+  background: #eef2ff;
+}
+
+.report-entry-dialog {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-entry-dialog :deep(.ant-input) {
+  flex: 1;
+}
+
+.report-entry-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.report-entry-form-title {
+  font-weight: 600;
+  color: #111827;
+}
+
+.report-entry-tree {
+  max-height: 480px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.report-entry-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: 8px;
+  background: #ffffff;
+}
+
+.report-entry-mini-program,
+.report-entry-guide-video {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.report-entry-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .system-settings {
@@ -3061,6 +3717,16 @@ onMounted(() => {
   .newbie-task-row--task,
   .newbie-task-row--link {
     grid-template-columns: 1fr;
+  }
+
+  .report-entry-mini-program,
+  .report-entry-guide-video {
+    grid-template-columns: 1fr;
+  }
+
+  .report-entry-dialog {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>
