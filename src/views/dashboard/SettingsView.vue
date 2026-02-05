@@ -381,7 +381,6 @@ const reportEntryFormRef = ref(null)
 const reportEntrySelectedKeys = ref([])
 const reportEntrySelectedId = ref(null)
 const reportEntryDialogText = ref('')
-const reportEntryDeletedIds = ref([])
 const reportEntryPagination = reactive({
   current: 1,
   pageSize: 10,
@@ -504,6 +503,19 @@ const resolveReportEntryRegion = (path = []) => {
   }
 }
 
+const mergeReportEntryPayload = (payload, saved = {}) => ({
+  ...payload,
+  ...saved,
+  miniProgram: {
+    ...payload.miniProgram,
+    ...(saved?.miniProgram || {}),
+  },
+  guide: {
+    ...payload.guide,
+    ...(saved?.guide || {}),
+  },
+})
+
 const buildReportEntryAreaPath = (entry) => {
   const path = ['全国']
   if (!entry?.province) return path
@@ -514,11 +526,6 @@ const buildReportEntryAreaPath = (entry) => {
   if (entry.county) path.push(entry.county)
   return path
 }
-
-const createTempReportEntryId = () =>
-  `temp-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
-
-const isTempReportEntryId = (id) => String(id || '').startsWith('temp-')
 
 const updateReportEntryInList = (id, updater) => {
   const index = reportEntryList.value.findIndex((item) => item.id === id)
@@ -1553,7 +1560,6 @@ const loadReportEntries = async () => {
       size: reportEntryPagination.pageSize,
     })
     reportEntryList.value = content || []
-    reportEntryDeletedIds.value = []
     reportEntryPagination.total = totalElements
     reportEntryPagination.current = page
     reportEntryPagination.pageSize = size
@@ -1630,21 +1636,6 @@ const handleReportEntryTreeExpand = (expandedKeys) => {
   reportEntryAutoExpandParent.value = false
 }
 
-const buildReportEntryPayloadFromEntry = (entry) => ({
-  province: entry?.province || '',
-  city: entry?.city ?? null,
-  county: entry?.county ?? null,
-  miniProgram: {
-    appId: entry?.miniProgram?.appId || '',
-    path: entry?.miniProgram?.path || '',
-  },
-  guide: {
-    publicAccountLink: entry?.guide?.publicAccountLink || '',
-    videoAccountId: entry?.guide?.videoAccountId || '',
-    videoId: entry?.guide?.videoId || '',
-  },
-})
-
 const submitReportEntryForm = async () => {
   if (reportEntrySaving.value) return
   try {
@@ -1670,25 +1661,34 @@ const submitReportEntryForm = async () => {
       },
     }
     if (reportEntryEditingId.value) {
+      const saved = await updateReportEntry(reportEntryEditingId.value, nextPayload)
+      const merged = mergeReportEntryPayload(nextPayload, saved)
       const updated = updateReportEntryInList(reportEntryEditingId.value, (current) => ({
         ...current,
-        ...nextPayload,
+        ...merged,
+        id: merged.id ?? current.id,
       }))
-      if (updated) {
-        selectReportEntry(updated)
-      }
+      if (updated) selectReportEntry(updated)
+      message.success(t('settings.reportEntry.messages.updateSuccess'))
     } else {
+      const saved = await createReportEntry(nextPayload)
+      const merged = mergeReportEntryPayload(nextPayload, saved)
+      if (!merged?.id) {
+        throw new Error('Missing report entry id')
+      }
       const newEntry = {
-        id: createTempReportEntryId(),
-        ...nextPayload,
+        id: merged.id,
+        ...merged,
       }
       reportEntryList.value.unshift(newEntry)
       reportEntryEditingId.value = newEntry.id
       selectReportEntry(newEntry)
+      message.success(t('settings.reportEntry.messages.createSuccess'))
     }
     reportEntryDrawerVisible.value = false
+    await loadReportEntries()
   } catch (error) {
-    console.error('Failed to update report entry draft', error)
+    console.error('Failed to save report entry', error)
     message.error(t('settings.reportEntry.messages.saveFailed'))
   } finally {
     reportEntrySaving.value = false
@@ -1705,26 +1705,7 @@ const submitReportEntryConfig = async () => {
   reportEntryConfigSaving.value = true
   try {
     await saveReportEntryDialogText({ dialogText: dialogTextValue })
-    for (const id of reportEntryDeletedIds.value) {
-      await deleteReportEntry(id)
-    }
-    for (const entry of reportEntryList.value) {
-      const payload = buildReportEntryPayloadFromEntry(entry)
-      if (isTempReportEntryId(entry.id)) {
-        const created = await createReportEntry(payload)
-        if (created?.id) {
-          updateReportEntryInList(entry.id, { id: created.id })
-          if (reportEntrySelectedId.value === entry.id) {
-            reportEntrySelectedId.value = created.id
-          }
-        }
-      } else {
-        await updateReportEntry(entry.id, payload)
-      }
-    }
-    reportEntryDeletedIds.value = []
     message.success(t('settings.reportEntry.messages.saveSuccess'))
-    await loadReportEntries()
   } catch (error) {
     console.error('Failed to save report entry config', error)
     message.error(t('settings.reportEntry.messages.saveFailed'))
@@ -1742,14 +1723,11 @@ const handleReportEntryDelete = (entry) => {
     cancelText: t('settings.reportEntry.actions.cancel'),
     onOk: async () => {
       try {
-        if (!isTempReportEntryId(entry.id) && !reportEntryDeletedIds.value.includes(entry.id)) {
-          reportEntryDeletedIds.value.push(entry.id)
-        }
+        await deleteReportEntry(entry.id)
         reportEntryList.value = reportEntryList.value.filter((item) => item.id !== entry.id)
-        if (reportEntrySelectedId.value === entry.id) {
-          reportEntrySelectedId.value = null
-        }
+        if (reportEntrySelectedId.value === entry.id) reportEntrySelectedId.value = null
         message.success(t('settings.reportEntry.messages.deleteSuccess'))
+        await loadReportEntries()
       } catch (error) {
         console.error('Failed to delete report entry', error)
         message.error(t('settings.reportEntry.messages.deleteFailed'))
