@@ -657,36 +657,6 @@ const reportEntryRules = computed(() => ({
   ],
   miniProgramAppId: [{ required: true, message: t('settings.reportEntry.validation.appId') }],
   miniProgramPath: [{ required: false, message: t('settings.reportEntry.validation.path') }],
-  publicAccountLink: [
-    {
-      validator: () => {
-        if (reportEntryForm.guideType !== 'publicAccount') return Promise.resolve()
-        return reportEntryForm.publicAccountLink?.trim()
-          ? Promise.resolve()
-          : Promise.reject(new Error(t('settings.reportEntry.validation.publicAccountLink')))
-      },
-    },
-  ],
-  videoAccountId: [
-    {
-      validator: () => {
-        if (reportEntryForm.guideType !== 'video') return Promise.resolve()
-        return reportEntryForm.videoAccountId?.trim()
-          ? Promise.resolve()
-          : Promise.reject(new Error(t('settings.reportEntry.validation.videoAccountId')))
-      },
-    },
-  ],
-  videoId: [
-    {
-      validator: () => {
-        if (reportEntryForm.guideType !== 'video') return Promise.resolve()
-        return reportEntryForm.videoId?.trim()
-          ? Promise.resolve()
-          : Promise.reject(new Error(t('settings.reportEntry.validation.videoId')))
-      },
-    },
-  ],
 }))
 
 const loadInviteConfig = async () => {
