@@ -614,6 +614,13 @@
     }
   },
   "settings": {
+    "guideSettings": {
+      "tabs": {
+        "gif": "引导页设置",
+        "userAgreement": "用户协议设置",
+        "privacyPolicy": "隐私政策设置"
+      }
+    },
     "weapp": {
       "tabTitle": "小程序设置",
       "appId": "小程序 AppID",
@@ -822,6 +829,7 @@
       "newbieTasks": "新人任务设置",
       "lottery": "抽奖设置",
       "reportEntry": "报备设置",
+      "guideSettings": "引导设置",
       "system": "系统设置"
     },
     "newbieTasks": {
@@ -1014,6 +1022,121 @@
       }
     },
     "system": {
+      "guide": {
+        "title": "引导页设置",
+        "subtitle": "上传引导页面展示的 GIF 动图，支持多张。",
+        "hint": "仅支持 GIF，建议尺寸与小程序引导页一致。",
+        "empty": "暂无引导动图",
+        "fields": {
+          "title": "引导页标题"
+        },
+        "placeholders": {
+          "title": "请输入引导页标题"
+        },
+        "meta": {
+          "updatedAt": "更新时间：{time}",
+          "emptyUpdatedAt": "尚未同步"
+        },
+        "actions": {
+          "upload": "上传 GIF",
+          "addMore": "继续添加",
+          "remove": "移除",
+          "save": "保存配置",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "loadFailed": "引导配置加载失败",
+          "saveSuccess": "引导配置已保存",
+          "saveFailed": "引导配置保存失败",
+          "uploadSuccess": "已上传 {count} 张 GIF",
+          "uploadFailed": "GIF 上传失败",
+          "uploadEmpty": "未识别到可用的 GIF",
+          "empty": "请先上传至少一张引导 GIF",
+          "noTitle": "请填写引导页标题"
+        }
+      },
+      "userAgreement": {
+        "title": "用户协议设置",
+        "subtitle": "维护用户协议版本号与内容。",
+        "placeholders": {
+          "version": "例如 1.0.0",
+          "content": "请输入用户协议内容（支持富文本）"
+        },
+        "columns": {
+          "version": "版本号",
+          "content": "协议内容",
+          "updatedAt": "更新时间",
+          "actions": "操作"
+        },
+        "actions": {
+          "reload": "重新加载",
+          "uploadFile": "上传文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "create": "新增版本",
+          "update": "更新版本",
+          "edit": "编辑",
+          "delete": "删除",
+          "cancelEdit": "取消编辑",
+          "deleteConfirmTitle": "确认删除用户协议",
+          "deleteConfirmContent": "确认删除版本 {version} 的用户协议吗？",
+          "cancel": "取消"
+        },
+        "messages": {
+          "loadFailed": "用户协议加载失败",
+          "uploadSuccess": "用户协议文件已上传",
+          "uploadFailed": "用户协议文件上传失败",
+          "uploadEmpty": "未识别到可用的文件",
+          "noVersion": "请填写版本号",
+          "noFile": "请填写协议内容",
+          "createSuccess": "用户协议已新增",
+          "updateSuccess": "用户协议已更新",
+          "saveFailed": "用户协议保存失败",
+          "deleteSuccess": "用户协议已删除",
+          "deleteFailed": "用户协议删除失败"
+        }
+      },
+      "privacyPolicy": {
+        "title": "隐私政策设置",
+        "subtitle": "维护隐私政策版本号与内容。",
+        "placeholders": {
+          "version": "例如 1.0.0",
+          "content": "请输入隐私政策内容（支持富文本）"
+        },
+        "columns": {
+          "version": "版本号",
+          "content": "政策内容",
+          "updatedAt": "更新时间",
+          "actions": "操作"
+        },
+        "actions": {
+          "reload": "重新加载",
+          "uploadFile": "上传文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "create": "新增版本",
+          "update": "更新版本",
+          "edit": "编辑",
+          "delete": "删除",
+          "cancelEdit": "取消编辑",
+          "deleteConfirmTitle": "确认删除隐私政策",
+          "deleteConfirmContent": "确认删除版本 {version} 的隐私政策吗？",
+          "cancel": "取消"
+        },
+        "messages": {
+          "loadFailed": "隐私政策加载失败",
+          "uploadSuccess": "隐私政策文件已上传",
+          "uploadFailed": "隐私政策文件上传失败",
+          "uploadEmpty": "未识别到可用的文件",
+          "noVersion": "请填写版本号",
+          "noFile": "请填写政策内容",
+          "createSuccess": "隐私政策已新增",
+          "updateSuccess": "隐私政策已更新",
+          "saveFailed": "隐私政策保存失败",
+          "deleteSuccess": "隐私政策已删除",
+          "deleteFailed": "隐私政策删除失败"
+        }
+      },
       "font": {
         "title": "字体文件设置",
         "subtitle": "上传并配置管理端使用的字体文件。",

@@ -55,6 +55,16 @@ export const saveInviteGuideCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchGuideUrls = async () => {
+  const response = await http.get('/config/guide-urls')
+  return normalizePagePayload(response, { urls: [], updatedAt: null })
+}
+
+export const saveGuideUrls = async (payload) => {
+  const response = await http.put('/config/guide-urls', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchFontFileConfig = async () => {
   const response = await http.get('/config/font-file')
   return normalizePagePayload(response, {})
@@ -126,6 +136,8 @@ export default {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchGuideUrls,
+  saveGuideUrls,
   fetchFontFileConfig,
   uploadFontFileConfig,
   fetchPinReviewRewardConfig,

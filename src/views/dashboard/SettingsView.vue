@@ -13,6 +13,8 @@ import {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchGuideUrls,
+  saveGuideUrls,
   fetchFontFileConfig,
   uploadFontFileConfig,
   fetchTemplateSettings,
@@ -45,12 +47,23 @@ import {
   updateReportEntry,
   deleteReportEntry,
 } from '../../services/reportEntries'
+import {
+  fetchUserAgreements,
+  createUserAgreement,
+  updateUserAgreement,
+  deleteUserAgreement,
+  fetchPrivacyPolicies,
+  createPrivacyPolicy,
+  updatePrivacyPolicy,
+  deletePrivacyPolicy,
+} from '../../services/policy'
 import reportEntryRegions from '../../data/reportEntryRegions'
 import detailIcon from '../../assets/img/detail.png'
 
 const { t } = useI18n()
 
 const activeTab = ref('invite')
+const guideSettingsTab = ref('gif')
 
 const parseBulkTemplateInput = (input) => {
   const lines = (input || '').split('\n')
@@ -320,6 +333,13 @@ const netdiskGiftSaving = ref(false)
 const netdiskGiftUpdatedAt = ref(null)
 const netdiskGiftForm = ref([])
 
+const guideUrls = ref([])
+const guideTitle = ref('')
+const guideLoading = ref(false)
+const guideSaving = ref(false)
+const guideUploadLoading = ref(false)
+const guideUpdatedAt = ref(null)
+
 const createNewbieTaskRow = () => ({
   index: null,
   name: '',
@@ -346,6 +366,24 @@ const fontFileForm = reactive({
 const fontFileLoading = ref(false)
 const fontFileSaving = ref(false)
 const fontFileSelected = ref(null)
+
+const userAgreementList = ref([])
+const userAgreementLoading = ref(false)
+const userAgreementSaving = ref(false)
+const userAgreementForm = reactive({
+  id: null,
+  version: '',
+  content: '',
+})
+
+const privacyPolicyList = ref([])
+const privacyPolicyLoading = ref(false)
+const privacyPolicySaving = ref(false)
+const privacyPolicyForm = reactive({
+  id: null,
+  version: '',
+  content: '',
+})
 
 const lotteryActiveTab = ref('prizes')
 const lotteryConfigLoading = ref(false)
@@ -453,7 +491,49 @@ const netdiskGiftUpdatedAtDisplay = computed(() =>
     : t('settings.newbieTasks.meta.emptyUpdatedAt'),
 )
 
+const guideUpdatedAtDisplay = computed(() =>
+  guideUpdatedAt.value
+    ? new Date(guideUpdatedAt.value).toLocaleString()
+    : t('settings.system.guide.meta.emptyUpdatedAt'),
+)
+
 const getLotteryImageUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
+const resolveStorageUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  const objectName = extractObjectName(raw) || raw
+  return buildDownloadUrl(objectName)
+}
+const getDisplayFileName = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const objectName = extractObjectName(raw)
+  if (objectName) return objectName
+  const cleaned = raw.split(/[?#]/)[0]
+  const segments = cleaned.split(/[\\/]/).filter(Boolean)
+  return segments[segments.length - 1] || cleaned
+}
+const getPlainText = (value) =>
+  String(value || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .trim()
+
+const hasRichContent = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return false
+  if (/<(img|video|iframe|object|embed)/i.test(raw)) return true
+  return getPlainText(raw).length > 0
+}
+
+const getPolicySummary = (value, max = 120) => {
+  const text = getPlainText(value)
+  if (!text) return '-'
+  return text.length > max ? `${text.slice(0, max)}…` : text
+}
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '-')
 const formatProbabilityValue = (value) => {
   if (value === null || value === undefined || value === '') return ''
@@ -570,6 +650,30 @@ const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.amount'), dataIndex: 'amount', key: 'amount', width: 140 },
   { title: t('settings.invite.logs.columns.operation'), dataIndex: 'operation', key: 'operation', width: 140 },
   { title: t('settings.invite.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const userAgreementColumns = computed(() => [
+  { title: t('settings.system.userAgreement.columns.version'), dataIndex: 'version', key: 'version', width: 160 },
+  { title: t('settings.system.userAgreement.columns.content'), dataIndex: 'content', key: 'content' },
+  {
+    title: t('settings.system.userAgreement.columns.updatedAt'),
+    dataIndex: 'updatedAt',
+    key: 'updatedAt',
+    width: 200,
+  },
+  { title: t('settings.system.userAgreement.columns.actions'), key: 'actions', width: 140 },
+])
+
+const privacyPolicyColumns = computed(() => [
+  { title: t('settings.system.privacyPolicy.columns.version'), dataIndex: 'version', key: 'version', width: 160 },
+  { title: t('settings.system.privacyPolicy.columns.content'), dataIndex: 'content', key: 'content' },
+  {
+    title: t('settings.system.privacyPolicy.columns.updatedAt'),
+    dataIndex: 'updatedAt',
+    key: 'updatedAt',
+    width: 200,
+  },
+  { title: t('settings.system.privacyPolicy.columns.actions'), key: 'actions', width: 140 },
 ])
 
 const inviteLogTypeOptions = computed(() => [
@@ -1297,6 +1401,261 @@ const handleDeleteNetdiskGiftConfig = async () => {
   }
 }
 
+const normalizeGuideUrls = (urls = []) =>
+  (urls || [])
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item)
+
+const normalizeGuideTitle = (value) => String(value || '').trim()
+
+const loadGuideUrls = async () => {
+  guideLoading.value = true
+  try {
+    const data = await fetchGuideUrls()
+    guideUrls.value = normalizeGuideUrls(data?.urls)
+    guideTitle.value = data?.title || ''
+    guideUpdatedAt.value = data?.updatedAt || null
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      guideUrls.value = []
+      guideTitle.value = ''
+      guideUpdatedAt.value = null
+      return
+    }
+    console.error('Failed to load guide urls', error)
+    message.error(t('settings.system.guide.messages.loadFailed'))
+  } finally {
+    guideLoading.value = false
+  }
+}
+
+const submitGuideUrls = async () => {
+  if (guideSaving.value) {
+    return
+  }
+  const title = normalizeGuideTitle(guideTitle.value)
+  if (!title) {
+    message.warning(t('settings.system.guide.messages.noTitle'))
+    return
+  }
+  const urls = normalizeGuideUrls(guideUrls.value)
+  if (!urls.length) {
+    message.warning(t('settings.system.guide.messages.empty'))
+    return
+  }
+  guideSaving.value = true
+  try {
+    await saveGuideUrls({ urls, title })
+    message.success(t('settings.system.guide.messages.saveSuccess'))
+    await loadGuideUrls()
+  } catch (error) {
+    console.error('Failed to save guide urls', error)
+    message.error(t('settings.system.guide.messages.saveFailed'))
+  } finally {
+    guideSaving.value = false
+  }
+}
+
+const handleGuideGifUpload = async (event) => {
+  const files = Array.from(event?.target?.files || [])
+  if (!files.length) {
+    return
+  }
+  guideUploadLoading.value = true
+  try {
+    const uploaded = []
+    for (const file of files) {
+      const result = await uploadPublicFile(file)
+      const url = result?.url || (result?.objectName ? buildDownloadUrl(result.objectName) : '')
+      if (url) {
+        uploaded.push(url)
+      }
+    }
+    if (uploaded.length) {
+      guideUrls.value = [...guideUrls.value, ...uploaded]
+      message.success(
+        t('settings.system.guide.messages.uploadSuccess', { count: uploaded.length }),
+      )
+    } else {
+      message.warning(t('settings.system.guide.messages.uploadEmpty'))
+    }
+  } catch (error) {
+    console.error('Failed to upload guide gifs', error)
+    message.error(t('settings.system.guide.messages.uploadFailed'))
+  } finally {
+    guideUploadLoading.value = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const removeGuideUrl = (index) => {
+  guideUrls.value.splice(index, 1)
+}
+
+const resetUserAgreementForm = () => {
+  userAgreementForm.id = null
+  userAgreementForm.version = ''
+  userAgreementForm.content = ''
+}
+
+const resetPrivacyPolicyForm = () => {
+  privacyPolicyForm.id = null
+  privacyPolicyForm.version = ''
+  privacyPolicyForm.content = ''
+}
+
+const loadUserAgreements = async () => {
+  userAgreementLoading.value = true
+  try {
+    const data = await fetchUserAgreements()
+    userAgreementList.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('Failed to load user agreements', error)
+    message.error(t('settings.system.userAgreement.messages.loadFailed'))
+  } finally {
+    userAgreementLoading.value = false
+  }
+}
+
+const loadPrivacyPolicies = async () => {
+  privacyPolicyLoading.value = true
+  try {
+    const data = await fetchPrivacyPolicies()
+    privacyPolicyList.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('Failed to load privacy policies', error)
+    message.error(t('settings.system.privacyPolicy.messages.loadFailed'))
+  } finally {
+    privacyPolicyLoading.value = false
+  }
+}
+
+const submitUserAgreement = async () => {
+  if (userAgreementSaving.value) return
+  const version = (userAgreementForm.version || '').trim()
+  const content = (userAgreementForm.content || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.userAgreement.messages.noVersion'))
+    return
+  }
+  if (!hasRichContent(content)) {
+    message.warning(t('settings.system.userAgreement.messages.noFile'))
+    return
+  }
+  userAgreementSaving.value = true
+  try {
+    if (userAgreementForm.id) {
+      await updateUserAgreement(userAgreementForm.id, { version, content })
+      message.success(t('settings.system.userAgreement.messages.updateSuccess'))
+    } else {
+      await createUserAgreement({ version, content })
+      message.success(t('settings.system.userAgreement.messages.createSuccess'))
+    }
+    resetUserAgreementForm()
+    await loadUserAgreements()
+  } catch (error) {
+    console.error('Failed to save user agreement', error)
+    message.error(t('settings.system.userAgreement.messages.saveFailed'))
+  } finally {
+    userAgreementSaving.value = false
+  }
+}
+
+const submitPrivacyPolicy = async () => {
+  if (privacyPolicySaving.value) return
+  const version = (privacyPolicyForm.version || '').trim()
+  const content = (privacyPolicyForm.content || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.privacyPolicy.messages.noVersion'))
+    return
+  }
+  if (!hasRichContent(content)) {
+    message.warning(t('settings.system.privacyPolicy.messages.noFile'))
+    return
+  }
+  privacyPolicySaving.value = true
+  try {
+    if (privacyPolicyForm.id) {
+      await updatePrivacyPolicy(privacyPolicyForm.id, { version, content })
+      message.success(t('settings.system.privacyPolicy.messages.updateSuccess'))
+    } else {
+      await createPrivacyPolicy({ version, content })
+      message.success(t('settings.system.privacyPolicy.messages.createSuccess'))
+    }
+    resetPrivacyPolicyForm()
+    await loadPrivacyPolicies()
+  } catch (error) {
+    console.error('Failed to save privacy policy', error)
+    message.error(t('settings.system.privacyPolicy.messages.saveFailed'))
+  } finally {
+    privacyPolicySaving.value = false
+  }
+}
+
+const editUserAgreement = (record) => {
+  userAgreementForm.id = record?.id ?? null
+  userAgreementForm.version = record?.version || ''
+  userAgreementForm.content = record?.content || ''
+}
+
+const editPrivacyPolicy = (record) => {
+  privacyPolicyForm.id = record?.id ?? null
+  privacyPolicyForm.version = record?.version || ''
+  privacyPolicyForm.content = record?.content || ''
+}
+
+const handleDeleteUserAgreement = (record) => {
+  if (!record?.id) return
+  Modal.confirm({
+    title: t('settings.system.userAgreement.actions.deleteConfirmTitle'),
+    content: t('settings.system.userAgreement.actions.deleteConfirmContent', {
+      version: record?.version || '',
+    }),
+    okText: t('settings.system.userAgreement.actions.delete'),
+    cancelText: t('settings.system.userAgreement.actions.cancel'),
+    onOk: async () => {
+      try {
+        await deleteUserAgreement(record.id)
+        message.success(t('settings.system.userAgreement.messages.deleteSuccess'))
+        if (userAgreementForm.id === record.id) {
+          resetUserAgreementForm()
+        }
+        await loadUserAgreements()
+      } catch (error) {
+        console.error('Failed to delete user agreement', error)
+        message.error(t('settings.system.userAgreement.messages.deleteFailed'))
+      }
+    },
+  })
+}
+
+const handleDeletePrivacyPolicy = (record) => {
+  if (!record?.id) return
+  Modal.confirm({
+    title: t('settings.system.privacyPolicy.actions.deleteConfirmTitle'),
+    content: t('settings.system.privacyPolicy.actions.deleteConfirmContent', {
+      version: record?.version || '',
+    }),
+    okText: t('settings.system.privacyPolicy.actions.delete'),
+    cancelText: t('settings.system.privacyPolicy.actions.cancel'),
+    onOk: async () => {
+      try {
+        await deletePrivacyPolicy(record.id)
+        message.success(t('settings.system.privacyPolicy.messages.deleteSuccess'))
+        if (privacyPolicyForm.id === record.id) {
+          resetPrivacyPolicyForm()
+        }
+        await loadPrivacyPolicies()
+      } catch (error) {
+        console.error('Failed to delete privacy policy', error)
+        message.error(t('settings.system.privacyPolicy.messages.deleteFailed'))
+      }
+    },
+  })
+}
+
 const loadFontFileConfig = async () => {
   fontFileLoading.value = true
   try {
@@ -1840,6 +2199,9 @@ onMounted(() => {
   loadNewbieTaskTemplate()
   loadNewbieTaskStats()
   loadNetdiskGiftConfig()
+  loadGuideUrls()
+  loadUserAgreements()
+  loadPrivacyPolicies()
   loadFontFileConfig()
   loadLotteryConfig()
   loadLotteryLogs()
@@ -2843,6 +3205,187 @@ onMounted(() => {
           </a-drawer>
         </a-tab-pane>
 
+        <a-tab-pane key="guide-settings" :tab="t('settings.tabs.guideSettings')">
+          <div class="tab-section">
+            <a-tabs v-model:activeKey="guideSettingsTab" class="guide-settings-tabs">
+              <a-tab-pane key="gif" :tab="t('settings.guideSettings.tabs.gif')">
+                <section class="system-settings guide-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.guide.title') }}</h3>
+                      <p>{{ t('settings.system.guide.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadGuideUrls" :loading="guideLoading"
+                        :disabled="guideSaving || guideUploadLoading">
+                        {{ t('settings.system.guide.actions.reload') }}
+                      </a-button>
+                      <a-button type="primary" @click="submitGuideUrls" :loading="guideSaving">
+                        {{ t('settings.system.guide.actions.save') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <div class="system-settings__meta">
+                    <span>
+                      {{ t('settings.system.guide.meta.updatedAt', { time: guideUpdatedAtDisplay }) }}
+                    </span>
+                  </div>
+                  <a-spin :spinning="guideLoading">
+                    <a-form layout="vertical" class="guide-form">
+                      <a-form-item :label="t('settings.system.guide.fields.title')">
+                        <a-input v-model:value="guideTitle"
+                          :placeholder="t('settings.system.guide.placeholders.title')" allow-clear />
+                      </a-form-item>
+                    </a-form>
+                    <div class="guide-upload">
+                      <label class="guide-upload__trigger">
+                        <input class="guide-upload__input" type="file" accept="image/gif" multiple
+                          :disabled="guideUploadLoading" @change="handleGuideGifUpload" />
+                        <a-button type="dashed" :loading="guideUploadLoading">
+                          {{
+                            guideUrls.length
+                              ? t('settings.system.guide.actions.addMore')
+                              : t('settings.system.guide.actions.upload')
+                          }}
+                        </a-button>
+                      </label>
+                      <span class="guide-upload__hint">{{ t('settings.system.guide.hint') }}</span>
+                    </div>
+                    <div v-if="guideUrls.length" class="guide-list">
+                      <div v-for="(item, index) in guideUrls" :key="`${item}-${index}`" class="guide-card">
+                        <div class="guide-card__preview">
+                          <img :src="resolveStorageUrl(item)" alt="guide-gif" />
+                        </div>
+                        <div class="guide-card__footer">
+                          <span class="guide-card__name">{{ getDisplayFileName(item) }}</span>
+                          <a-button type="link" danger size="small" @click="removeGuideUrl(index)">
+                            {{ t('settings.system.guide.actions.remove') }}
+                          </a-button>
+                        </div>
+                      </div>
+                    </div>
+                    <a-empty v-else :description="t('settings.system.guide.empty')" />
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="user-agreement" :tab="t('settings.guideSettings.tabs.userAgreement')">
+                <section class="system-settings policy-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.userAgreement.title') }}</h3>
+                      <p>{{ t('settings.system.userAgreement.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadUserAgreements" :loading="userAgreementLoading"
+                        :disabled="userAgreementSaving">
+                        {{ t('settings.system.userAgreement.actions.reload') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <a-spin :spinning="userAgreementLoading">
+                    <div class="policy-form">
+                      <a-input v-model:value="userAgreementForm.version"
+                        :placeholder="t('settings.system.userAgreement.placeholders.version')" allow-clear />
+                      <open-platform-editor v-model="userAgreementForm.content"
+                        :placeholder="t('settings.system.userAgreement.placeholders.content')"
+                        :disabled="userAgreementSaving || userAgreementLoading" />
+                      <div class="actions">
+                        <a-button type="primary" @click="submitUserAgreement" :loading="userAgreementSaving">
+                          {{
+                            userAgreementForm.id
+                              ? t('settings.system.userAgreement.actions.update')
+                              : t('settings.system.userAgreement.actions.create')
+                          }}
+                        </a-button>
+                        <a-button v-if="userAgreementForm.id" type="default" @click="resetUserAgreementForm">
+                          {{ t('settings.system.userAgreement.actions.cancelEdit') }}
+                        </a-button>
+                      </div>
+                    </div>
+                    <a-table :columns="userAgreementColumns" :data-source="userAgreementList" :pagination="false"
+                      row-key="id" size="small" bordered>
+                      <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'content'">
+                          <span class="policy-content-text">{{ getPolicySummary(record.content) }}</span>
+                        </template>
+                        <template v-else-if="column.key === 'updatedAt'">
+                          {{ formatDateTime(record.updatedAt || record.createdAt) }}
+                        </template>
+                        <template v-else-if="column.key === 'actions'">
+                          <a-button type="link" size="small" @click="editUserAgreement(record)">
+                            {{ t('settings.system.userAgreement.actions.edit') }}
+                          </a-button>
+                          <a-button type="link" danger size="small" @click="handleDeleteUserAgreement(record)">
+                            {{ t('settings.system.userAgreement.actions.delete') }}
+                          </a-button>
+                        </template>
+                      </template>
+                    </a-table>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="privacy-policy" :tab="t('settings.guideSettings.tabs.privacyPolicy')">
+                <section class="system-settings policy-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.privacyPolicy.title') }}</h3>
+                      <p>{{ t('settings.system.privacyPolicy.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadPrivacyPolicies" :loading="privacyPolicyLoading"
+                        :disabled="privacyPolicySaving">
+                        {{ t('settings.system.privacyPolicy.actions.reload') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <a-spin :spinning="privacyPolicyLoading">
+                    <div class="policy-form">
+                      <a-input v-model:value="privacyPolicyForm.version"
+                        :placeholder="t('settings.system.privacyPolicy.placeholders.version')" allow-clear />
+                      <open-platform-editor v-model="privacyPolicyForm.content"
+                        :placeholder="t('settings.system.privacyPolicy.placeholders.content')"
+                        :disabled="privacyPolicySaving || privacyPolicyLoading" />
+                      <div class="actions">
+                        <a-button type="primary" @click="submitPrivacyPolicy" :loading="privacyPolicySaving">
+                          {{
+                            privacyPolicyForm.id
+                              ? t('settings.system.privacyPolicy.actions.update')
+                              : t('settings.system.privacyPolicy.actions.create')
+                          }}
+                        </a-button>
+                        <a-button v-if="privacyPolicyForm.id" type="default" @click="resetPrivacyPolicyForm">
+                          {{ t('settings.system.privacyPolicy.actions.cancelEdit') }}
+                        </a-button>
+                      </div>
+                    </div>
+                    <a-table :columns="privacyPolicyColumns" :data-source="privacyPolicyList" :pagination="false"
+                      row-key="id" size="small" bordered>
+                      <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'content'">
+                          <span class="policy-content-text">{{ getPolicySummary(record.content) }}</span>
+                        </template>
+                        <template v-else-if="column.key === 'updatedAt'">
+                          {{ formatDateTime(record.updatedAt || record.createdAt) }}
+                        </template>
+                        <template v-else-if="column.key === 'actions'">
+                          <a-button type="link" size="small" @click="editPrivacyPolicy(record)">
+                            {{ t('settings.system.privacyPolicy.actions.edit') }}
+                          </a-button>
+                          <a-button type="link" danger size="small" @click="handleDeletePrivacyPolicy(record)">
+                            {{ t('settings.system.privacyPolicy.actions.delete') }}
+                          </a-button>
+                        </template>
+                      </template>
+                    </a-table>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+            </a-tabs>
+          </div>
+        </a-tab-pane>
+
         <a-tab-pane key="system" :tab="t('settings.tabs.system')">
           <div class="tab-section">
             <section class="system-settings">
@@ -3244,6 +3787,95 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.guide-upload {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.guide-form {
+  margin-bottom: 8px;
+}
+
+.guide-upload__trigger {
+  position: relative;
+  display: inline-flex;
+}
+
+.guide-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.guide-upload__hint {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.guide-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.guide-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.guide-card__preview {
+  background: #f3f4f6;
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.guide-card__preview img {
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.guide-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-card__name {
+  color: #374151;
+  font-size: 0.85rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.policy-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.policy-content-text {
+  color: #6b7280;
 }
 
 .system-settings__meta {

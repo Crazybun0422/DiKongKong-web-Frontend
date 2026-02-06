@@ -599,6 +599,13 @@
     }
   },
   "settings": {
+    "guideSettings": {
+      "tabs": {
+        "gif": "Guide page",
+        "userAgreement": "User agreements",
+        "privacyPolicy": "Privacy policies"
+      }
+    },
     "weapp": {
       "tabTitle": "Mini program",
       "appId": "AppID",
@@ -804,6 +811,7 @@
       "newbieTasks": "Newbie task settings",
       "lottery": "Lottery settings",
       "reportEntry": "Report entry",
+      "guideSettings": "Guide settings",
       "system": "System settings"
     },
     "newbieTasks": {
@@ -996,6 +1004,121 @@
       }
     },
     "system": {
+      "guide": {
+        "title": "Guide page settings",
+        "subtitle": "Upload GIFs for the onboarding guide screen.",
+        "hint": "GIF only. Match the onboarding screen size for best results.",
+        "empty": "No guide GIFs yet",
+        "fields": {
+          "title": "Guide page title"
+        },
+        "placeholders": {
+          "title": "Enter guide page title"
+        },
+        "meta": {
+          "updatedAt": "Updated at: {time}",
+          "emptyUpdatedAt": "Not synced yet"
+        },
+        "actions": {
+          "upload": "Upload GIF",
+          "addMore": "Add more",
+          "remove": "Remove",
+          "save": "Save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "loadFailed": "Failed to load guide settings",
+          "saveSuccess": "Guide settings saved",
+          "saveFailed": "Failed to save guide settings",
+          "uploadSuccess": "Uploaded {count} GIF(s)",
+          "uploadFailed": "Failed to upload GIF",
+          "uploadEmpty": "No usable GIF found",
+          "empty": "Please upload at least one guide GIF",
+          "noTitle": "Please enter a guide page title"
+        }
+      },
+      "userAgreement": {
+        "title": "User agreement settings",
+        "subtitle": "Manage user agreement versions and content.",
+        "placeholders": {
+          "version": "e.g. 1.0.0",
+          "content": "Enter user agreement content (rich text supported)"
+        },
+        "columns": {
+          "version": "Version",
+          "content": "Content",
+          "updatedAt": "Updated at",
+          "actions": "Actions"
+        },
+        "actions": {
+          "reload": "Reload",
+          "uploadFile": "Upload file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "create": "Add version",
+          "update": "Update version",
+          "edit": "Edit",
+          "delete": "Delete",
+          "cancelEdit": "Cancel edit",
+          "deleteConfirmTitle": "Delete user agreement",
+          "deleteConfirmContent": "Delete user agreement version {version}?",
+          "cancel": "Cancel"
+        },
+        "messages": {
+          "loadFailed": "Failed to load user agreements",
+          "uploadSuccess": "User agreement file uploaded",
+          "uploadFailed": "Failed to upload user agreement file",
+          "uploadEmpty": "No usable file found",
+          "noVersion": "Please enter a version",
+          "noFile": "Please enter content",
+          "createSuccess": "User agreement created",
+          "updateSuccess": "User agreement updated",
+          "saveFailed": "Failed to save user agreement",
+          "deleteSuccess": "User agreement deleted",
+          "deleteFailed": "Failed to delete user agreement"
+        }
+      },
+      "privacyPolicy": {
+        "title": "Privacy policy settings",
+        "subtitle": "Manage privacy policy versions and content.",
+        "placeholders": {
+          "version": "e.g. 1.0.0",
+          "content": "Enter privacy policy content (rich text supported)"
+        },
+        "columns": {
+          "version": "Version",
+          "content": "Content",
+          "updatedAt": "Updated at",
+          "actions": "Actions"
+        },
+        "actions": {
+          "reload": "Reload",
+          "uploadFile": "Upload file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "create": "Add version",
+          "update": "Update version",
+          "edit": "Edit",
+          "delete": "Delete",
+          "cancelEdit": "Cancel edit",
+          "deleteConfirmTitle": "Delete privacy policy",
+          "deleteConfirmContent": "Delete privacy policy version {version}?",
+          "cancel": "Cancel"
+        },
+        "messages": {
+          "loadFailed": "Failed to load privacy policies",
+          "uploadSuccess": "Privacy policy file uploaded",
+          "uploadFailed": "Failed to upload privacy policy file",
+          "uploadEmpty": "No usable file found",
+          "noVersion": "Please enter a version",
+          "noFile": "Please enter content",
+          "createSuccess": "Privacy policy created",
+          "updateSuccess": "Privacy policy updated",
+          "saveFailed": "Failed to save privacy policy",
+          "deleteSuccess": "Privacy policy deleted",
+          "deleteFailed": "Failed to delete privacy policy"
+        }
+      },
       "font": {
         "title": "Font file settings",
         "subtitle": "Upload and configure the font file used in the console.",
