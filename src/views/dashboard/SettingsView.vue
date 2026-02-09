@@ -52,10 +52,12 @@ import {
   createUserAgreement,
   updateUserAgreement,
   deleteUserAgreement,
+  downloadUserAgreementPdf,
   fetchPrivacyPolicies,
   createPrivacyPolicy,
   updatePrivacyPolicy,
   deletePrivacyPolicy,
+  downloadPrivacyPolicyPdf,
 } from '../../services/policy'
 import reportEntryRegions from '../../data/reportEntryRegions'
 import detailIcon from '../../assets/img/detail.png'
@@ -334,7 +336,6 @@ const netdiskGiftUpdatedAt = ref(null)
 const netdiskGiftForm = ref([])
 
 const guideUrls = ref([])
-const guideTitle = ref('')
 const guideLoading = ref(false)
 const guideSaving = ref(false)
 const guideUploadLoading = ref(false)
@@ -370,6 +371,7 @@ const fontFileSelected = ref(null)
 const userAgreementList = ref([])
 const userAgreementLoading = ref(false)
 const userAgreementSaving = ref(false)
+const userAgreementPdfDownloadingId = ref(null)
 const userAgreementForm = reactive({
   id: null,
   version: '',
@@ -379,6 +381,7 @@ const userAgreementForm = reactive({
 const privacyPolicyList = ref([])
 const privacyPolicyLoading = ref(false)
 const privacyPolicySaving = ref(false)
+const privacyPolicyPdfDownloadingId = ref(null)
 const privacyPolicyForm = reactive({
   id: null,
   version: '',
@@ -535,6 +538,38 @@ const getPolicySummary = (value, max = 120) => {
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '-')
+const sanitizeFilename = (value) => String(value || '').replace(/[\\/:*?"<>|]/g, '-')
+const resolveFilenameFromDisposition = (value) => {
+  if (!value) return ''
+  const encodedMatch = value.match(/filename\*=UTF-8''([^;]+)/i)
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1])
+    } catch (error) {
+      return encodedMatch[1]
+    }
+  }
+  const match = value.match(/filename="?([^\";]+)"?/i)
+  return match?.[1] ?? ''
+}
+const resolvePdfFilename = (prefix, record) => {
+  const version = String(record?.version || '').trim()
+  const id = record?.id ?? ''
+  const suffix = version || id || Date.now()
+  return sanitizeFilename(`${prefix}-${suffix}.pdf`)
+}
+const triggerBlobDownload = (blob, filename) => {
+  if (typeof window === 'undefined' || !blob) return
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
 const formatProbabilityValue = (value) => {
   if (value === null || value === undefined || value === '') return ''
   const numeric = Number(value)
@@ -661,7 +696,7 @@ const userAgreementColumns = computed(() => [
     key: 'updatedAt',
     width: 200,
   },
-  { title: t('settings.system.userAgreement.columns.actions'), key: 'actions', width: 140 },
+  { title: t('settings.system.userAgreement.columns.actions'), key: 'actions', width: 220 },
 ])
 
 const privacyPolicyColumns = computed(() => [
@@ -673,7 +708,7 @@ const privacyPolicyColumns = computed(() => [
     key: 'updatedAt',
     width: 200,
   },
-  { title: t('settings.system.privacyPolicy.columns.actions'), key: 'actions', width: 140 },
+  { title: t('settings.system.privacyPolicy.columns.actions'), key: 'actions', width: 220 },
 ])
 
 const inviteLogTypeOptions = computed(() => [
@@ -1401,24 +1436,51 @@ const handleDeleteNetdiskGiftConfig = async () => {
   }
 }
 
+const normalizeGuideTitle = (value) => String(value || '').trim()
+
+const normalizeGuideEntry = (item) => {
+  if (typeof item === 'string') {
+    const url = item.trim()
+    if (!url) return null
+    return { url, title: '' }
+  }
+  if (item && typeof item === 'object') {
+    const url = typeof item.url === 'string' ? item.url.trim() : ''
+    if (!url) return null
+    return {
+      url,
+      title: normalizeGuideTitle(item.title),
+    }
+  }
+  return null
+}
+
 const normalizeGuideUrls = (urls = []) =>
   (urls || [])
-    .map((item) => (typeof item === 'string' ? item.trim() : ''))
-    .filter((item) => item)
+    .map((item) => normalizeGuideEntry(item))
+    .filter(Boolean)
 
-const normalizeGuideTitle = (value) => String(value || '').trim()
+const createGuideEntry = (url, title = '') => ({
+  url: typeof url === 'string' ? url.trim() : '',
+  title: normalizeGuideTitle(title),
+})
+
+const deriveGuideTitle = (file, url) => {
+  const nameSource = file?.name || getDisplayFileName(url)
+  const trimmed = normalizeGuideTitle(nameSource)
+  if (!trimmed) return ''
+  return trimmed.replace(/\.[^.]+$/, '')
+}
 
 const loadGuideUrls = async () => {
   guideLoading.value = true
   try {
     const data = await fetchGuideUrls()
     guideUrls.value = normalizeGuideUrls(data?.urls)
-    guideTitle.value = data?.title || ''
     guideUpdatedAt.value = data?.updatedAt || null
   } catch (error) {
     if (error?.response?.status === 404) {
       guideUrls.value = []
-      guideTitle.value = ''
       guideUpdatedAt.value = null
       return
     }
@@ -1433,19 +1495,19 @@ const submitGuideUrls = async () => {
   if (guideSaving.value) {
     return
   }
-  const title = normalizeGuideTitle(guideTitle.value)
-  if (!title) {
-    message.warning(t('settings.system.guide.messages.noTitle'))
-    return
-  }
   const urls = normalizeGuideUrls(guideUrls.value)
   if (!urls.length) {
     message.warning(t('settings.system.guide.messages.empty'))
     return
   }
+  const missingTitleIndex = urls.findIndex((item) => !item.title)
+  if (missingTitleIndex !== -1) {
+    message.warning(t('settings.system.guide.messages.noTitle'))
+    return
+  }
   guideSaving.value = true
   try {
-    await saveGuideUrls({ urls, title })
+    await saveGuideUrls({ urls })
     message.success(t('settings.system.guide.messages.saveSuccess'))
     await loadGuideUrls()
   } catch (error) {
@@ -1468,7 +1530,8 @@ const handleGuideGifUpload = async (event) => {
       const result = await uploadPublicFile(file)
       const url = result?.url || (result?.objectName ? buildDownloadUrl(result.objectName) : '')
       if (url) {
-        uploaded.push(url)
+        const title = deriveGuideTitle(file, url)
+        uploaded.push(createGuideEntry(url, title))
       }
     }
     if (uploaded.length) {
@@ -1604,6 +1667,42 @@ const editPrivacyPolicy = (record) => {
   privacyPolicyForm.id = record?.id ?? null
   privacyPolicyForm.version = record?.version || ''
   privacyPolicyForm.content = record?.content || ''
+}
+
+const handleDownloadUserAgreementPdf = async (record) => {
+  if (!record?.id || userAgreementPdfDownloadingId.value) return
+  userAgreementPdfDownloadingId.value = record.id
+  try {
+    const response = await downloadUserAgreementPdf(record.id)
+    const disposition = response?.headers?.['content-disposition'] || response?.headers?.['Content-Disposition']
+    const filename =
+      resolveFilenameFromDisposition(disposition) || resolvePdfFilename('user-agreement', record)
+    const blob = new Blob([response?.data], { type: 'application/pdf' })
+    triggerBlobDownload(blob, filename)
+  } catch (error) {
+    console.error('Failed to download user agreement pdf', error)
+    message.error(t('settings.system.userAgreement.messages.downloadFailed'))
+  } finally {
+    userAgreementPdfDownloadingId.value = null
+  }
+}
+
+const handleDownloadPrivacyPolicyPdf = async (record) => {
+  if (!record?.id || privacyPolicyPdfDownloadingId.value) return
+  privacyPolicyPdfDownloadingId.value = record.id
+  try {
+    const response = await downloadPrivacyPolicyPdf(record.id)
+    const disposition = response?.headers?.['content-disposition'] || response?.headers?.['Content-Disposition']
+    const filename =
+      resolveFilenameFromDisposition(disposition) || resolvePdfFilename('privacy-policy', record)
+    const blob = new Blob([response?.data], { type: 'application/pdf' })
+    triggerBlobDownload(blob, filename)
+  } catch (error) {
+    console.error('Failed to download privacy policy pdf', error)
+    message.error(t('settings.system.privacyPolicy.messages.downloadFailed'))
+  } finally {
+    privacyPolicyPdfDownloadingId.value = null
+  }
 }
 
 const handleDeleteUserAgreement = (record) => {
@@ -3231,12 +3330,6 @@ onMounted(() => {
                     </span>
                   </div>
                   <a-spin :spinning="guideLoading">
-                    <a-form layout="vertical" class="guide-form">
-                      <a-form-item :label="t('settings.system.guide.fields.title')">
-                        <a-input v-model:value="guideTitle"
-                          :placeholder="t('settings.system.guide.placeholders.title')" allow-clear />
-                      </a-form-item>
-                    </a-form>
                     <div class="guide-upload">
                       <label class="guide-upload__trigger">
                         <input class="guide-upload__input" type="file" accept="image/gif" multiple
@@ -3252,12 +3345,17 @@ onMounted(() => {
                       <span class="guide-upload__hint">{{ t('settings.system.guide.hint') }}</span>
                     </div>
                     <div v-if="guideUrls.length" class="guide-list">
-                      <div v-for="(item, index) in guideUrls" :key="`${item}-${index}`" class="guide-card">
+                      <div v-for="(item, index) in guideUrls" :key="`${item.url}-${index}`" class="guide-card">
                         <div class="guide-card__preview">
-                          <img :src="resolveStorageUrl(item)" alt="guide-gif" />
+                          <img :src="resolveStorageUrl(item.url)" alt="guide-gif" />
+                        </div>
+                        <div class="guide-card__body">
+                          <div class="guide-card__label">{{ t('settings.system.guide.fields.title') }}</div>
+                          <a-input v-model:value="item.title"
+                            :placeholder="t('settings.system.guide.placeholders.title')" allow-clear />
                         </div>
                         <div class="guide-card__footer">
-                          <span class="guide-card__name">{{ getDisplayFileName(item) }}</span>
+                          <span class="guide-card__name">{{ getDisplayFileName(item.url) }}</span>
                           <a-button type="link" danger size="small" @click="removeGuideUrl(index)">
                             {{ t('settings.system.guide.actions.remove') }}
                           </a-button>
@@ -3316,6 +3414,14 @@ onMounted(() => {
                           <a-button type="link" size="small" @click="editUserAgreement(record)">
                             {{ t('settings.system.userAgreement.actions.edit') }}
                           </a-button>
+                          <a-button
+                            type="link"
+                            size="small"
+                            :loading="userAgreementPdfDownloadingId === record.id"
+                            @click="handleDownloadUserAgreementPdf(record)"
+                          >
+                            {{ t('settings.system.userAgreement.actions.downloadPdf') }}
+                          </a-button>
                           <a-button type="link" danger size="small" @click="handleDeleteUserAgreement(record)">
                             {{ t('settings.system.userAgreement.actions.delete') }}
                           </a-button>
@@ -3372,6 +3478,14 @@ onMounted(() => {
                         <template v-else-if="column.key === 'actions'">
                           <a-button type="link" size="small" @click="editPrivacyPolicy(record)">
                             {{ t('settings.system.privacyPolicy.actions.edit') }}
+                          </a-button>
+                          <a-button
+                            type="link"
+                            size="small"
+                            :loading="privacyPolicyPdfDownloadingId === record.id"
+                            @click="handleDownloadPrivacyPolicyPdf(record)"
+                          >
+                            {{ t('settings.system.privacyPolicy.actions.downloadPdf') }}
                           </a-button>
                           <a-button type="link" danger size="small" @click="handleDeletePrivacyPolicy(record)">
                             {{ t('settings.system.privacyPolicy.actions.delete') }}
@@ -3850,6 +3964,17 @@ onMounted(() => {
   max-height: 160px;
   object-fit: contain;
   border-radius: 8px;
+}
+
+.guide-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.guide-card__label {
+  color: #6b7280;
+  font-size: 0.78rem;
 }
 
 .guide-card__footer {

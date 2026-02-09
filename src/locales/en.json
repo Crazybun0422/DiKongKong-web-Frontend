@@ -1006,14 +1006,14 @@
     "system": {
       "guide": {
         "title": "Guide page settings",
-        "subtitle": "Upload GIFs for the onboarding guide screen.",
+        "subtitle": "Upload GIFs for the onboarding guide screen and set a guide title for each.",
         "hint": "GIF only. Match the onboarding screen size for best results.",
         "empty": "No guide GIFs yet",
         "fields": {
-          "title": "Guide page title"
+          "title": "Guide title"
         },
         "placeholders": {
-          "title": "Enter guide page title"
+          "title": "Enter guide title"
         },
         "meta": {
           "updatedAt": "Updated at: {time}",
@@ -1034,7 +1034,7 @@
           "uploadFailed": "Failed to upload GIF",
           "uploadEmpty": "No usable GIF found",
           "empty": "Please upload at least one guide GIF",
-          "noTitle": "Please enter a guide page title"
+          "noTitle": "Please enter a guide title for each image"
         }
       },
       "userAgreement": {
@@ -1058,6 +1058,7 @@
           "create": "Add version",
           "update": "Update version",
           "edit": "Edit",
+          "downloadPdf": "Download PDF",
           "delete": "Delete",
           "cancelEdit": "Cancel edit",
           "deleteConfirmTitle": "Delete user agreement",
@@ -1074,6 +1075,7 @@
           "createSuccess": "User agreement created",
           "updateSuccess": "User agreement updated",
           "saveFailed": "Failed to save user agreement",
+          "downloadFailed": "Failed to download user agreement PDF",
           "deleteSuccess": "User agreement deleted",
           "deleteFailed": "Failed to delete user agreement"
         }
@@ -1099,6 +1101,7 @@
           "create": "Add version",
           "update": "Update version",
           "edit": "Edit",
+          "downloadPdf": "Download PDF",
           "delete": "Delete",
           "cancelEdit": "Cancel edit",
           "deleteConfirmTitle": "Delete privacy policy",
@@ -1115,6 +1118,7 @@
           "createSuccess": "Privacy policy created",
           "updateSuccess": "Privacy policy updated",
           "saveFailed": "Failed to save privacy policy",
+          "downloadFailed": "Failed to download privacy policy PDF",
           "deleteSuccess": "Privacy policy deleted",
           "deleteFailed": "Failed to delete privacy policy"
         }
@@ -1320,6 +1324,22 @@
         "featureCode": "Feature code",
         "token": "TOKEN",
         "createdAt": "Registered at"
+      },
+      "policy": {
+        "title": "Policy access",
+        "subtitle": "Latest agreement/privacy policy access record for this user.",
+        "empty": "No policy record available",
+        "fields": {
+          "type": "Policy type",
+          "version": "Policy version",
+          "acceptedAt": "Server recorded at",
+          "clientReportedAt": "Client reported at",
+          "docHash": "Policy hash"
+        },
+        "types": {
+          "privacy": "Privacy policy",
+          "terms": "User agreement"
+        }
       },
       "logs": {
         "title": "Token activity",

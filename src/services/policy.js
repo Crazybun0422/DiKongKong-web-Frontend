@@ -25,6 +25,13 @@ export const deleteUserAgreement = async (id) => {
   return normalizePayload(response, {})
 }
 
+export const downloadUserAgreementPdf = async (id) => {
+  const response = await http.get(`/policies/user-agreements/${encodeURIComponent(id)}/pdf`, {
+    responseType: 'blob',
+  })
+  return response
+}
+
 export const fetchPrivacyPolicies = async () => {
   const response = await http.get('/policies/privacy-policies')
   return normalizePayload(response, [])
@@ -45,13 +52,22 @@ export const deletePrivacyPolicy = async (id) => {
   return normalizePayload(response, {})
 }
 
+export const downloadPrivacyPolicyPdf = async (id) => {
+  const response = await http.get(`/policies/privacy-policies/${encodeURIComponent(id)}/pdf`, {
+    responseType: 'blob',
+  })
+  return response
+}
+
 export default {
   fetchUserAgreements,
   createUserAgreement,
   updateUserAgreement,
   deleteUserAgreement,
+  downloadUserAgreementPdf,
   fetchPrivacyPolicies,
   createPrivacyPolicy,
   updatePrivacyPolicy,
   deletePrivacyPolicy,
+  downloadPrivacyPolicyPdf,
 }

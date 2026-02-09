@@ -25,6 +25,7 @@ const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailLogs = ref([])
 const detailUser = ref(null)
+const policyRecord = computed(() => detailUser.value?.policyAccessRecord ?? null)
 
 const detailPagination = reactive({
   current: 1,
@@ -87,6 +88,17 @@ const formatDateTime = (value) => {
   } catch (error) {
     return value
   }
+}
+const formatAgreementType = (value) => {
+  if (!value) return '-'
+  const normalized = String(value).toLowerCase()
+  if (normalized === 'privacy') {
+    return t('users.detail.policy.types.privacy')
+  }
+  if (normalized === 'terms') {
+    return t('users.detail.policy.types.terms')
+  }
+  return value
 }
 
 const loadUsers = async ({ sortField, sortOrder, pageOverride } = {}) => {
@@ -293,6 +305,35 @@ onMounted(() => {
 
       <a-divider />
 
+      <h3 class="detail-title">{{ t('users.detail.policy.title') }}</h3>
+      <p class="detail-subtitle">{{ t('users.detail.policy.subtitle') }}</p>
+
+      <div v-if="policyRecord" class="detail-summary">
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.policy.fields.type') }}</span>
+          <span class="value">{{ formatAgreementType(policyRecord.agreementType) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.policy.fields.version') }}</span>
+          <span class="value">{{ policyRecord.version || '-' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.policy.fields.acceptedAt') }}</span>
+          <span class="value">{{ formatDateTime(policyRecord.acceptedAt) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.policy.fields.clientReportedAt') }}</span>
+          <span class="value">{{ formatDateTime(policyRecord.clientReportedAt) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.policy.fields.docHash') }}</span>
+          <span class="value detail-mono">{{ policyRecord.docHash || '-' }}</span>
+        </div>
+      </div>
+      <p v-else class="detail-empty">{{ t('users.detail.policy.empty') }}</p>
+
+      <a-divider />
+
       <h3 class="detail-title">{{ t('users.detail.logs.title') }}</h3>
       <p class="detail-subtitle">{{ t('users.detail.logs.subtitle') }}</p>
 
@@ -470,6 +511,16 @@ onMounted(() => {
 .detail-subtitle {
   margin: 4px 0 12px;
   color: #6b7280;
+}
+
+.detail-empty {
+  margin: 0 0 12px;
+  color: #9ca3af;
+}
+
+.detail-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  word-break: break-all;
 }
 
 @media (max-width: 768px) {

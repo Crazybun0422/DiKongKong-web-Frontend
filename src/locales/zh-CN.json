@@ -1024,14 +1024,14 @@
     "system": {
       "guide": {
         "title": "引导页设置",
-        "subtitle": "上传引导页面展示的 GIF 动图，支持多张。",
+        "subtitle": "上传引导页面展示的 GIF 动图，并为每张设置引导标题。",
         "hint": "仅支持 GIF，建议尺寸与小程序引导页一致。",
         "empty": "暂无引导动图",
         "fields": {
-          "title": "引导页标题"
+          "title": "引导标题"
         },
         "placeholders": {
-          "title": "请输入引导页标题"
+          "title": "请输入引导标题"
         },
         "meta": {
           "updatedAt": "更新时间：{time}",
@@ -1052,7 +1052,7 @@
           "uploadFailed": "GIF 上传失败",
           "uploadEmpty": "未识别到可用的 GIF",
           "empty": "请先上传至少一张引导 GIF",
-          "noTitle": "请填写引导页标题"
+          "noTitle": "请填写每张引导图的标题"
         }
       },
       "userAgreement": {
@@ -1076,6 +1076,7 @@
           "create": "新增版本",
           "update": "更新版本",
           "edit": "编辑",
+          "downloadPdf": "下载PDF",
           "delete": "删除",
           "cancelEdit": "取消编辑",
           "deleteConfirmTitle": "确认删除用户协议",
@@ -1092,6 +1093,7 @@
           "createSuccess": "用户协议已新增",
           "updateSuccess": "用户协议已更新",
           "saveFailed": "用户协议保存失败",
+          "downloadFailed": "用户协议PDF下载失败",
           "deleteSuccess": "用户协议已删除",
           "deleteFailed": "用户协议删除失败"
         }
@@ -1117,6 +1119,7 @@
           "create": "新增版本",
           "update": "更新版本",
           "edit": "编辑",
+          "downloadPdf": "下载PDF",
           "delete": "删除",
           "cancelEdit": "取消编辑",
           "deleteConfirmTitle": "确认删除隐私政策",
@@ -1133,6 +1136,7 @@
           "createSuccess": "隐私政策已新增",
           "updateSuccess": "隐私政策已更新",
           "saveFailed": "隐私政策保存失败",
+          "downloadFailed": "隐私政策PDF下载失败",
           "deleteSuccess": "隐私政策已删除",
           "deleteFailed": "隐私政策删除失败"
         }
@@ -1338,6 +1342,22 @@
         "featureCode": "低空号",
         "token": "TOKEN",
         "createdAt": "注册时间"
+      },
+      "policy": {
+        "title": "协议信息",
+        "subtitle": "展示该用户最近一次协议/隐私政策访问记录。",
+        "empty": "暂无协议信息",
+        "fields": {
+          "type": "协议类型",
+          "version": "协议版本",
+          "acceptedAt": "服务端记录时间",
+          "clientReportedAt": "客户端上报时间",
+          "docHash": "协议正文Hash"
+        },
+        "types": {
+          "privacy": "隐私政策",
+          "terms": "用户协议"
+        }
       },
       "logs": {
         "title": "TOKEN变动记录",
