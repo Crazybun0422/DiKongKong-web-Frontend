@@ -489,25 +489,9 @@ const normalizePinShapeType = (pin) => {
   return normalized
 }
 
-const pinShapeKey = (pin) => {
-  const normalized = normalizePinShapeType(pin)
-  if (normalized === 'POINT') return 'point'
-  if (normalized === 'LINE') return 'line'
-  if (normalized === 'CIRCLE') return 'circle'
-  if (normalized === 'RECTANGLE') return 'rectangle'
-  if (normalized === 'POLYGON') return 'polygon'
-  return 'unknown'
-}
-
-const normalizePinPointCategory = (pin) => {
-  const raw = pin?.shape?.pointCategory || pin?.pointCategory
-  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
-  return PIN_POINT_CATEGORY_ALIASES[normalized] || normalized
-}
-
-const normalizePinCoordinates = (pin) => {
-  if (!Array.isArray(pin?.shape?.coordinates)) return []
-  return pin.shape.coordinates
+const normalizeCoordinateList = (entries) => {
+  if (!Array.isArray(entries)) return []
+  return entries
     .map((coord) => {
       const lat = pickNumber(coord?.latitude, coord?.lat)
       const lng = pickNumber(coord?.longitude, coord?.lng)
@@ -517,13 +501,122 @@ const normalizePinCoordinates = (pin) => {
     .filter(Boolean)
 }
 
-const normalizePinEntry = (pin) => ({
-  ...pin,
-  shape: {
-    ...(pin?.shape || {}),
-    coordinates: normalizePinCoordinates(pin),
-  },
-})
+const normalizePinCoordinateGroups = (pin) => {
+  const groups = pin?.shape?.coordinateGroups
+  if (!groups || typeof groups !== 'object') return null
+  const normalized = {}
+  Object.entries(groups).forEach(([key, value]) => {
+    const normalizedKey = String(key).toLowerCase()
+    const coords = normalizeCoordinateList(value)
+    if (coords.length) {
+      normalized[normalizedKey] = coords
+    }
+  })
+  return Object.keys(normalized).length ? normalized : null
+}
+
+const inferShapeKeyFromCoordinates = (coords = []) => {
+  if (!Array.isArray(coords) || !coords.length) return ''
+  if (coords.length === 1) return 'point'
+  if (coords.length === 2) return 'line'
+  if (coords.length >= 3) return 'polygon'
+  return ''
+}
+
+const inferShapeKeyFromGroups = (groups) => {
+  if (!groups) return ''
+  if (Array.isArray(groups.polygon) && groups.polygon.length) return 'polygon'
+  if (Array.isArray(groups.line) && groups.line.length) return 'line'
+  if (Array.isArray(groups.point) && groups.point.length) return 'point'
+  return ''
+}
+
+const pinShapeKey = (pin) => {
+  const normalized = normalizePinShapeType(pin)
+  if (normalized === 'POINT') return 'point'
+  if (normalized === 'LINE') return 'line'
+  if (normalized === 'CIRCLE') return 'circle'
+  if (normalized === 'RECTANGLE') return 'rectangle'
+  if (normalized === 'POLYGON') return 'polygon'
+  if (normalized === 'KML') return 'kml'
+  if (normalized === 'KMZ') return 'kmz'
+  const groups = normalizePinCoordinateGroups(pin)
+  const inferred = inferShapeKeyFromGroups(groups)
+    || inferShapeKeyFromCoordinates(normalizeCoordinateList(pin?.shape?.coordinates))
+  return inferred || 'unknown'
+}
+
+const normalizePinPointCategory = (pin) => {
+  const raw = pin?.shape?.pointCategory || pin?.pointCategory
+  const normalized = typeof raw === 'string' ? raw.toUpperCase() : ''
+  return PIN_POINT_CATEGORY_ALIASES[normalized] || normalized
+}
+
+const normalizePinCoordinates = (pin) => {
+  return normalizeCoordinateList(pin?.shape?.coordinates)
+}
+
+const buildPinRenderTargets = (pin) => {
+  const shapeType = normalizePinShapeType(pin)
+  const groups = normalizePinCoordinateGroups(pin)
+  const coordinates = normalizePinCoordinates(pin)
+  const targets = []
+  const pushTarget = (type, coords) => {
+    if (Array.isArray(coords) && coords.length) {
+      targets.push({ type, coordinates: coords })
+    }
+  }
+
+  if (shapeType === 'POINT') {
+    pushTarget('POINT', groups?.point || coordinates)
+  } else if (shapeType === 'LINE') {
+    pushTarget('LINE', groups?.line || coordinates)
+  } else if (shapeType === 'POLYGON' || shapeType === 'RECTANGLE') {
+    pushTarget('POLYGON', groups?.polygon || coordinates)
+  } else if (shapeType === 'CIRCLE') {
+    pushTarget('CIRCLE', groups?.point || coordinates)
+  } else if (shapeType === 'KML' || shapeType === 'KMZ') {
+    pushTarget('POLYGON', groups?.polygon)
+    pushTarget('LINE', groups?.line)
+    pushTarget('POINT', groups?.point)
+    if (!targets.length && coordinates.length) {
+      if (coordinates.length >= 3) {
+        pushTarget('POLYGON', coordinates)
+      } else if (coordinates.length === 2) {
+        pushTarget('LINE', coordinates)
+      } else {
+        pushTarget('POINT', coordinates)
+      }
+    }
+  } else {
+    pushTarget('POLYGON', groups?.polygon)
+    pushTarget('LINE', groups?.line)
+    pushTarget('POINT', groups?.point)
+    if (!targets.length && coordinates.length) {
+      if (coordinates.length >= 3) {
+        pushTarget('POLYGON', coordinates)
+      } else if (coordinates.length === 2) {
+        pushTarget('LINE', coordinates)
+      } else {
+        pushTarget('POINT', coordinates)
+      }
+    }
+  }
+
+  return targets
+}
+
+const normalizePinEntry = (pin) => {
+  const coordinateGroups = normalizePinCoordinateGroups(pin)
+  return {
+    ...pin,
+    shape: {
+      ...(pin?.shape || {}),
+      coordinates: normalizePinCoordinates(pin),
+      coordinateGroups: coordinateGroups || pin?.shape?.coordinateGroups,
+    },
+  }
+}
 
 const findPinHeight = (pin) =>
   [
@@ -923,19 +1016,27 @@ const renderPins = (pins = []) => {
     return true
   })
   visiblePins.forEach((pin) => {
-    const shapeKey = pinShapeKey(pin)
-    const coords = normalizePinCoordinates(pin)
-    if (shapeKey === 'point') {
-      const center = coords[0]
-      if (center) renderPinPoint(pin, toLatLng(center))
-    } else if (shapeKey === 'line') {
-      renderPinLine(pin, coords)
-    } else if (shapeKey === 'polygon' || shapeKey === 'rectangle') {
-      renderPinPolygon(coords)
-    } else if (shapeKey === 'circle') {
-      const center = coords[0]
-      if (center) renderPinCircle(toLatLng(center), pin?.shape?.radius)
-    }
+    const targets = buildPinRenderTargets(pin)
+    if (!targets.length) return
+    targets.forEach((target) => {
+      if (target.type === 'POINT') {
+        const center = target.coordinates?.[0]
+        if (center) renderPinPoint(pin, toLatLng(center))
+        return
+      }
+      if (target.type === 'LINE') {
+        renderPinLine(pin, target.coordinates || [])
+        return
+      }
+      if (target.type === 'POLYGON') {
+        renderPinPolygon(target.coordinates || [])
+        return
+      }
+      if (target.type === 'CIRCLE') {
+        const center = target.coordinates?.[0]
+        if (center) renderPinCircle(toLatLng(center), pin?.shape?.radius)
+      }
+    })
   })
 }
 
@@ -1295,7 +1396,7 @@ const loadNearbyPins = async (center, radiusKm, token) => {
     if (isStaleToken(token)) return
     const normalized = pins
       .map((item) => normalizePinEntry(item))
-      .filter((item) => normalizePinCoordinates(item).length > 0 && pinShapeKey(item) !== 'unknown')
+      .filter((item) => buildPinRenderTargets(item).length > 0)
     nearbyPins.value = normalized
     renderPins(normalized)
   } catch (error) {

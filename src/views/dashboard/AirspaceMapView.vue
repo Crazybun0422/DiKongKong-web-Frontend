@@ -157,6 +157,8 @@ const pinShapeColors = {
   circle: 'orange',
   rectangle: 'purple',
   polygon: 'volcano',
+  kml: 'cyan',
+  kmz: 'purple',
   unknown: 'default',
 }
 
@@ -222,6 +224,57 @@ const toPlainCoordinate = (coord) => {
   const lng = Number(coord.longitude ?? coord.lng)
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
   return { latitude: lat, longitude: lng }
+}
+
+const normalizeCoordinateList = (entries) => {
+  if (!Array.isArray(entries)) return []
+  return entries.map((item) => toPlainCoordinate(item)).filter(Boolean)
+}
+
+const normalizePinCoordinateGroups = (pin) => {
+  const groups = pin?.shape?.coordinateGroups
+  if (!groups || typeof groups !== 'object') return null
+  const normalized = {}
+  Object.entries(groups).forEach(([key, value]) => {
+    const normalizedKey = String(key).toLowerCase()
+    const coords = normalizeCoordinateList(value)
+    if (coords.length) {
+      normalized[normalizedKey] = coords
+    }
+  })
+  return Object.keys(normalized).length ? normalized : null
+}
+
+const inferShapeKeyFromCoordinates = (coords = []) => {
+  if (!Array.isArray(coords) || !coords.length) return ''
+  if (coords.length === 1) return 'point'
+  if (coords.length === 2) return 'line'
+  if (coords.length >= 3) return 'polygon'
+  return ''
+}
+
+const inferShapeKeyFromGroups = (groups) => {
+  if (!groups) return ''
+  if (Array.isArray(groups.polygon) && groups.polygon.length) return 'polygon'
+  if (Array.isArray(groups.line) && groups.line.length) return 'line'
+  if (Array.isArray(groups.point) && groups.point.length) return 'point'
+  return ''
+}
+
+const resolvePinCoordinates = (pin, preferredKey) => {
+  const groups = normalizePinCoordinateGroups(pin)
+  if (preferredKey && groups?.[preferredKey]?.length) return groups[preferredKey]
+  const inferred = inferShapeKeyFromGroups(groups)
+  if (inferred && groups?.[inferred]?.length) return groups[inferred]
+  return normalizeCoordinateList(pin?.shape?.coordinates)
+}
+
+const getPinCoordinateCount = (pin) => {
+  const groups = normalizePinCoordinateGroups(pin)
+  if (groups) {
+    return Object.values(groups).reduce((total, list) => total + (list?.length || 0), 0)
+  }
+  return normalizeCoordinateList(pin?.shape?.coordinates).length
 }
 
 const EARTH_RADIUS = 6378137
@@ -365,7 +418,21 @@ const pinShapeKey = (pin) => {
   if (normalized === 'CIRCLE') return 'circle'
   if (normalized === 'RECTANGLE') return 'rectangle'
   if (normalized === 'POLYGON') return 'polygon'
-  return 'unknown'
+  if (normalized === 'KML') return 'kml'
+  if (normalized === 'KMZ') return 'kmz'
+  const inferred = inferShapeKeyFromGroups(normalizePinCoordinateGroups(pin))
+    || inferShapeKeyFromCoordinates(normalizeCoordinateList(pin?.shape?.coordinates))
+  return inferred || 'unknown'
+}
+
+const resolvePinPreviewShapeKey = (pin) => {
+  const shapeKey = pinShapeKey(pin)
+  if (shapeKey !== 'kml' && shapeKey !== 'kmz') return shapeKey
+  const groups = normalizePinCoordinateGroups(pin)
+  const inferred = inferShapeKeyFromGroups(groups)
+  if (inferred) return inferred
+  const coords = normalizeCoordinateList(pin?.shape?.coordinates)
+  return inferShapeKeyFromCoordinates(coords) || 'unknown'
 }
 
 const normalizePointCategory = (pin) => {
@@ -471,15 +538,11 @@ const initMapPreview = async () => {
   }
 }
 
-const getPinCoordinates = (pin) => {
-  if (!pin?.shape?.coordinates) return []
-  return pin.shape.coordinates
-    .map((item) => {
-      const lat = Number(item.latitude ?? item.lat)
-      const lng = Number(item.longitude ?? item.lng)
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
-      return new window.qq.maps.LatLng(lat, lng)
-    })
+const getPinCoordinates = (pin, preferredKey) => {
+  const coords = resolvePinCoordinates(pin, preferredKey)
+  if (!coords.length || !window.qq?.maps) return []
+  return coords
+    .map((item) => new window.qq.maps.LatLng(item.latitude, item.longitude))
     .filter(Boolean)
 }
 
@@ -631,8 +694,15 @@ const renderShapePreview = async () => {
     renderPointPreview(center, null)
     return
   }
-  const shapeKey = pinShapeKey(target)
-  const points = getPinCoordinates(target)
+  const shapeKey = resolvePinPreviewShapeKey(target)
+  const preferredKey = shapeKey === 'line'
+    ? 'line'
+    : shapeKey === 'polygon' || shapeKey === 'rectangle'
+      ? 'polygon'
+      : shapeKey === 'point' || shapeKey === 'circle'
+        ? 'point'
+        : null
+  const points = getPinCoordinates(target, preferredKey)
   if (!points.length && shapeKey === 'point') {
     message.warning(t('airspace.messages.mapPreviewMissing'))
     return
@@ -715,7 +785,14 @@ const isDraftRecord = (record) => {
 const canReviewPin = (pin) =>
   pin?.visibility === PIN_VISIBILITY.PUBLIC && pin?.reviewStatus === PIN_REVIEW_STATUS.PENDING
 
-const canTogglePinStatus = (pin) => Boolean(pin?.id)
+const resolvePinId = (pin) => pin?.pinIdNew ?? pin?.id
+
+const hasPinId = (pin) => {
+  const pinId = resolvePinId(pin)
+  return pinId !== undefined && pinId !== null && pinId !== ''
+}
+
+const canTogglePinStatus = (pin) => hasPinId(pin)
 
 const getStatusDisplay = (record) => {
   if (isDraftRecord(record)) {
@@ -1015,7 +1092,8 @@ const handlePinAuditTableChange = (pager) => {
 }
 
 const syncPinDetailRecord = (pin) => {
-  if (pin && pinDetailRecord.value?.id === pin.id) {
+  if (!pin || !pinDetailRecord.value) return
+  if (resolvePinId(pinDetailRecord.value) === resolvePinId(pin)) {
     pinDetailRecord.value = { ...pinDetailRecord.value, ...pin }
   }
 }
@@ -1126,7 +1204,12 @@ const submitPinReview = async (pin, status) => {
     return
   }
   try {
-    const updated = await reviewPin(pin.id, status)
+    const pinId = resolvePinId(pin)
+    if (pinId === undefined || pinId === null || pinId === '') {
+      message.error(t('airspace.pinAudit.messages.reviewFailed'))
+      return
+    }
+    const updated = await reviewPin(pinId, status)
     message.success(t('airspace.pinAudit.messages.reviewSuccess'))
     await loadPinAuditData()
     syncPinDetailRecord(updated)
@@ -1170,7 +1253,9 @@ const confirmPinStatusChange = (pin) => {
     },
     onOk: async () => {
       try {
-        const updated = await updatePinStatus(pin.id, nextStatus)
+        const pinId = resolvePinId(pin)
+        if (pinId === undefined || pinId === null || pinId === '') return
+        const updated = await updatePinStatus(pinId, nextStatus)
         message.success(t('airspace.pinAudit.messages.statusUpdated'))
         syncPinDetailRecord(updated)
         await loadPinAuditData()
@@ -1323,7 +1408,7 @@ watch(
           </div>
 
           <a-table :data-source="pinAuditData" :loading="pinAuditLoading" :pagination="pinAuditPaginationConfig"
-            :row-key="(record) => record.id" @change="handlePinAuditTableChange" class="pin-audit-table">
+            :row-key="(record) => resolvePinId(record)" @change="handlePinAuditTableChange" class="pin-audit-table">
             <a-table-column :title="t('airspace.pinAudit.columns.name')" key="name" dataIndex="name">
               <template #default="{ record }">
                 <div class="pin-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</div>
@@ -1410,8 +1495,29 @@ watch(
         <section class="detail-section">
           <h3>{{ t('airspace.pinAudit.detail.basic') }}</h3>
           <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.pinId')">
+              {{ pinDetailRecord?.pinIdNew ?? pinDetailRecord?.id ?? '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.pinIdNew && pinDetailRecord?.id"
+              :label="t('airspace.pinAudit.detail.legacyId')">
+              {{ pinDetailRecord.id }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.creator')">
+              {{ pinDetailRecord?.creatorName || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.featureCode')">
+              {{ pinDetailRecord?.featureCode || '-' }}
+            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.visibility')">
               {{ pinVisibilityText(pinDetailRecord.visibility) }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.groups?.length" :span="2"
+              :label="t('airspace.pinAudit.detail.groups')">
+              <div class="pin-group-tags">
+                <a-tag v-for="group in pinDetailRecord.groups" :key="group.id || group.name || group">
+                  {{ group.name || group.id || group }}
+                </a-tag>
+              </div>
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.reviewStatus')">
               <a-tag :color="pinReviewColors[pinDetailRecord.reviewStatus] || 'default'">
@@ -1422,6 +1528,9 @@ watch(
               <a-tag :color="pinStatusColors[pinDetailRecord.status] || 'default'">
                 {{ pinStatusText(pinDetailRecord.status) }}
               </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.pinAudit.detail.exposure')">
+              {{ pinDetailRecord?.exposureCount ?? 0 }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.shapeType')">
               <div class="type-with-action">
@@ -1439,13 +1548,17 @@ watch(
               {{ pinShapeCategoryText(pinDetailRecord) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.shapePoints')">
-              {{ pinDetailRecord?.shape?.coordinates?.length ?? 0 }}
+              {{ getPinCoordinateCount(pinDetailRecord) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.createdAt')">
               {{ formatDateTime(pinDetailRecord.createdAt) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.updatedAt')">
               {{ formatDateTime(pinDetailRecord.updatedAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.publishedAt"
+              :label="t('airspace.pinAudit.detail.publishedAt')">
+              {{ formatDateTime(pinDetailRecord.publishedAt) }}
             </a-descriptions-item>
             <a-descriptions-item v-if="pinDetailRecord?.shape?.radius"
               :label="t('airspace.pinAudit.detail.shapeRadius')">
@@ -1831,6 +1944,12 @@ watch(
 .pin-name {
   font-weight: 600;
   color: #111827;
+}
+
+.pin-group-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .pin-meta {

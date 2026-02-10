@@ -415,6 +415,8 @@
         "circle": "Circle",
         "rectangle": "Rectangle",
         "polygon": "Area",
+        "kml": "KML",
+        "kmz": "KMZ",
         "unknown": "Not provided"
       },
       "shapePointCategory": {
@@ -444,9 +446,16 @@
       "detail": {
         "title": "Pin Detail",
         "basic": "Basic Info",
+        "pinId": "Pin ID",
+        "legacyId": "Legacy ID",
+        "creator": "Creator",
+        "featureCode": "Feature Code",
         "visibility": "Visibility",
         "reviewStatus": "Review Status",
         "status": "Enable Status",
+        "exposure": "Exposure",
+        "publishedAt": "Published At",
+        "groups": "Groups",
         "shapeType": "Type",
         "shapeCategory": "Category",
         "shapePoints": "Coordinate Count",

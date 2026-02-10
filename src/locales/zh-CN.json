@@ -389,6 +389,8 @@
         "circle": "圆",
         "rectangle": "矩形",
         "polygon": "面",
+        "kml": "KML",
+        "kmz": "KMZ",
         "unknown": "未提供"
       },
       "shapePointCategory": {
@@ -418,9 +420,16 @@
       "detail": {
         "title": "标记详情",
         "basic": "基本信息",
+        "pinId": "Pin ID",
+        "legacyId": "旧ID",
+        "creator": "创建者",
+        "featureCode": "低空号",
         "visibility": "可见性",
         "reviewStatus": "审核状态",
         "status": "启用状态",
+        "exposure": "曝光量",
+        "publishedAt": "发布时间",
+        "groups": "群组",
         "shapeType": "类型",
         "shapeCategory": "类型说明",
         "shapePoints": "坐标数量",
