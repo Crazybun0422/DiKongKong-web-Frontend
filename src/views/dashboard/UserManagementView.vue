@@ -25,7 +25,27 @@ const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detailLogs = ref([])
 const detailUser = ref(null)
-const policyRecord = computed(() => detailUser.value?.policyAccessRecord ?? null)
+const resolvePolicyRecords = (user) => {
+  if (!user) return []
+  if (user.policyAccessRecord) return [user.policyAccessRecord]
+  const records = user.policyAccessRecords
+  if (!records || typeof records !== 'object') return []
+
+  const items = Object.values(records).filter(Boolean)
+  if (!items.length) return []
+
+  const order = { terms: 0, privacy: 1 }
+  return items.sort((a, b) => {
+    const aKey = String(a?.agreementType || '').toLowerCase()
+    const bKey = String(b?.agreementType || '').toLowerCase()
+    const aOrder = order[aKey] ?? 99
+    const bOrder = order[bKey] ?? 99
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return 0
+  })
+}
+
+const policyRecords = computed(() => resolvePolicyRecords(detailUser.value))
 
 const detailPagination = reactive({
   current: 1,
@@ -308,26 +328,32 @@ onMounted(() => {
       <h3 class="detail-title">{{ t('users.detail.policy.title') }}</h3>
       <p class="detail-subtitle">{{ t('users.detail.policy.subtitle') }}</p>
 
-      <div v-if="policyRecord" class="detail-summary">
-        <div class="detail-row">
-          <span class="label">{{ t('users.detail.policy.fields.type') }}</span>
-          <span class="value">{{ formatAgreementType(policyRecord.agreementType) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">{{ t('users.detail.policy.fields.version') }}</span>
-          <span class="value">{{ policyRecord.version || '-' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">{{ t('users.detail.policy.fields.acceptedAt') }}</span>
-          <span class="value">{{ formatDateTime(policyRecord.acceptedAt) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">{{ t('users.detail.policy.fields.clientReportedAt') }}</span>
-          <span class="value">{{ formatDateTime(policyRecord.clientReportedAt) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="label">{{ t('users.detail.policy.fields.docHash') }}</span>
-          <span class="value detail-mono">{{ policyRecord.docHash || '-' }}</span>
+      <div v-if="policyRecords.length" class="policy-records">
+        <div
+          v-for="(record, index) in policyRecords"
+          :key="record?.agreementType || record?.docHash || index"
+          class="detail-summary policy-record"
+        >
+          <div class="detail-row">
+            <span class="label">{{ t('users.detail.policy.fields.type') }}</span>
+            <span class="value">{{ formatAgreementType(record.agreementType) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">{{ t('users.detail.policy.fields.version') }}</span>
+            <span class="value">{{ record.version || '-' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">{{ t('users.detail.policy.fields.acceptedAt') }}</span>
+            <span class="value">{{ formatDateTime(record.acceptedAt) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">{{ t('users.detail.policy.fields.clientReportedAt') }}</span>
+            <span class="value">{{ formatDateTime(record.clientReportedAt) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">{{ t('users.detail.policy.fields.docHash') }}</span>
+            <span class="value detail-mono">{{ record.docHash || '-' }}</span>
+          </div>
         </div>
       </div>
       <p v-else class="detail-empty">{{ t('users.detail.policy.empty') }}</p>
@@ -489,6 +515,21 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.policy-records {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.policy-record {
+  padding: 12px 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.policy-record:last-child {
+  border-bottom: none;
 }
 
 .detail-row {
