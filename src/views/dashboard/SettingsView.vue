@@ -13,6 +13,10 @@ import {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchCoordinateLongPressGuideCopy,
+  saveCoordinateLongPressGuideCopy,
+  fetchCoordinateSystemDescriptionCopy,
+  saveCoordinateSystemDescriptionCopy,
   fetchGuideUrls,
   saveGuideUrls,
   fetchFontFileConfig,
@@ -168,6 +172,8 @@ const copyTypeOptions = computed(() => [
   { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
   { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
   { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
+  { value: 'coordinateLongPressGuide', label: t('settings.copySettings.options.coordinateLongPressGuide') },
+  { value: 'coordinateSystemDescription', label: t('settings.copySettings.options.coordinateSystemDescription') },
 ])
 const copyHandlers = {
   openPlatform: {
@@ -181,6 +187,14 @@ const copyHandlers = {
   inviteGuide: {
     fetch: fetchInviteGuideCopy,
     save: saveInviteGuideCopy,
+  },
+  coordinateLongPressGuide: {
+    fetch: fetchCoordinateLongPressGuideCopy,
+    save: saveCoordinateLongPressGuideCopy,
+  },
+  coordinateSystemDescription: {
+    fetch: fetchCoordinateSystemDescriptionCopy,
+    save: saveCoordinateSystemDescriptionCopy,
   },
 }
 

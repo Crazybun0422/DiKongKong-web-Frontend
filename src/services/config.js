@@ -55,6 +55,26 @@ export const saveInviteGuideCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchCoordinateLongPressGuideCopy = async () => {
+  const response = await http.get('/config/coordinate-long-press-guide')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveCoordinateLongPressGuideCopy = async (payload) => {
+  const response = await http.put('/config/coordinate-long-press-guide', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchCoordinateSystemDescriptionCopy = async () => {
+  const response = await http.get('/config/coordinate-system-description')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveCoordinateSystemDescriptionCopy = async (payload) => {
+  const response = await http.put('/config/coordinate-system-description', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchGuideUrls = async () => {
   const response = await http.get('/config/guide-urls')
   return normalizePagePayload(response, { urls: [], updatedAt: null })
@@ -136,6 +156,10 @@ export default {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchCoordinateLongPressGuideCopy,
+  saveCoordinateLongPressGuideCopy,
+  fetchCoordinateSystemDescriptionCopy,
+  saveCoordinateSystemDescriptionCopy,
   fetchGuideUrls,
   saveGuideUrls,
   fetchFontFileConfig,

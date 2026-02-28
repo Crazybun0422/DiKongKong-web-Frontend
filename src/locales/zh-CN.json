@@ -1259,7 +1259,9 @@
       "options": {
         "openPlatform": "开放平台",
         "flpRewardHelp": "FLP机制",
-        "inviteGuide": "邀请攻略"
+        "inviteGuide": "邀请攻略",
+        "coordinateLongPressGuide": "中心点长按说明",
+        "coordinateSystemDescription": "坐标说明"
       },
       "actions": {
         "save": "保存文案",

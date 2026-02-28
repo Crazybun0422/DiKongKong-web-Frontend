@@ -1241,7 +1241,9 @@
       "options": {
         "openPlatform": "Open platform",
         "flpRewardHelp": "FLP mechanism",
-        "inviteGuide": "Invite guide"
+        "inviteGuide": "Invite guide",
+        "coordinateLongPressGuide": "Center long-press guide",
+        "coordinateSystemDescription": "Coordinate description"
       },
       "actions": {
         "save": "Save content",
