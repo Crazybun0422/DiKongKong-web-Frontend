@@ -15,6 +15,7 @@ import pointWarningIcon from '../../assets/img/drone-warning.png'
 import pointAerialIcon from '../../assets/img/aerial.png'
 import pointDockIcon from '../../assets/img/dock.png'
 import pointElevationIcon from '../../assets/img/elevation.png'
+import MapAnchorDrawControl from '../../components/MapAnchorDrawControl.vue'
 import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones, fetchNearbyPins } from '../../services/airspaceMap'
 import { buildDownloadUrl, extractObjectName, normalizeFileList } from '../../services/files'
 import {
@@ -31,6 +32,7 @@ import {
 } from '../../utils/airspaceDji'
 import { buildWmsOverlay, createWmsMapType, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
 import { buildNoFlyZoneGraphics } from '../../utils/airspaceNoFlyZones'
+import { downloadUomTilesRangeZip, downloadUomTilesZip } from '../../utils/uomOfflineTiles'
 import { searchPlaces } from '../../utils/tencentMap'
 import { DRONES } from '../../utils/drones'
 import { clampRadius, gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '../../utils/coords'
@@ -111,6 +113,19 @@ const markerDetail = ref(null)
 const nearbyMarkers = ref([])
 const pinOverlays = ref([])
 const nearbyPins = ref([])
+const anchorPolygonPoints = ref([])
+const saveTilesLoading = ref(false)
+const saveTilesRangeLoading = ref(false)
+const saveTilesRangeProgress = reactive({
+  active: false,
+  currentZoom: 0,
+  startZoom: 6,
+  endZoom: 18,
+  completedLevels: 0,
+  totalLevels: 13,
+  percent: 0,
+})
+const hasAnchorPolygon = computed(() => anchorPolygonPoints.value.length >= 3)
 const MARKER_LABEL_WIDTH = 120
 const PIN_LABEL_WIDTH = 140
 const PIN_STROKE_COLOR = '#ff4d4f'
@@ -1775,6 +1790,176 @@ const goToPendingMarkers = () => {
     .catch(() => { })
 }
 
+const handleAnchorPolygonChange = (points = []) => {
+  if (!Array.isArray(points)) {
+    anchorPolygonPoints.value = []
+    return
+  }
+  anchorPolygonPoints.value = points
+    .map((point) => {
+      const latitude = Number(point?.latitude ?? point?.lat)
+      const longitude = Number(point?.longitude ?? point?.lng)
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+      return { latitude, longitude }
+    })
+    .filter(Boolean)
+}
+
+const waitForMapIdleOnce = (timeoutMs = 1800) =>
+  new Promise((resolve) => {
+    if (!mapInstance.value || !window.qq?.maps?.event) {
+      setTimeout(resolve, 150)
+      return
+    }
+    let done = false
+    let listener = null
+    let timer = null
+    const finish = () => {
+      if (done) return
+      done = true
+      if (listener) {
+        try {
+          window.qq.maps.event.removeListener(listener)
+        } catch (error) {
+          // ignore
+        }
+      }
+      if (timer) clearTimeout(timer)
+      resolve()
+    }
+    listener = window.qq.maps.event.addListener(mapInstance.value, 'idle', finish)
+    timer = setTimeout(finish, timeoutMs)
+  })
+
+const setMapZoomForExport = async (zoom) => {
+  if (!mapInstance.value || typeof mapInstance.value.setZoom !== 'function') return
+  try {
+    mapInstance.value.setZoom(zoom)
+  } catch (error) {
+    // ignore
+  }
+  await waitForMapIdleOnce()
+}
+
+const saveUomTiles = async () => {
+  if (!mapReady.value || !mapInstance.value) {
+    message.warning('地图尚未准备好')
+    return
+  }
+  if (!hasAnchorPolygon.value) {
+    message.warning('请先绘制锚点区域')
+    return
+  }
+
+  const zoomRaw = typeof mapInstance.value.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
+  const zoom = Number.isFinite(zoomRaw) ? Math.round(zoomRaw) : DEFAULT_MAP_ZOOM
+  if (zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) {
+    message.warning(`当前缩放等级不支持下载瓦片，请调整到 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+    return
+  }
+
+  saveTilesLoading.value = true
+  try {
+    const { summary } = await downloadUomTilesZip({
+      polygon: anchorPolygonPoints.value,
+      zoom,
+      concurrency: 6,
+    })
+    if (summary.truncated) {
+      message.warning(`瓦片数量过多，已按上限导出 ${summary.downloaded} 张`)
+    }
+    message.success(`瓦片包已下载（${summary.downloaded}/${summary.attempted}）`)
+  } catch (error) {
+    if (error?.code === 'ANCHOR_POLYGON_EMPTY') {
+      message.warning('请先绘制锚点区域')
+      return
+    }
+    if (error?.code === 'ZOOM_OUT_OF_RANGE') {
+      message.warning(`当前缩放等级不支持下载瓦片，请调整到 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+      return
+    }
+    if (error?.code === 'NO_TILES') {
+      message.warning('当前区域未匹配到瓦片')
+      return
+    }
+    if (error?.code === 'ALL_TILE_DOWNLOAD_FAILED') {
+      message.error('瓦片下载失败，请检查网络或跨域配置')
+      return
+    }
+    console.error('保存瓦片失败', error)
+    message.error('保存瓦片图失败，请稍后重试')
+  } finally {
+    saveTilesLoading.value = false
+  }
+}
+
+const saveUomTilesRange = async () => {
+  if (!mapReady.value || !mapInstance.value) {
+    message.warning('地图尚未准备好')
+    return
+  }
+  if (!hasAnchorPolygon.value) {
+    message.warning('请先绘制锚点区域')
+    return
+  }
+
+  const startZoom = 6
+  const endZoom = 18
+  saveTilesRangeLoading.value = true
+  saveTilesRangeProgress.active = true
+  saveTilesRangeProgress.currentZoom = startZoom
+  saveTilesRangeProgress.startZoom = startZoom
+  saveTilesRangeProgress.endZoom = endZoom
+  saveTilesRangeProgress.completedLevels = 0
+  saveTilesRangeProgress.totalLevels = endZoom - startZoom + 1
+  saveTilesRangeProgress.percent = 0
+
+  try {
+    const { summary } = await downloadUomTilesRangeZip({
+      polygon: anchorPolygonPoints.value,
+      startZoom,
+      endZoom,
+      concurrency: 6,
+      beforeZoom: async (zoom) => {
+        await setMapZoomForExport(zoom)
+      },
+      onProgress: (progress) => {
+        const totalLevels = Number(progress?.totalLevels) || saveTilesRangeProgress.totalLevels
+        const completedLevels = Number(progress?.completedLevels) || 0
+        saveTilesRangeProgress.active = true
+        saveTilesRangeProgress.currentZoom = Number(progress?.currentZoom) || saveTilesRangeProgress.currentZoom
+        saveTilesRangeProgress.startZoom = Number(progress?.startZoom) || startZoom
+        saveTilesRangeProgress.endZoom = Number(progress?.endZoom) || endZoom
+        saveTilesRangeProgress.completedLevels = completedLevels
+        saveTilesRangeProgress.totalLevels = totalLevels
+        saveTilesRangeProgress.percent = Math.max(0, Math.min(100, Math.round((completedLevels / totalLevels) * 100)))
+      },
+    })
+    if (summary.truncated) {
+      message.warning('瓦片数量过多，部分缩放级别已按上限导出')
+    }
+    message.success(`连续保存完成（${summary.startZoom}-${summary.endZoom}，${summary.downloaded}/${summary.attempted}）`)
+  } catch (error) {
+    if (error?.code === 'ANCHOR_POLYGON_EMPTY') {
+      message.warning('请先绘制锚点区域')
+      return
+    }
+    if (error?.code === 'ZOOM_OUT_OF_RANGE') {
+      message.warning(`连续导出仅支持 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+      return
+    }
+    if (error?.code === 'ALL_TILE_DOWNLOAD_FAILED') {
+      message.error('连续导出失败，请检查网络或跨域配置')
+      return
+    }
+    console.error('连续保存瓦片失败', error)
+    message.error('连续保存失败，请稍后重试')
+  } finally {
+    saveTilesRangeLoading.value = false
+    saveTilesRangeProgress.active = false
+  }
+}
+
 onMounted(() => {
   loadLayerSettings()
   waitForMap()
@@ -1800,6 +1985,29 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <div class="map-outside-tools-wrap">
+    <div class="map-outside-tools">
+      <MapAnchorDrawControl :map="mapInstance" :map-ready="mapReady" @anchors-change="handleAnchorPolygonChange" />
+      <button class="save-tiles-btn" type="button"
+        :disabled="saveTilesLoading || saveTilesRangeLoading || !hasAnchorPolygon || !mapReady" @click="saveUomTiles">
+        {{ saveTilesLoading ? '保存中...' : '保存瓦片图' }}
+      </button>
+      <button class="save-tiles-btn save-tiles-btn--range" type="button"
+        :disabled="saveTilesRangeLoading || saveTilesLoading || !hasAnchorPolygon || !mapReady"
+        @click="saveUomTilesRange">
+        {{ saveTilesRangeLoading ? '连续保存中...' : '连续保存' }}
+      </button>
+    </div>
+    <div v-if="saveTilesRangeLoading || saveTilesRangeProgress.active" class="save-tiles-progress">
+      <div class="save-tiles-progress__text">
+        连续保存进度：Z{{ saveTilesRangeProgress.currentZoom }}（{{ saveTilesRangeProgress.completedLevels }}/{{
+          saveTilesRangeProgress.totalLevels }}）
+      </div>
+      <div class="save-tiles-progress__track">
+        <div class="save-tiles-progress__bar" :style="{ width: `${saveTilesRangeProgress.percent}%` }"></div>
+      </div>
+    </div>
+  </div>
   <div class="map-page">
     <div ref="mapContainer" class="map-canvas">
       <div class="map-center-pin" :class="{ 'is-ready': mapReady }" aria-hidden="true">
@@ -2186,6 +2394,89 @@ onBeforeUnmount(() => {
 
 .map-overlays>* {
   pointer-events: auto;
+}
+
+.map-outside-tools-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.map-outside-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.save-tiles-btn {
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fbff;
+  background: rgba(22, 119, 255, 0.95);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(22, 119, 255, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.save-tiles-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(22, 119, 255, 0.35);
+}
+
+.save-tiles-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.save-tiles-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.save-tiles-btn--range {
+  background: rgba(7, 146, 96, 0.95);
+  box-shadow: 0 8px 20px rgba(7, 146, 96, 0.28);
+}
+
+.save-tiles-btn--range:hover:not(:disabled) {
+  box-shadow: 0 10px 24px rgba(7, 146, 96, 0.34);
+}
+
+.save-tiles-progress {
+  width: min(580px, calc(100vw - 44px));
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(11, 18, 32, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.save-tiles-progress__text {
+  color: #ecf2ff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.save-tiles-progress__track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.save-tiles-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2b82ff 0%, #4ad4ff 100%);
+  transition: width 0.2s ease;
 }
 
 .dashboard-card {
@@ -2811,6 +3102,16 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1100px) {
+  .map-outside-tools-wrap {
+    gap: 6px;
+    padding-left: 0;
+  }
+
+  .map-outside-tools {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .map-overlays {
     width: calc(100% - 32px);
     left: 12px;

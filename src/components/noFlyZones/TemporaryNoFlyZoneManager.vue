@@ -1,7 +1,13 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { EditOutlined, DeleteOutlined, EnvironmentOutlined } from '@ant-design/icons-vue'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  MinusCircleOutlined,
+  PlusOutlined,
+} from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
 import { wgs84ToGcj02 } from '../../utils/coords'
@@ -195,6 +201,7 @@ const formState = reactive({
   type: 'POLYGON',
   wechatLink: '',
   timeRange: [],
+  additionalTimeRanges: [],
   coordinates: [],
   circle: null,
   pathDistanceMeters: PATH_DEFAULT_DISTANCE,
@@ -1902,16 +1909,95 @@ const clearDrawing = () => {
   isDrawing.value = false
 }
 
-const convertTimeRangeToSeconds = () => {
-  const [start, end] = formState.timeRange || []
-  const parseTime = (value) => {
-    if (!value) return null
-    const normalized = typeof value === 'string' ? value.replace(' ', 'T') : value
-    const date = new Date(normalized)
-    if (Number.isNaN(date.getTime())) return null
-    return Math.floor(date.getTime() / 1000)
+const parseTimeToSeconds = (value) => {
+  if (!value) return null
+  const normalized = typeof value === 'string' ? value.replace(' ', 'T') : value
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return null
+  return Math.floor(date.getTime() / 1000)
+}
+
+const convertTimeRangeToSeconds = (range = formState.timeRange) => {
+  const [start, end] = Array.isArray(range) ? range : []
+  return [parseTimeToSeconds(start), parseTimeToSeconds(end)]
+}
+
+const buildEffectivePeriodsPayload = () =>
+  (Array.isArray(formState.additionalTimeRanges) ? formState.additionalTimeRanges : [])
+    .map((range) => {
+      const [effectiveFrom, effectiveTo] = convertTimeRangeToSeconds(range)
+      if (effectiveFrom == null && effectiveTo == null) {
+        return null
+      }
+      return {
+        effectiveFrom: effectiveFrom ?? undefined,
+        effectiveTo: effectiveTo ?? undefined,
+      }
+    })
+    .filter(Boolean)
+
+const formatTimeFromSeconds = (seconds, includeSeconds = true) => {
+  if (!seconds) return null
+  const date = new Date(seconds * 1000)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  if (!includeSeconds) {
+    return `${year}-${month}-${day} ${hours}:${minutes}`
   }
-  return [parseTime(start), parseTime(end)]
+  const secondsText = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${secondsText}`
+}
+
+const formatRangeFromTimestamps = (effectiveFrom, effectiveTo) => [
+  formatTimeFromSeconds(effectiveFrom),
+  formatTimeFromSeconds(effectiveTo),
+]
+
+const formatAdditionalRangesFromZone = (zone) =>
+  (Array.isArray(zone?.effectivePeriods) ? zone.effectivePeriods : [])
+    .map((period) => {
+      const range = formatRangeFromTimestamps(period?.effectiveFrom, period?.effectiveTo)
+      return range.every((value) => value === null) ? null : range
+    })
+    .filter(Boolean)
+
+const collectEffectivePeriods = (zone) => {
+  const periods = []
+  if (zone?.effectiveFrom != null || zone?.effectiveTo != null) {
+    periods.push({
+      effectiveFrom: zone.effectiveFrom ?? null,
+      effectiveTo: zone.effectiveTo ?? null,
+    })
+  }
+  if (Array.isArray(zone?.effectivePeriods)) {
+    periods.push(...zone.effectivePeriods)
+  }
+
+  const seen = new Set()
+  return periods.filter((period) => {
+    const effectiveFrom = period?.effectiveFrom ?? null
+    const effectiveTo = period?.effectiveTo ?? null
+    if (effectiveFrom == null && effectiveTo == null) {
+      return false
+    }
+    const key = `${effectiveFrom ?? ''}-${effectiveTo ?? ''}`
+    if (seen.has(key)) {
+      return false
+    }
+    seen.add(key)
+    return true
+  })
+}
+
+const addAdditionalTimeRange = () => {
+  formState.additionalTimeRanges.push([])
+}
+
+const removeAdditionalTimeRange = (index) => {
+  formState.additionalTimeRanges.splice(index, 1)
 }
 
 const validateWechatLink = (link) => {
@@ -1957,6 +2043,7 @@ const buildZonePayload = () => {
     circle: circlePayload,
     effectiveFrom: effectiveFrom ?? undefined,
     effectiveTo: effectiveTo ?? undefined,
+    effectivePeriods: buildEffectivePeriodsPayload(),
   }
 
   const trimmedWechatLink = formState.wechatLink.trim()
@@ -2054,6 +2141,7 @@ const resetForm = () => {
   formState.type = 'POLYGON'
   formState.wechatLink = ''
   formState.timeRange = []
+  formState.additionalTimeRanges = []
   formState.pathDistanceMeters = PATH_DEFAULT_DISTANCE
   resetFormGeometry()
   clearDrawing()
@@ -2072,6 +2160,7 @@ const editZone = (zone) => {
     pathDistance != null ? pathDistance : PATH_DEFAULT_DISTANCE
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
+  formState.additionalTimeRanges = formatAdditionalRangesFromZone(zone)
   if (zoneType === 'CIRCLE' && zone.circle) {
     formState.circle = { ...zone.circle }
   } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
@@ -2113,20 +2202,7 @@ const focusZoneOnMap = (zone) => {
 }
 
 const formatRangeFromZone = (zone) => {
-  const formatTime = (seconds) => {
-    if (!seconds) return null
-    const date = new Date(seconds * 1000)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const secondsStr = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day} ${hours}:${minutes}:${secondsStr}`
-  }
-  const start = formatTime(zone.effectiveFrom)
-  const end = formatTime(zone.effectiveTo)
-  return [start ?? null, end ?? null]
+  return formatRangeFromTimestamps(zone?.effectiveFrom, zone?.effectiveTo)
 }
 
 const deleteZone = (zone) => {
@@ -2329,20 +2405,14 @@ const typeLabel = (type) => {
 }
 
 const effectiveTimeText = (zone) => {
-  const format = (seconds) => {
-    if (!seconds) return '-'
-    const date = new Date(seconds * 1000)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hour = String(date.getHours()).padStart(2, '0')
-    const minute = String(date.getMinutes()).padStart(2, '0')
-    return `${year}-${month}-${day} ${hour}:${minute}`
-  }
-  const start = format(zone.effectiveFrom)
-  const end = format(zone.effectiveTo)
-  if (start === '-' && end === '-') return '-'
-  return `${start} ~ ${end}`
+  const periods = collectEffectivePeriods(zone)
+  if (!periods.length) return ['-']
+  return periods.map((period) => {
+    const start = formatTimeFromSeconds(period.effectiveFrom, false) || '-'
+    const end = formatTimeFromSeconds(period.effectiveTo, false) || '-'
+    if (start === '-' && end === '-') return '-'
+    return `${start} ~ ${end}`
+  })
 }
 
 const tableColumns = computed(() => [
@@ -2812,6 +2882,22 @@ const handleSearchClear = () => {
             <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
               value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
           </a-form-item>
+          <a-form-item :label="t('noFlyZone.form.additionalTimeRanges')">
+            <div class="additional-time-ranges">
+              <div v-for="(range, index) in formState.additionalTimeRanges" :key="`time-range-${index}`"
+                class="additional-time-range-row">
+                <a-range-picker v-model:value="formState.additionalTimeRanges[index]" format="YYYY-MM-DD HH:mm:ss"
+                  value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
+                <a-button danger type="text" :disabled="disableFormDuringDrawing" @click="removeAdditionalTimeRange(index)">
+                  <MinusCircleOutlined />
+                </a-button>
+              </div>
+              <a-button type="dashed" block :disabled="disableFormDuringDrawing" @click="addAdditionalTimeRange">
+                <PlusOutlined />
+                {{ t('noFlyZone.form.addTimeRange') }}
+              </a-button>
+            </div>
+          </a-form-item>
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required">
@@ -2883,7 +2969,11 @@ const handleSearchClear = () => {
             {{ typeLabel(record.type) }}
           </template>
           <template v-else-if="column.key === 'effective'">
-            {{ effectiveTimeText(record) }}
+            <div class="effective-period-list">
+              <div v-for="(item, index) in effectiveTimeText(record)" :key="`${record.id || 'zone'}-${index}`">
+                {{ item }}
+              </div>
+            </div>
           </template>
           <template v-else-if="column.key === 'actions'">
             <a-space>
@@ -2998,6 +3088,21 @@ const handleSearchClear = () => {
   margin-top: 4px;
 }
 
+.additional-time-ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.additional-time-range-row {
+  display: flex;
+  gap: 8px;
+}
+
+.additional-time-range-row :deep(.ant-picker) {
+  flex: 1 1 auto;
+}
+
 .form-hint {
   margin: 4px 0 0;
   font-size: 12px;
@@ -3077,6 +3182,12 @@ const handleSearchClear = () => {
 
 :deep(.ant-table-tbody > tr > td) {
   vertical-align: middle;
+}
+
+.effective-period-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 @media (max-width: 1200px) {

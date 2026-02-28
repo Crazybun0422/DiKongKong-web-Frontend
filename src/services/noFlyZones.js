@@ -17,6 +17,11 @@ const normalizeCircle = (circle = {}) => {
   }
 }
 
+const normalizeEffectivePeriod = (period = {}) => ({
+  effectiveFrom: period.effectiveFrom != null ? Number(period.effectiveFrom) : null,
+  effectiveTo: period.effectiveTo != null ? Number(period.effectiveTo) : null,
+})
+
 const normalizeZoneType = (type) => {
   if (type === 'POLYLINE' || type === 'CORRIDOR') {
     return 'PATH'
@@ -57,6 +62,9 @@ export const normalizeNoFlyZone = (zone = {}) => {
     circle: normalizedCircle,
     effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
     effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
+    effectivePeriods: Array.isArray(zone.effectivePeriods)
+      ? zone.effectivePeriods.map((period) => normalizeEffectivePeriod(period))
+      : [],
     pathDistanceMeters: normalizedPathDistance,
   }
 }

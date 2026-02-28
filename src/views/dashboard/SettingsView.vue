@@ -188,6 +188,7 @@ const weappForm = reactive({
   appId: '',
   secret: '',
   jwtSecret: '',
+  mapKey: '',
 })
 const weappRules = computed(() => ({
   appId: [{ required: true, message: t('settings.weapp.validation.appId') }],
@@ -964,6 +965,7 @@ const loadWeappConfig = async () => {
     weappForm.appId = data?.appId || ''
     weappForm.secret = data?.secret || ''
     weappForm.jwtSecret = data?.jwtSecret || ''
+    weappForm.mapKey = data?.mapKey || ''
   } catch (error) {
     console.error('Failed to load weapp config', error)
     message.error(t('settings.weapp.messages.loadFailed'))
@@ -979,6 +981,7 @@ const submitWeappForm = async () => {
       appId: weappForm.appId,
       secret: weappForm.secret,
       jwtSecret: weappForm.jwtSecret,
+      mapKey: weappForm.mapKey,
     })
     message.success(t('settings.weapp.messages.saveSuccess'))
   } catch (error) {
@@ -2562,6 +2565,12 @@ onMounted(() => {
                     <a-form-item name="jwtSecret" :label="t('settings.weapp.jwtSecret')">
                       <a-input-password v-model:value="weappForm.jwtSecret"
                         :placeholder="t('settings.weapp.placeholders.jwtSecret')" allow-clear />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item name="mapKey" :label="t('settings.weapp.mapKey')">
+                      <a-input v-model:value="weappForm.mapKey" :placeholder="t('settings.weapp.placeholders.mapKey')"
+                        allow-clear />
                     </a-form-item>
                   </a-col>
                 </a-row>

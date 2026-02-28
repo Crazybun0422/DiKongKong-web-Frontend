@@ -538,6 +538,8 @@
       "coordinateManualHint": "可在表格中手动输入或调整经纬度，也可以通过“新增坐标点”补充顶点。",
       "coordinateManualHintDisabled": "绘制过程中暂不支持手动编辑坐标，请先结束绘制。",
       "timeRange": "生效时间",
+      "additionalTimeRanges": "额外生效时段",
+      "addTimeRange": "新增时段",
       "wechatLink": "公众号链接",
       "wechatPlaceholder": "仅支持 mp.weixin.qq.com 域名链接",
       "edgeDistance": "沿边距离",
@@ -635,10 +637,12 @@
       "appId": "小程序 AppID",
       "secret": "小程序密钥",
       "jwtSecret": "JWT 密钥",
+      "mapKey": "地图 MapKey",
       "placeholders": {
         "appId": "请输入小程序 AppID",
         "secret": "请输入小程序密钥",
-        "jwtSecret": "请输入 JWT 密钥"
+        "jwtSecret": "请输入 JWT 密钥",
+        "mapKey": "请输入地图 MapKey"
       },
       "validation": {
         "appId": "请填写小程序 AppID",

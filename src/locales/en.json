@@ -523,6 +523,8 @@
       "coordinateManualHint": "You can edit the latitude and longitude directly in the table or add new vertices below.",
       "coordinateManualHintDisabled": "Manual coordinate editing is disabled while drawing. Finish the drawing first.",
       "timeRange": "Effective Time",
+      "additionalTimeRanges": "Additional Effective Periods",
+      "addTimeRange": "Add period",
       "wechatLink": "Official Account Link",
       "wechatPlaceholder": "Only mp.weixin.qq.com URLs are supported",
       "edgeDistance": "Edge distance",
@@ -620,10 +622,12 @@
       "appId": "AppID",
       "secret": "App Secret",
       "jwtSecret": "JWT Secret",
+      "mapKey": "Map Key",
       "placeholders": {
         "appId": "Enter the mini program AppID",
         "secret": "Enter the App Secret",
-        "jwtSecret": "Enter the JWT secret for token exchange"
+        "jwtSecret": "Enter the JWT secret for token exchange",
+        "mapKey": "Enter the map key"
       },
       "validation": {
         "appId": "Please enter the AppID",
