@@ -13,6 +13,10 @@ import {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchFlpNoAdsThresholdConfig,
+  saveFlpNoAdsThresholdConfig,
+  syncFlpNoAdsCrowdNow,
+  fetchFlpNoAdsLastCrowd,
   fetchCoordinateLongPressGuideCopy,
   saveCoordinateLongPressGuideCopy,
   fetchCoordinateSystemDescriptionCopy,
@@ -21,6 +25,8 @@ import {
   saveGuideUrls,
   fetchFontFileConfig,
   uploadFontFileConfig,
+  fetchEasterEggResourceConfig,
+  uploadEasterEggResourceConfig,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
@@ -63,6 +69,7 @@ import {
   deletePrivacyPolicy,
   downloadPrivacyPolicyPdf,
 } from '../../services/policy'
+import { fetchLadderGameAdminLeaderboard } from '../../services/ladderGame'
 import reportEntryRegions from '../../data/reportEntryRegions'
 import detailIcon from '../../assets/img/detail.png'
 
@@ -147,6 +154,28 @@ const mapRules = computed(() => ({
 }))
 const mapLoading = ref(false)
 const mapSaving = ref(false)
+
+const adThresholdForm = reactive({
+  threshold: 0,
+})
+const adThresholdRules = computed(() => ({
+  threshold: [
+    {
+      validator: (_, value) => {
+        const numeric = Number(value)
+        if (Number.isNaN(numeric) || numeric < 0) {
+          return Promise.reject(new Error(t('settings.adSettings.validation.threshold')))
+        }
+        return Promise.resolve()
+      },
+    },
+  ],
+}))
+const adThresholdLoading = ref(false)
+const adThresholdSaving = ref(false)
+const adSyncing = ref(false)
+const adLastCrowdLoading = ref(false)
+const adLastCrowdRecord = ref(null)
 
 const copyType = ref('openPlatform')
 const copyForm = reactive({
@@ -382,6 +411,17 @@ const fontFileForm = reactive({
 const fontFileLoading = ref(false)
 const fontFileSaving = ref(false)
 const fontFileSelected = ref(null)
+const easterEggResourceConfig = reactive({
+  fileName: '',
+  version: '',
+})
+const easterEggResourceForm = reactive({
+  fileName: '',
+  version: '',
+})
+const easterEggResourceLoading = ref(false)
+const easterEggResourceSaving = ref(false)
+const easterEggResourceSelected = ref(null)
 
 const userAgreementList = ref([])
 const userAgreementLoading = ref(false)
@@ -422,6 +462,13 @@ const lotteryLogFilters = reactive({
 const checkinLogs = ref([])
 const checkinLogsLoading = ref(false)
 const checkinLogPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
+const ladderLeaderboard = ref([])
+const ladderLeaderboardLoading = ref(false)
+const ladderLeaderboardPagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
@@ -602,6 +649,53 @@ const parseProbabilityValue = (value) => {
   return head + tail
 }
 
+const normalizeAdCrowdRecord = (record) => {
+  if (!record || typeof record !== 'object') return null
+  const members = Array.isArray(record?.members) ? record.members : []
+  return {
+    ...record,
+    members: members.map((member, index) => ({
+      ...member,
+      rowKey: member?.openid || `${member?.userId ?? 'unknown'}-${index}`,
+      avatarUrl: resolveProfileAsset(member?.avatarUrl),
+    })),
+  }
+}
+
+const adCrowdMembers = computed(() => {
+  const members = adLastCrowdRecord.value?.members
+  return Array.isArray(members) ? members : []
+})
+
+const adLastRecordStatusKey = computed(() => {
+  const status = String(adLastCrowdRecord.value?.status || '').toUpperCase()
+  if (status === 'SUCCESS') return 'success'
+  if (status === 'FAILED') return 'failed'
+  if (status === 'SKIPPED_EMPTY') return 'skippedEmpty'
+  return 'unknown'
+})
+
+const adLastRecordStatusText = computed(() => t(`settings.adSettings.status.${adLastRecordStatusKey.value}`))
+
+const adLastRecordStatusColor = computed(() => {
+  if (adLastRecordStatusKey.value === 'success') return 'green'
+  if (adLastRecordStatusKey.value === 'failed') return 'red'
+  if (adLastRecordStatusKey.value === 'skippedEmpty') return 'gold'
+  return 'default'
+})
+
+const adLastExecutedAtDisplay = computed(() =>
+  adLastCrowdRecord.value?.executedAt
+    ? new Date(adLastCrowdRecord.value.executedAt).toLocaleString()
+    : t('settings.adSettings.meta.noData'),
+)
+
+const adLastCrowdCount = computed(() => {
+  const count = Number(adLastCrowdRecord.value?.totalOpenidCount)
+  if (Number.isFinite(count)) return count
+  return adCrowdMembers.value.length
+})
+
 const buildReportEntryTree = (nodes = [], parentPath = []) =>
   nodes.map((node) => {
     const currentPath = [...parentPath, node.name]
@@ -693,6 +787,14 @@ const resetFontFileForm = (currentVersion = '') => {
 
 const fontFileDownloadUrl = computed(() => buildDownloadUrl(fontFileConfig.fileName || ''))
 
+const resetEasterEggResourceForm = (currentVersion = '') => {
+  easterEggResourceForm.fileName = ''
+  easterEggResourceForm.version = getNextFontVersion(currentVersion)
+  easterEggResourceSelected.value = null
+}
+
+const easterEggResourceDownloadUrl = computed(() => buildDownloadUrl(easterEggResourceConfig.fileName || ''))
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -700,6 +802,16 @@ const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.amount'), dataIndex: 'amount', key: 'amount', width: 140 },
   { title: t('settings.invite.logs.columns.operation'), dataIndex: 'operation', key: 'operation', width: 140 },
   { title: t('settings.invite.logs.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
+])
+
+const adMemberColumns = computed(() => [
+  { title: t('settings.adSettings.table.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 90 },
+  { title: t('settings.adSettings.table.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 140 },
+  { title: t('settings.adSettings.table.columns.username'), dataIndex: 'username', key: 'username', width: 140 },
+  { title: t('settings.adSettings.table.columns.openid'), dataIndex: 'openid', key: 'openid', ellipsis: true },
+  { title: t('settings.adSettings.table.columns.flpBalance'), dataIndex: 'flpBalance', key: 'flpBalance', width: 130 },
+  { title: t('settings.adSettings.table.columns.status'), dataIndex: 'status', key: 'status', width: 120 },
+  { title: t('settings.adSettings.table.columns.userCreatedAt'), dataIndex: 'userCreatedAt', key: 'userCreatedAt', width: 180 },
 ])
 
 const userAgreementColumns = computed(() => [
@@ -754,6 +866,21 @@ const checkinLogColumns = computed(() => [
     width: 160,
   },
   { title: t('settings.lottery.checkins.columns.checkinTimes'), dataIndex: 'checkinTimes', key: 'checkinTimes' },
+])
+
+const ladderLeaderboardColumns = computed(() => [
+  { title: t('settings.system.ladderLeaderboard.columns.rank'), dataIndex: 'rank', key: 'rank', width: 90 },
+  { title: t('settings.system.ladderLeaderboard.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 90 },
+  { title: t('settings.system.ladderLeaderboard.columns.username'), dataIndex: 'username', key: 'username', width: 160 },
+  { title: t('settings.system.ladderLeaderboard.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 140 },
+  { title: t('settings.system.ladderLeaderboard.columns.highestScore'), dataIndex: 'highestScore', key: 'highestScore', width: 120 },
+  { title: t('settings.system.ladderLeaderboard.columns.gameCount'), dataIndex: 'gameCount', key: 'gameCount', width: 120 },
+  {
+    title: t('settings.system.ladderLeaderboard.columns.latestGameTime'),
+    dataIndex: 'latestGameTime',
+    key: 'latestGameTime',
+    width: 200,
+  },
 ])
 
 const newbieTaskStatsColumns = computed(() => [
@@ -924,6 +1051,77 @@ const submitMapForm = async () => {
     message.error(t('settings.mapSettlement.messages.saveFailed'))
   } finally {
     mapSaving.value = false
+  }
+}
+
+const loadAdThresholdConfig = async () => {
+  adThresholdLoading.value = true
+  try {
+    const data = await fetchFlpNoAdsThresholdConfig()
+    const threshold = Number(data?.threshold)
+    adThresholdForm.threshold = Number.isFinite(threshold) ? threshold : 0
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      adThresholdForm.threshold = 0
+      return
+    }
+    console.error('Failed to load no-ads threshold config', error)
+    message.error(t('settings.adSettings.messages.loadThresholdFailed'))
+  } finally {
+    adThresholdLoading.value = false
+  }
+}
+
+const loadAdLastCrowdRecord = async () => {
+  adLastCrowdLoading.value = true
+  try {
+    const data = await fetchFlpNoAdsLastCrowd()
+    adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      adLastCrowdRecord.value = null
+      return
+    }
+    console.error('Failed to load no-ads last crowd record', error)
+    message.error(t('settings.adSettings.messages.loadRecordFailed'))
+  } finally {
+    adLastCrowdLoading.value = false
+  }
+}
+
+const reloadAdSettings = () => {
+  loadAdThresholdConfig()
+  loadAdLastCrowdRecord()
+}
+
+const submitAdThresholdForm = async () => {
+  adThresholdSaving.value = true
+  try {
+    await saveFlpNoAdsThresholdConfig({
+      threshold: Math.max(0, Number(adThresholdForm.threshold) || 0),
+    })
+    message.success(t('settings.adSettings.messages.saveThresholdSuccess'))
+    await loadAdThresholdConfig()
+  } catch (error) {
+    console.error('Failed to save no-ads threshold config', error)
+    message.error(t('settings.adSettings.messages.saveThresholdFailed'))
+  } finally {
+    adThresholdSaving.value = false
+  }
+}
+
+const handleAdSyncNow = async () => {
+  if (adSyncing.value) return
+  adSyncing.value = true
+  try {
+    const data = await syncFlpNoAdsCrowdNow()
+    adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
+    message.success(t('settings.adSettings.messages.syncSuccess'))
+  } catch (error) {
+    console.error('Failed to run no-ads crowd sync', error)
+    message.error(t('settings.adSettings.messages.syncFailed'))
+  } finally {
+    adSyncing.value = false
   }
 }
 
@@ -1835,6 +2033,69 @@ const submitFontFileForm = async () => {
   }
 }
 
+const loadEasterEggResourceConfig = async () => {
+  easterEggResourceLoading.value = true
+  try {
+    const data = await fetchEasterEggResourceConfig()
+    easterEggResourceConfig.fileName = extractObjectName(data?.fileName || '')
+    easterEggResourceConfig.version = data?.version || ''
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load easter egg resource config', error)
+      message.error(t('settings.system.easterEggResource.messages.loadFailed'))
+    }
+    easterEggResourceConfig.fileName = ''
+    easterEggResourceConfig.version = ''
+  } finally {
+    easterEggResourceLoading.value = false
+    resetEasterEggResourceForm(easterEggResourceConfig.version)
+  }
+}
+
+const handleEasterEggResourceSelect = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  easterEggResourceSelected.value = file
+  easterEggResourceForm.fileName = file.name || ''
+  if (!easterEggResourceForm.version) {
+    easterEggResourceForm.version = getNextFontVersion(easterEggResourceConfig.version)
+  }
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearEasterEggResourceSelection = () => {
+  easterEggResourceSelected.value = null
+  easterEggResourceForm.fileName = ''
+}
+
+const submitEasterEggResourceForm = async () => {
+  if (!easterEggResourceSelected.value) {
+    message.warning(t('settings.system.easterEggResource.messages.noFile'))
+    return
+  }
+  const version = (easterEggResourceForm.version || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.easterEggResource.messages.noVersion'))
+    return
+  }
+  if (easterEggResourceSaving.value) {
+    return
+  }
+  easterEggResourceSaving.value = true
+  try {
+    await uploadEasterEggResourceConfig(easterEggResourceSelected.value, version)
+    message.success(t('settings.system.easterEggResource.messages.uploadSuccess'))
+    await loadEasterEggResourceConfig()
+  } catch (error) {
+    console.error('Failed to upload easter egg resource package', error)
+    message.error(t('settings.system.easterEggResource.messages.uploadFailed'))
+  } finally {
+    easterEggResourceSaving.value = false
+  }
+}
+
 const loadNewbieTaskStats = async () => {
   newbieTaskStatsLoading.value = true
   try {
@@ -1955,6 +2216,28 @@ const loadCheckinLogs = async () => {
   }
 }
 
+const loadLadderLeaderboard = async () => {
+  ladderLeaderboardLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchLadderGameAdminLeaderboard({
+      page: ladderLeaderboardPagination.current,
+      size: ladderLeaderboardPagination.pageSize,
+    })
+    ladderLeaderboard.value = (content || []).map((item) => ({
+      ...item,
+      avatarUrl: resolveProfileAsset(item?.avatarUrl),
+    }))
+    ladderLeaderboardPagination.total = totalElements
+    ladderLeaderboardPagination.current = page
+    ladderLeaderboardPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load ladder leaderboard', error)
+    message.error(t('settings.system.ladderLeaderboard.messages.loadFailed'))
+  } finally {
+    ladderLeaderboardLoading.value = false
+  }
+}
+
 const handleLotteryLogSearch = () => {
   lotteryLogPagination.current = 1
   loadLotteryLogs()
@@ -1970,6 +2253,12 @@ const handleCheckinLogTableChange = (pager) => {
   checkinLogPagination.current = pager?.current ?? 1
   checkinLogPagination.pageSize = pager?.pageSize ?? checkinLogPagination.pageSize
   loadCheckinLogs()
+}
+
+const handleLadderLeaderboardTableChange = (pager) => {
+  ladderLeaderboardPagination.current = pager?.current ?? 1
+  ladderLeaderboardPagination.pageSize = pager?.pageSize ?? ladderLeaderboardPagination.pageSize
+  loadLadderLeaderboard()
 }
 
 const formatReportEntryArea = (entry) => {
@@ -2246,6 +2535,20 @@ const checkinPaginationConfig = computed(() => ({
     }),
 }))
 
+const ladderLeaderboardPaginationConfig = computed(() => ({
+  current: ladderLeaderboardPagination.current,
+  pageSize: ladderLeaderboardPagination.pageSize,
+  total: ladderLeaderboardPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.system.ladderLeaderboard.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 const newbieTaskStatsPaginationConfig = computed(() => ({
   current: newbieTaskStatsPagination.current,
   pageSize: newbieTaskStatsPagination.pageSize,
@@ -2308,6 +2611,8 @@ onMounted(() => {
   loadInviteConfig()
   loadInviteLogs()
   loadMapConfig()
+  loadAdThresholdConfig()
+  loadAdLastCrowdRecord()
   loadCopyContent()
   loadPaymentConfig()
   loadWeappConfig()
@@ -2319,6 +2624,8 @@ onMounted(() => {
   loadUserAgreements()
   loadPrivacyPolicies()
   loadFontFileConfig()
+  loadEasterEggResourceConfig()
+  loadLadderLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
   loadCheckinLogs()
@@ -2454,6 +2761,122 @@ onMounted(() => {
                 </div>
               </a-form>
             </a-spin>
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="ad-settings" :tab="t('settings.tabs.adSettings')">
+          <div class="tab-section">
+            <section class="ad-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.adSettings.title') }}</h3>
+                  <p>{{ t('settings.adSettings.subtitle') }}</p>
+                </div>
+                <div class="actions">
+                  <a-button type="default" :loading="adThresholdLoading || adLastCrowdLoading"
+                    :disabled="adThresholdSaving || adSyncing" @click="reloadAdSettings">
+                    {{ t('settings.adSettings.actions.reload') }}
+                  </a-button>
+                  <a-button type="primary" :loading="adSyncing" :disabled="adThresholdLoading || adThresholdSaving"
+                    @click="handleAdSyncNow">
+                    {{ t('settings.adSettings.actions.syncNow') }}
+                  </a-button>
+                </div>
+              </header>
+
+              <a-spin :spinning="adThresholdLoading || adLastCrowdLoading">
+                <a-form :model="adThresholdForm" :rules="adThresholdRules" layout="vertical"
+                  @finish="submitAdThresholdForm">
+                  <a-row :gutter="[24, 12]">
+                    <a-col :xs="24" :md="12">
+                      <a-form-item name="threshold" :label="t('settings.adSettings.form.threshold')">
+                        <a-input-number v-model:value="adThresholdForm.threshold" :min="0" :step="0.1" :precision="2"
+                          :placeholder="t('settings.adSettings.form.placeholder')" style="width: 100%" />
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="adThresholdSaving">
+                      {{ t('common.actions.save') }}
+                    </a-button>
+                    <a-button type="default" @click="loadAdThresholdConfig"
+                      :disabled="adThresholdLoading || adThresholdSaving">
+                      {{ t('common.actions.reset') }}
+                    </a-button>
+                  </div>
+                </a-form>
+
+                <div class="ad-settings__stats">
+                  <div class="ad-stat-card">
+                    <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.currentThreshold') }}</span>
+                    <span class="ad-stat-card__value">{{ Number(adThresholdForm.threshold || 0).toFixed(2) }}</span>
+                  </div>
+                  <div class="ad-stat-card">
+                    <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.lastSyncTime') }}</span>
+                    <span class="ad-stat-card__value ad-stat-card__value--small">{{ adLastExecutedAtDisplay }}</span>
+                  </div>
+                  <div class="ad-stat-card">
+                    <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.lastSyncMembers') }}</span>
+                    <span class="ad-stat-card__value">{{ adLastCrowdCount }}</span>
+                  </div>
+                  <div class="ad-stat-card">
+                    <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.lastSyncStatus') }}</span>
+                    <span class="ad-stat-card__value ad-stat-card__value--small">{{ adLastRecordStatusText }}</span>
+                  </div>
+                </div>
+
+                <section class="ad-settings__record">
+                  <div class="ad-settings__record-header">
+                    <h4>{{ t('settings.adSettings.record.title') }}</h4>
+                    <a-tag :color="adLastRecordStatusColor">{{ adLastRecordStatusText }}</a-tag>
+                  </div>
+                  <a-descriptions size="small" :column="2" bordered>
+                    <a-descriptions-item :label="t('settings.adSettings.record.executedAt')">
+                      {{ adLastExecutedAtDisplay }}
+                    </a-descriptions-item>
+                    <a-descriptions-item :label="t('settings.adSettings.record.threshold')">
+                      {{ Number(adLastCrowdRecord?.threshold || 0).toFixed(2) }}
+                    </a-descriptions-item>
+                    <a-descriptions-item :label="t('settings.adSettings.record.crowdName')">
+                      {{ adLastCrowdRecord?.crowdName || '-' }}
+                    </a-descriptions-item>
+                    <a-descriptions-item :label="t('settings.adSettings.record.crowdId')">
+                      {{ adLastCrowdRecord?.crowdId || '-' }}
+                    </a-descriptions-item>
+                    <a-descriptions-item :label="t('settings.adSettings.record.mediaId')">
+                      {{ adLastCrowdRecord?.mediaId || '-' }}
+                    </a-descriptions-item>
+                    <a-descriptions-item :label="t('settings.adSettings.record.totalOpenidCount')">
+                      {{ adLastCrowdCount }}
+                    </a-descriptions-item>
+                  </a-descriptions>
+                  <a-alert v-if="adLastCrowdRecord?.errorMessage" type="error" show-icon
+                    :message="adLastCrowdRecord.errorMessage" class="ad-settings__error" />
+                </section>
+
+                <section class="ad-settings__members">
+                  <h4>{{ t('settings.adSettings.table.title') }}</h4>
+                  <a-table :columns="adMemberColumns" :data-source="adCrowdMembers"
+                    :pagination="{ pageSize: 10, hideOnSinglePage: true }" row-key="rowKey" size="small" bordered
+                    :scroll="{ x: 980 }">
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'avatar'">
+                        <a-avatar :src="record?.avatarUrl" :alt="record?.username" />
+                      </template>
+                      <template v-else-if="column.key === 'flpBalance'">
+                        {{ Number(record?.flpBalance ?? 0).toFixed(2) }}
+                      </template>
+                      <template v-else-if="column.key === 'userCreatedAt'">
+                        {{ record?.userCreatedAt ? new Date(record.userCreatedAt).toLocaleString() : '-' }}
+                      </template>
+                      <template v-else-if="column.key === 'status'">
+                        {{ record?.status || '-' }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-spin>
+            </section>
           </div>
         </a-tab-pane>
 
@@ -3590,6 +4013,113 @@ onMounted(() => {
                 </a-form>
               </a-spin>
             </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.easterEggResource.title') }}</h3>
+                  <p>{{ t('settings.system.easterEggResource.subtitle') }}</p>
+                </div>
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.easterEggResource.currentVersionLabel') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ easterEggResourceConfig.version || t('settings.system.easterEggResource.emptyVersion') }}
+                  </span>
+                </div>
+              </header>
+              <a-spin :spinning="easterEggResourceLoading">
+                <div class="system-font-current">
+                  <span class="system-font-current__label">
+                    {{ t('settings.system.easterEggResource.currentFileLabel') }}
+                  </span>
+                  <a v-if="easterEggResourceConfig.fileName" :href="easterEggResourceDownloadUrl" target="_blank"
+                    rel="noreferrer">
+                    {{ easterEggResourceConfig.fileName }}
+                  </a>
+                  <span v-else class="empty-hint">{{ t('settings.system.easterEggResource.emptyFile') }}</span>
+                </div>
+                <a-form layout="vertical" :model="easterEggResourceForm" @finish="submitEasterEggResourceForm">
+                  <a-form-item :label="t('settings.system.easterEggResource.fields.file')">
+                    <div class="system-font-upload">
+                      <label class="system-font-upload__trigger">
+                        <input class="system-font-upload__input" type="file" accept=".zip"
+                          :disabled="easterEggResourceSaving" @change="handleEasterEggResourceSelect" />
+                        <a-button type="dashed" :loading="easterEggResourceSaving">
+                          {{
+                            easterEggResourceForm.fileName
+                              ? t('settings.system.easterEggResource.actions.replaceFile')
+                              : t('settings.system.easterEggResource.actions.selectFile')
+                          }}
+                        </a-button>
+                      </label>
+                      <span v-if="easterEggResourceForm.fileName" class="system-font-upload__name">
+                        {{ easterEggResourceForm.fileName }}
+                      </span>
+                      <a-button v-if="easterEggResourceForm.fileName" type="link" danger size="small"
+                        @click="clearEasterEggResourceSelection">
+                        {{ t('settings.system.easterEggResource.actions.removeFile') }}
+                      </a-button>
+                    </div>
+                    <div class="system-font-helper">{{ t('settings.system.easterEggResource.helper') }}</div>
+                  </a-form-item>
+                  <a-form-item :label="t('settings.system.easterEggResource.fields.version')">
+                    <a-input v-model:value="easterEggResourceForm.version"
+                      :placeholder="t('settings.system.easterEggResource.placeholders.version')" />
+                  </a-form-item>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="easterEggResourceSaving">
+                      {{ t('settings.system.easterEggResource.actions.upload') }}
+                    </a-button>
+                    <a-button type="default" @click="loadEasterEggResourceConfig"
+                      :disabled="easterEggResourceLoading || easterEggResourceSaving">
+                      {{ t('settings.system.easterEggResource.actions.reload') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.ladderLeaderboard.title') }}</h3>
+                  <p>{{ t('settings.system.ladderLeaderboard.subtitle') }}</p>
+                </div>
+                <div class="actions">
+                  <a-button type="default" @click="loadLadderLeaderboard" :loading="ladderLeaderboardLoading">
+                    {{ t('settings.system.ladderLeaderboard.actions.reload') }}
+                  </a-button>
+                </div>
+              </header>
+              <a-table
+                :columns="ladderLeaderboardColumns"
+                :data-source="ladderLeaderboard"
+                :loading="ladderLeaderboardLoading"
+                :pagination="ladderLeaderboardPaginationConfig"
+                row-key="featureCode"
+                size="small"
+                bordered
+                :scroll="{ x: 920 }"
+                @change="handleLadderLeaderboardTableChange"
+              >
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'avatar'">
+                    <a-avatar :src="record?.avatarUrl" :alt="record?.username" />
+                  </template>
+                  <template v-else-if="column.key === 'highestScore'">
+                    {{ Number(record?.highestScore ?? 0) }}
+                  </template>
+                  <template v-else-if="column.key === 'gameCount'">
+                    {{ record?.gameCount ?? '-' }}
+                  </template>
+                  <template v-else-if="column.key === 'latestGameTime'">
+                    {{ record?.latestGameTime ? new Date(record.latestGameTime).toLocaleString() : '-' }}
+                  </template>
+                </template>
+              </a-table>
+            </section>
           </div>
         </a-tab-pane>
       </a-tabs>
@@ -3639,6 +4169,77 @@ onMounted(() => {
   padding: 24px;
   border-radius: 12px;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.ad-settings {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ad-settings__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ad-stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ad-stat-card__label {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.ad-stat-card__value {
+  color: #111827;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.ad-stat-card__value--small {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ad-settings__record,
+.ad-settings__members {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ad-settings__record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ad-settings__record-header h4,
+.ad-settings__members h4 {
+  margin: 0;
+  color: #111827;
+}
+
+.ad-settings__error {
+  margin-top: 6px;
 }
 
 .section-header {
@@ -4455,6 +5056,11 @@ onMounted(() => {
   .report-entry-dialog {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .ad-settings__record-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

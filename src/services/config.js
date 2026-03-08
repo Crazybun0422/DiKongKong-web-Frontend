@@ -55,6 +55,26 @@ export const saveInviteGuideCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchFlpNoAdsThresholdConfig = async () => {
+  const response = await http.get('/config/flp-no-ads-threshold')
+  return normalizePagePayload(response, { threshold: 0 })
+}
+
+export const saveFlpNoAdsThresholdConfig = async (payload) => {
+  const response = await http.put('/config/flp-no-ads-threshold', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const syncFlpNoAdsCrowdNow = async () => {
+  const response = await http.post('/config/flp-no-ads-threshold/sync-now')
+  return normalizePagePayload(response, {})
+}
+
+export const fetchFlpNoAdsLastCrowd = async () => {
+  const response = await http.get('/config/flp-no-ads-threshold/last-crowd')
+  return normalizePagePayload(response, {})
+}
+
 export const fetchCoordinateLongPressGuideCopy = async () => {
   const response = await http.get('/config/coordinate-long-press-guide')
   return normalizePagePayload(response, { content: '' })
@@ -96,6 +116,22 @@ export const uploadFontFileConfig = async (file, version) => {
   formData.append('version', version)
 
   const response = await http.post('/config/font-file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return normalizePagePayload(response, {})
+}
+
+export const fetchEasterEggResourceConfig = async () => {
+  const response = await http.get('/config/easter-egg-resource')
+  return normalizePagePayload(response, {})
+}
+
+export const uploadEasterEggResourceConfig = async (file, version) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('version', version)
+
+  const response = await http.post('/config/easter-egg-resource', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return normalizePagePayload(response, {})
@@ -156,6 +192,10 @@ export default {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
+  fetchFlpNoAdsThresholdConfig,
+  saveFlpNoAdsThresholdConfig,
+  syncFlpNoAdsCrowdNow,
+  fetchFlpNoAdsLastCrowd,
   fetchCoordinateLongPressGuideCopy,
   saveCoordinateLongPressGuideCopy,
   fetchCoordinateSystemDescriptionCopy,
@@ -164,6 +204,8 @@ export default {
   saveGuideUrls,
   fetchFontFileConfig,
   uploadFontFileConfig,
+  fetchEasterEggResourceConfig,
+  uploadEasterEggResourceConfig,
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
   fetchTemplateSettings,

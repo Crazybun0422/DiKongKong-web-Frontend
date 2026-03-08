@@ -818,6 +818,7 @@
     "tabs": {
       "invite": "Referral rewards",
       "mapSettlement": "Merchant onboarding",
+      "adSettings": "Ad settings",
       "copySettings": "Copy settings",
       "payment": "Payment settings",
       "weapp": "Mini program",
@@ -1165,6 +1166,58 @@
           "uploadFailed": "Font upload failed",
           "loadFailed": "Failed to load font config"
         }
+      },
+      "easterEggResource": {
+        "title": "Easter egg resource package",
+        "subtitle": "Upload and configure the ZIP package used by the easter egg game.",
+        "currentFileLabel": "Current package",
+        "currentVersionLabel": "Current version",
+        "emptyFile": "No package uploaded",
+        "emptyVersion": "Not set",
+        "fields": {
+          "file": "Package file",
+          "version": "Version"
+        },
+        "placeholders": {
+          "version": "e.g. 1.0.1"
+        },
+        "helper": "ZIP only. The patch version defaults to +1; you can edit it manually.",
+        "actions": {
+          "selectFile": "Choose file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "upload": "Upload & save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "noFile": "Please choose a package file first",
+          "noVersion": "Please enter a version",
+          "uploadSuccess": "Easter egg package updated",
+          "uploadFailed": "Failed to upload easter egg package",
+          "loadFailed": "Failed to load easter egg package config"
+        }
+      },
+      "ladderLeaderboard": {
+        "title": "Ladder leaderboard",
+        "subtitle": "Display ranking data for the mini-game ladder, including highest score and latest play time.",
+        "actions": {
+          "reload": "Reload"
+        },
+        "columns": {
+          "rank": "Rank",
+          "avatar": "Avatar",
+          "username": "Username",
+          "featureCode": "Feature code",
+          "highestScore": "Highest score",
+          "gameCount": "Game count",
+          "latestGameTime": "Latest game time"
+        },
+        "pagination": {
+          "total": "Total {total} records · Showing {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "Failed to load ladder leaderboard"
+        }
       }
     },
     "invite": {
@@ -1230,6 +1283,65 @@
         "loadFailed": "Failed to load merchant onboarding prices",
         "saveSuccess": "Merchant onboarding prices saved",
         "saveFailed": "Failed to save merchant onboarding prices"
+      }
+    },
+    "adSettings": {
+      "title": "No-ads settings",
+      "subtitle": "Configure the FLP threshold for ad-free users and trigger WeData crowd sync manually.",
+      "actions": {
+        "reload": "Reload",
+        "syncNow": "Sync now"
+      },
+      "form": {
+        "threshold": "No-ads FLP threshold",
+        "placeholder": "Enter threshold (>= 0)"
+      },
+      "validation": {
+        "threshold": "Please enter a threshold greater than or equal to 0"
+      },
+      "stats": {
+        "currentThreshold": "Current threshold",
+        "lastSyncTime": "Last sync time",
+        "lastSyncMembers": "Last sync member count",
+        "lastSyncStatus": "Last sync status"
+      },
+      "record": {
+        "title": "Last sync record",
+        "executedAt": "Executed at",
+        "threshold": "Threshold",
+        "crowdName": "Crowd name",
+        "crowdId": "Crowd ID",
+        "mediaId": "Media ID",
+        "totalOpenidCount": "Matched openid count"
+      },
+      "table": {
+        "title": "No-ads crowd members",
+        "columns": {
+          "avatar": "Avatar",
+          "featureCode": "Feature code",
+          "username": "Username",
+          "openid": "OpenID",
+          "flpBalance": "FLP balance",
+          "status": "User status",
+          "userCreatedAt": "Registered at"
+        }
+      },
+      "status": {
+        "success": "Success",
+        "failed": "Failed",
+        "skippedEmpty": "Skipped (empty crowd)",
+        "unknown": "Unknown"
+      },
+      "meta": {
+        "noData": "No data"
+      },
+      "messages": {
+        "loadThresholdFailed": "Failed to load no-ads threshold",
+        "loadRecordFailed": "Failed to load no-ads sync record",
+        "saveThresholdSuccess": "No-ads threshold saved",
+        "saveThresholdFailed": "Failed to save no-ads threshold",
+        "syncSuccess": "No-ads crowd sync triggered",
+        "syncFailed": "Failed to sync no-ads crowd"
       }
     },
     "copySettings": {

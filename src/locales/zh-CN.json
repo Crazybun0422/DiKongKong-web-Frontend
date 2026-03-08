@@ -836,6 +836,7 @@
     "tabs": {
       "invite": "拉新奖励配置",
       "mapSettlement": "地图商户入驻配置",
+      "adSettings": "广告设置",
       "copySettings": "文案设置",
       "payment": "支付设置",
       "weapp": "小程序设置",
@@ -1183,6 +1184,58 @@
           "uploadFailed": "字体文件上传失败",
           "loadFailed": "字体配置加载失败"
         }
+      },
+      "easterEggResource": {
+        "title": "彩蛋游戏资源包设置",
+        "subtitle": "上传并配置彩蛋游戏使用的 zip 资源包。",
+        "currentFileLabel": "当前资源包",
+        "currentVersionLabel": "当前版本",
+        "emptyFile": "暂无资源包",
+        "emptyVersion": "未设置",
+        "fields": {
+          "file": "资源包文件",
+          "version": "版本号"
+        },
+        "placeholders": {
+          "version": "例如 1.0.1"
+        },
+        "helper": "仅支持 ZIP，默认会在当前版本基础上小版本号 +1，可手动修改。",
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "upload": "上传并保存",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "noFile": "请先选择资源包文件",
+          "noVersion": "请填写版本号",
+          "uploadSuccess": "彩蛋资源包已更新",
+          "uploadFailed": "彩蛋资源包上传失败",
+          "loadFailed": "彩蛋资源包配置加载失败"
+        }
+      },
+      "ladderLeaderboard": {
+        "title": "天梯排行榜",
+        "subtitle": "展示菜单游戏天梯排名，含最高分与最近游戏时间。",
+        "actions": {
+          "reload": "重新加载"
+        },
+        "columns": {
+          "rank": "排名",
+          "avatar": "头像",
+          "username": "用户名",
+          "featureCode": "低空号",
+          "highestScore": "最高分",
+          "gameCount": "游戏次数",
+          "latestGameTime": "最近游戏时间"
+        },
+        "pagination": {
+          "total": "共 {total} 条 · 当前 {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "天梯排行榜加载失败"
+        }
       }
     },
     "invite": {
@@ -1248,6 +1301,65 @@
         "loadFailed": "地图入驻配置加载失败",
         "saveSuccess": "地图入驻配置已保存",
         "saveFailed": "地图入驻配置保存失败"
+      }
+    },
+    "adSettings": {
+      "title": "免广告设置",
+      "subtitle": "配置免广告 FLP 阈值，并手动触发 WeData 人群同步。",
+      "actions": {
+        "reload": "重新加载",
+        "syncNow": "立即同步人群"
+      },
+      "form": {
+        "threshold": "免广告 FLP 阈值",
+        "placeholder": "请输入阈值（>= 0）"
+      },
+      "validation": {
+        "threshold": "请输入大于等于 0 的阈值"
+      },
+      "stats": {
+        "currentThreshold": "当前阈值",
+        "lastSyncTime": "最近同步时间",
+        "lastSyncMembers": "最近同步人数",
+        "lastSyncStatus": "最近同步状态"
+      },
+      "record": {
+        "title": "最近一次同步记录",
+        "executedAt": "执行时间",
+        "threshold": "执行阈值",
+        "crowdName": "人群名称",
+        "crowdId": "人群ID",
+        "mediaId": "媒体ID",
+        "totalOpenidCount": "命中 openid 数"
+      },
+      "table": {
+        "title": "免广告人群成员",
+        "columns": {
+          "avatar": "头像",
+          "featureCode": "低空号",
+          "username": "用户名",
+          "openid": "OpenID",
+          "flpBalance": "FLP余额",
+          "status": "用户状态",
+          "userCreatedAt": "注册时间"
+        }
+      },
+      "status": {
+        "success": "成功",
+        "failed": "失败",
+        "skippedEmpty": "空人群已跳过",
+        "unknown": "未知"
+      },
+      "meta": {
+        "noData": "暂无数据"
+      },
+      "messages": {
+        "loadThresholdFailed": "免广告阈值加载失败",
+        "loadRecordFailed": "免广告同步记录加载失败",
+        "saveThresholdSuccess": "免广告阈值已保存",
+        "saveThresholdFailed": "免广告阈值保存失败",
+        "syncSuccess": "免广告人群同步已触发",
+        "syncFailed": "免广告人群同步失败"
       }
     },
     "copySettings": {

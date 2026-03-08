@@ -1,6 +1,6 @@
 import { wgs84ToGcj02 } from './coords'
 
-const QQMAP_KEY = 'YJTBZ-5EBCT-SBAXN-VRUYM-SUXR7-O6FX4'
+const QQMAP_KEY = 'BSTBZ-7EECN-MQEFW-S4VWD-SDM3J-GVBQW'
 
 const jsonp = ({ url, callbackParam = 'callback', timeout = 12000 }) =>
   new Promise((resolve, reject) => {
