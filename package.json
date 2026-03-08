@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "offline-tile-server": "node offline-tile-downloader-demo/server.js"
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",

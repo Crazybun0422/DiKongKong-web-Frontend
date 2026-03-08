@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name><![CDATA[临高县]]></name>
+    <Placemark>
+      <name><![CDATA[临高县]]></name>
+      <description><![CDATA[省级目录：海南省]]></description>
+      <ExtendedData>
+        <Data name="adcode"><value>469024</value></Data>
+      </ExtendedData>
+      <MultiGeometry>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>109.855047,19.984153,0 109.814307,19.992977,0 109.761715,19.981317,0 109.712271,20.017398,0 109.585328,19.98825,0 109.526626,19.943494,0 109.498663,19.873339,0 109.564588,19.854888,0 109.569218,19.797947,0 109.599402,19.730726,0 109.557366,19.697421,0 109.582921,19.637581,0 109.664216,19.629685,0 109.659402,19.611048,0 109.709308,19.57756,0 109.7694,19.578508,0 109.786437,19.608047,0 109.852732,19.652582,0 109.897084,19.77933,0 109.874306,19.799524,0 109.884121,19.853311,0 109.842269,19.871446,0 109.879491,19.885322,0 109.855047,19.984153,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+    </MultiGeometry>
+    </Placemark>
+  </Document>
+</kml>

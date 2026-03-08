@@ -1,0 +1,194 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>离线瓦片下载器</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div class="page-shell">
+    <aside class="control-panel">
+      <div class="panel-hero">
+        <p class="eyebrow">Offline Tile Downloader</p>
+        <h1>离线瓦片下载器</h1>
+        <p class="hero-copy">
+          前端只负责地图描点、控制任务和显示进度；Node 服务端负责下载、落盘、恢复和增量续传。
+        </p>
+      </div>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>服务端目录</h2>
+          <span class="section-note">这里填写 Node 服务所在机器可访问的绝对路径</span>
+        </div>
+        <div class="form-grid form-grid--single">
+          <label class="field field--full">
+            <span>下载目录</span>
+            <input id="workspacePathInput" type="text" placeholder="例如：E:\\offline-tiles\\demo-task" />
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="pickDirBtn" type="button">应用目录</button>
+          <button id="reloadTaskBtn" type="button" class="ghost">重新读取</button>
+        </div>
+        <div class="button-row">
+          <button id="resumeTaskBtn" type="button" class="ghost">恢复任务</button>
+          <button id="pauseBtn" type="button" class="ghost">暂停下载</button>
+        </div>
+        <div class="button-row">
+          <button id="stopBtn" type="button" class="danger">停止下载</button>
+        </div>
+        <div class="kv-grid">
+          <div class="kv-card">
+            <span class="kv-label">当前目录</span>
+            <strong id="dirLabel">未设置</strong>
+          </div>
+          <div class="kv-card">
+            <span class="kv-label">任务状态</span>
+            <strong id="taskStatusLabel">空闲</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>锚点绘制</h2>
+          <span class="section-note">黑点可见、可拖动；结束描点后仍可继续调整</span>
+        </div>
+        <div class="button-row">
+          <button id="startDrawBtn" type="button">开始描点</button>
+          <button id="finishDrawBtn" type="button" class="ghost">结束描点</button>
+        </div>
+        <div class="button-row">
+          <button id="undoAnchorBtn" type="button" class="ghost">撤销最后一点</button>
+          <button id="clearAnchorsBtn" type="button" class="ghost">清空锚点</button>
+        </div>
+        <div class="button-row">
+          <button id="importKmlBtn" type="button" class="ghost">导入 KML</button>
+          <button id="importKmlBatchBtn" type="button" class="ghost">批量导入</button>
+        </div>
+        <div class="button-row">
+          <button id="savePolygonBtn" type="button" class="ghost">保存当前轮廓</button>
+          <button id="exportCurrentKmlBtn" type="button" class="ghost">导出当前 KML</button>
+        </div>
+        <div class="button-row">
+          <button id="exportBatchKmlBtn" type="button" class="ghost">批量导出 KML</button>
+        </div>
+        <input id="importKmlInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml,application/xml,text/xml" hidden />
+        <input id="importKmlBatchInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml,application/xml,text/xml" multiple hidden />
+        <div class="anchor-summary">
+          <div><strong>模式：</strong><span id="drawModeLabel">未开始</span></div>
+          <div><strong>锚点数：</strong><span id="anchorCountLabel">0</span></div>
+          <div><strong>地图缩放：</strong><span id="zoomLabel">Z11</span></div>
+        </div>
+        <ol id="anchorList" class="anchor-list"></ol>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>下载参数</h2>
+          <span class="section-note">单层按当前地图缩放；Z15 及以上可按下载阶段筛选固定分片</span>
+        </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>开始层级</span>
+            <input id="startZoomInput" type="number" min="5" max="18" value="6" />
+          </label>
+          <label class="field">
+            <span>结束层级</span>
+            <input id="endZoomInput" type="number" min="5" max="18" value="18" />
+          </label>
+          <label class="field">
+            <span>并发数</span>
+            <input id="concurrencyInput" type="number" min="1" value="4" />
+          </label>
+        </div>
+        <div class="stage-slider-card">
+          <div class="stage-slider-head">
+            <span>Z15+ 下载阶段</span>
+            <strong id="highZoomStageSummaryLabel">0% - 100%</strong>
+          </div>
+          <div class="stage-slider-values">
+            <span id="highZoomStageStartLabel">0%</span>
+            <span id="highZoomStageEndLabel">100%</span>
+          </div>
+          <div class="stage-slider-track">
+            <input id="highZoomStageStartInput" type="range" min="0" max="10000" step="1" value="0" />
+            <input id="highZoomStageEndInput" type="range" min="0" max="10000" step="1" value="10000" />
+          </div>
+          <div class="field-hint">例如 `0-20`、`20-50`、`50-100`。同一规则同时用于计数和下载。</div>
+        </div>
+        <label class="checkbox-field">
+          <input id="autoShutdownInput" type="checkbox" />
+          <span>完成后自动关机</span>
+        </label>
+        <div class="button-stack">
+          <button id="downloadCurrentBtn" type="button">下载当前层级</button>
+          <button id="downloadRangeBtn" type="button" class="accent">连续下载层级范围</button>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>下载进度</h2>
+          <span class="section-note">进度通过 WebSocket 实时推送；暂停时会保存当前 chunk 游标</span>
+        </div>
+        <div class="progress-card">
+          <div class="progress-meta">
+            <span id="progressText">尚未开始下载</span>
+            <strong id="progressPercentText">0%</strong>
+          </div>
+          <div class="progress-track">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <div class="progress-grid">
+            <div><strong>已完成：</strong><span id="downloadedCountLabel">0</span></div>
+            <div><strong>不可下载：</strong><span id="unavailableCountLabel">0</span></div>
+            <div><strong>总数：</strong><span id="totalCountLabel">0</span></div>
+            <div><strong>当前层：</strong><span id="currentZoomLabel">-</span></div>
+            <div><strong>重试次数：</strong><span id="retryCountLabel">0</span></div>
+            <div><strong>活跃请求：</strong><span id="activeRequestCountLabel">0</span></div>
+            <div><strong>下载 Chunk：</strong><span id="downloadChunkLabel">-</span></div>
+            <div><strong>计数 Chunk：</strong><span id="countChunkLabel">-</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>任务日志</h2>
+          <span class="section-note">最近 80 条节点只做实时显示，不再落盘</span>
+        </div>
+        <ul id="eventList" class="event-list"></ul>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>运行状态</h2>
+        </div>
+        <div id="statusBox" class="status-box">等待初始化 Node 服务连接…</div>
+      </section>
+    </aside>
+
+    <main class="map-stage">
+      <div class="map-topbar">
+        <div class="topbar-chip">
+          <span class="dot"></span>
+          <span id="mapStateLabel">地图加载中</span>
+        </div>
+        <div class="topbar-chip topbar-chip--muted">
+          WebSocket 实时同步服务端任务状态
+        </div>
+      </div>
+      <div id="map" class="map-canvas"></div>
+    </main>
+  </div>
+
+  <script src="https://map.qq.com/api/js?v=2.exp&key=BSTBZ-7EECN-MQEFW-S4VWD-SDM3J-GVBQW&libraries=geometry"></script>
+  <script defer src="./app.js"></script>
+</body>
+
+</html>

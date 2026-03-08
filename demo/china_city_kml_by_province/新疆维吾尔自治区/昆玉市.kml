@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name><![CDATA[昆玉市]]></name>
+    <Placemark>
+      <name><![CDATA[昆玉市]]></name>
+      <description><![CDATA[省级目录：新疆维吾尔自治区]]></description>
+      <ExtendedData>
+        <Data name="adcode"><value>659009</value></Data>
+      </ExtendedData>
+      <MultiGeometry>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>79.618122,37.392438,0 79.572354,37.38256,0 79.580363,37.340008,0 79.610341,37.373797,0 79.618122,37.392438,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>79.694326,37.517546,0 79.699131,37.561269,0 79.661601,37.554116,0 79.632768,37.474275,0 79.643294,37.424292,0 79.686774,37.447537,0 79.694326,37.517546,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>78.543028,37.574301,0 78.54463,37.791066,0 78.350344,37.731146,0 78.350344,37.68546,0 78.359956,37.653876,0 78.330664,37.603537,0 78.414191,37.621167,0 78.441881,37.642128,0 78.491081,37.616879,0 78.488793,37.568739,0 78.521746,37.555706,0 78.543028,37.574301,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>79.367083,37.325021,0 79.36571,37.354354,0 79.33825,37.371406,0 79.370974,37.385428,0 79.377152,37.416489,0 79.249917,37.414896,0 79.256325,37.236316,0 79.211243,37.231367,0 79.197513,37.206299,0 79.251061,37.197036,0 79.254494,37.214283,0 79.374406,37.174033,0 79.367083,37.325021,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>81.047461,36.250771,0 81.049978,36.315101,0 81.033959,36.280033,0 81.03373,36.275992,0 81.031671,36.259341,0 81.047461,36.250771,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+      <Polygon>
+        <outerBoundaryIs><LinearRing><coordinates>79.783116,37.580499,0 79.783802,37.537265,0 79.818586,37.537742,0 79.818128,37.574937,0 79.783116,37.580499,0</coordinates></LinearRing></outerBoundaryIs>
+      </Polygon>
+    </MultiGeometry>
+    </Placemark>
+  </Document>
+</kml>

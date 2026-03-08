@@ -1,10 +1,14 @@
 import { tileXYToBBOX3857, mercatorToLonLat, wgs84ToGcj02, lonLatToMercator, gcj02ToWgs84 } from './coords'
+import chinaProvinceGeoJsonRaw from '../map-meta-data/China.geojson?raw'
+import { buildProvinceLayerParams, buildProvinceLayerRecords } from './uomProvinceSelector'
 
 const WMS_MIN_ZOOM = 5
 const WMS_MAX_ZOOM = 18
 const CAAC_TOKEN = '1e4b78fc-06bd-45be-8af7-cabd802ea9a8'
 const CAAC_BASE = 'https://uom.caac.gov.cn/map/airspace/wms'
 const EPSILON = 1e-10
+const PROVINCE_LAYER_RECORDS = buildProvinceLayerRecords(JSON.parse(chinaProvinceGeoJsonRaw))
+const TILE_LAYER_PARAM_CACHE = new Map()
 
 const lonLatToTile = (lng, lat, zoom) => {
   const scale = Math.pow(2, zoom)
@@ -25,14 +29,13 @@ const toQuery = (params) =>
     .map((key) => `${key}=${encodeURIComponent(params[key])}`)
     .join('&')
 
-const buildProvinceLayers = () => {
-  const PROVINCE_CODES = [
-    '12', '13', '14', '15', '21', '22', '23', '31', '32', '33', '34', '35', '36', '37', '41', '42', '43', '44', '45',
-    '46', '50', '51', '52', '53', '54', '61', '62', '63', '64', '65',
-  ]
-  const layers = PROVINCE_CODES.map((c) => `QGSFKYFW:sf${c}0000`).join(',')
-  const styles = PROVINCE_CODES.map(() => 'QGSFKYFW:shifeikongyu').join(',')
-  return { layers, styles }
+const getTileLayerParams = (cacheKey, bbox) => {
+  if (cacheKey && TILE_LAYER_PARAM_CACHE.has(cacheKey)) {
+    return TILE_LAYER_PARAM_CACHE.get(cacheKey)
+  }
+  const params = buildProvinceLayerParams(PROVINCE_LAYER_RECORDS, bbox)
+  if (cacheKey) TILE_LAYER_PARAM_CACHE.set(cacheKey, params)
+  return params
 }
 
 const buildTileRequestBBox = (x, y, zoom) => {
@@ -47,8 +50,20 @@ const buildTileRequestBBox = (x, y, zoom) => {
   return [bbox[0] - dx, bbox[1] - dy, bbox[2] - dx, bbox[3] - dy]
 }
 
-const buildWmsTileEntry = (x, y, zoom, layers, styles) => {
+const buildWmsTileEntry = (x, y, zoom) => {
   const reqBBox = buildTileRequestBBox(x, y, zoom)
+  const wgsSW = mercatorToLonLat(reqBBox[0], reqBBox[1])
+  const wgsNE = mercatorToLonLat(reqBBox[2], reqBBox[3])
+  const gcjSWRaw = wgs84ToGcj02(wgsSW.lng, wgsSW.lat)
+  const gcjNERaw = wgs84ToGcj02(wgsNE.lng, wgsNE.lat)
+  const gcjSW = gcjSWRaw || { lng: wgsSW.lng, lat: wgsSW.lat }
+  const gcjNE = gcjNERaw || { lng: wgsNE.lng, lat: wgsNE.lat }
+  const bounds = {
+    southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
+    northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
+  }
+  const { layers, styles, provinceCodes } = getTileLayerParams(`${zoom}-${x}-${y}`, bounds)
+  if (!layers || !styles || !provinceCodes.length) return null
   const q = toQuery({
     token: CAAC_TOKEN,
     service: 'WMS',
@@ -63,13 +78,6 @@ const buildWmsTileEntry = (x, y, zoom, layers, styles) => {
     height: '256',
     bbox: reqBBox.join(','),
   })
-
-  const wgsSW = mercatorToLonLat(reqBBox[0], reqBBox[1])
-  const wgsNE = mercatorToLonLat(reqBBox[2], reqBBox[3])
-  const gcjSWRaw = wgs84ToGcj02(wgsSW.lng, wgsSW.lat)
-  const gcjNERaw = wgs84ToGcj02(wgsNE.lng, wgsNE.lat)
-  const gcjSW = gcjSWRaw || { lng: wgsSW.lng, lat: wgsSW.lat }
-  const gcjNE = gcjNERaw || { lng: wgsNE.lng, lat: wgsNE.lat }
   const directUrl = `${CAAC_BASE}?${q}`
 
   return {
@@ -78,10 +86,8 @@ const buildWmsTileEntry = (x, y, zoom, layers, styles) => {
     x,
     y,
     zoom,
-    bounds: {
-      southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
-      northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
-    },
+    bounds,
+    provinceCodes,
     alpha: 0.65,
     opacity: 0.65,
     zIndex: 1,
@@ -185,7 +191,6 @@ const tileIntersectsPolygon = (tile, polygon) => {
 
 export const createWmsMapType = (qqGlobal) => {
   if (!qqGlobal?.maps?.ImageMapType || !qqGlobal?.maps?.Size) return null
-  const { layers, styles } = buildProvinceLayers()
   return new qqGlobal.maps.ImageMapType({
     name: 'UOM',
     tileSize: new qqGlobal.maps.Size(256, 256),
@@ -194,6 +199,15 @@ export const createWmsMapType = (qqGlobal) => {
       const { x, y } = tileCoord
       if (zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) return ''
       const reqBBox = buildTileRequestBBox(x, y, zoom)
+      const wgsSW = mercatorToLonLat(reqBBox[0], reqBBox[1])
+      const wgsNE = mercatorToLonLat(reqBBox[2], reqBBox[3])
+      const gcjSW = wgs84ToGcj02(wgsSW.lng, wgsSW.lat) || { lng: wgsSW.lng, lat: wgsSW.lat }
+      const gcjNE = wgs84ToGcj02(wgsNE.lng, wgsNE.lat) || { lng: wgsNE.lng, lat: wgsNE.lat }
+      const { layers, styles } = getTileLayerParams(`${zoom}-${x}-${y}`, {
+        southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
+        northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
+      })
+      if (!layers || !styles) return ''
       const params = new URLSearchParams({
         token: CAAC_TOKEN,
         service: 'WMS',
@@ -217,7 +231,6 @@ export const createWmsMapType = (qqGlobal) => {
 export const buildWmsOverlay = (center, zoom, region) => {
   if (!center || zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) return []
 
-  const { layers, styles } = buildProvinceLayers()
   const tiles = []
 
   let xMin
@@ -253,7 +266,8 @@ export const buildWmsOverlay = (center, zoom, region) => {
 
   for (let x = xMin; x <= xMax; x += 1) {
     for (let y = yMin; y <= yMax; y += 1) {
-      tiles.push(buildWmsTileEntry(x, y, zoom, layers, styles))
+      const tile = buildWmsTileEntry(x, y, zoom)
+      if (tile) tiles.push(tile)
     }
   }
 
@@ -303,7 +317,6 @@ export const buildWmsTilesForGcjPolygon = (polygon, zoom, { maxTiles = Number.PO
   if (yMin > yMax) [yMin, yMax] = [yMax, yMin]
 
   const safeMaxTiles = Number.isFinite(maxTiles) && maxTiles > 0 ? Math.floor(maxTiles) : Number.POSITIVE_INFINITY
-  const { layers, styles } = buildProvinceLayers()
   const tiles = []
   let truncated = false
 
@@ -313,8 +326,8 @@ export const buildWmsTilesForGcjPolygon = (polygon, zoom, { maxTiles = Number.PO
         truncated = true
         break outer
       }
-      const tile = buildWmsTileEntry(x, y, zoom, layers, styles)
-      if (tileIntersectsPolygon(tile, normalized)) {
+      const tile = buildWmsTileEntry(x, y, zoom)
+      if (tile && tileIntersectsPolygon(tile, normalized)) {
         tiles.push(tile)
       }
     }

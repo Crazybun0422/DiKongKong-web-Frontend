@@ -1,7 +1,7 @@
 ﻿(function (global) {
   'use strict'
 
-  var TENCENT_MAP_KEY = 'YJTBZ-5EBCT-SBAXN-VRUYM-SUXR7-O6FX4'
+  var TENCENT_MAP_KEY = 'BSTBZ-7EECN-MQEFW-S4VWD-SDM3J-GVBQW'
   var PI = Math.PI
   var A = 6378245.0
   var EE = 0.00669342162296594323
@@ -356,7 +356,7 @@
     var paths = []
 
     if (Array.isArray(_this.metadata && _this.metadata.tiles) && (_this.metadata && _this.metadata.tiles).length) {
-      ;(_this.metadata.tiles).forEach(function (tile) {
+      ; (_this.metadata.tiles).forEach(function (tile) {
         if (tile && typeof tile.path === 'string') {
           paths.push(tile.path)
         }
