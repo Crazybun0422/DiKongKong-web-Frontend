@@ -27,6 +27,7 @@ const normalizePin = (pin = {}) => {
 
   return {
     ...pin,
+    rejectDetail: pin.reviewRejectDetail || pin.rejectDetail || '',
     images: imageResources.map((item) => item.url),
     imageResources,
     attachments: attachmentResources,
@@ -66,9 +67,13 @@ export const fetchPins = async ({ page = 1, size = 10, visibility, reviewStatus 
   }
 }
 
-export const reviewPin = async (pinId, status) => {
+export const reviewPin = async (pinId, status, rejectDetail) => {
   if (!pinId) throw new Error('pinId is required')
-  const { data } = await http.post(`/admin/pins/${pinId}/review`, { status })
+  const payload = { status }
+  if (typeof rejectDetail === 'string' && rejectDetail.trim()) {
+    payload.rejectDetail = rejectDetail.trim()
+  }
+  const { data } = await http.post(`/admin/pins/${pinId}/review`, payload)
   return normalizePin(data?.data)
 }
 

@@ -27,11 +27,11 @@
         <div class="form-grid form-grid--single">
           <label class="field field--full">
             <span>下载目录</span>
-            <input id="workspacePathInput" type="text" placeholder="例如：E:\\offline-tiles\\demo-task" />
+            <input id="workspacePathInput" type="text" placeholder="请选择目录" readonly />
           </label>
         </div>
         <div class="button-row">
-          <button id="pickDirBtn" type="button">应用目录</button>
+          <button id="pickDirBtn" type="button">选择目录并应用</button>
           <button id="reloadTaskBtn" type="button" class="ghost">重新读取</button>
         </div>
         <div class="button-row">
@@ -128,6 +128,60 @@
         <div class="button-stack">
           <button id="downloadCurrentBtn" type="button">下载当前层级</button>
           <button id="downloadRangeBtn" type="button" class="accent">连续下载层级范围</button>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-head">
+          <h2>KML 分包</h2>
+          <span class="section-note">使用当前下载目录中的瓦片作为母包，按 KML 目录层级拆分并自动压缩</span>
+        </div>
+        <div class="form-grid form-grid--single">
+          <label class="field field--full">
+            <span>KML 根目录</span>
+            <input id="splitKmlRootInput" type="text" placeholder="请选择包含 KML 的目录" readonly />
+          </label>
+          <label class="field field--full">
+            <span>输出目录</span>
+            <input id="splitOutputPathInput" type="text" placeholder="默认：下载目录\\split-packages" readonly />
+          </label>
+          <label class="field field--full">
+            <span>预览 KML</span>
+            <div id="splitPreviewKmlLabel" class="field-hint">未加载预览 KML</div>
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="loadSplitPreviewKmlBtn" type="button" class="ghost">加载单个 KML</button>
+          <button id="clearSplitPreviewKmlBtn" type="button" class="ghost">清除预览区域</button>
+        </div>
+        <div class="button-row">
+          <button id="browseSplitKmlBtn" type="button" class="ghost">选择 KML 目录</button>
+          <button id="browseSplitOutputBtn" type="button" class="ghost">选择输出目录</button>
+        </div>
+        <input id="splitPreviewKmlInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml,application/xml,text/xml" hidden />
+        <input id="splitKmlDirectoryInput" type="file" accept=".kml,application/vnd.google-earth.kml+xml,application/xml,text/xml" webkitdirectory directory multiple hidden />
+        <div class="button-stack">
+          <button id="startSplitBtn" type="button" class="accent">开始按 KML 分包</button>
+          <button id="startCompressBtn" type="button">直接开始压缩</button>
+        </div>
+        <div class="progress-card">
+          <div class="progress-meta">
+            <span id="splitProgressText">尚未开始分包</span>
+            <strong id="splitProgressPercentText">0%</strong>
+          </div>
+          <div class="progress-track">
+            <div id="splitProgressBar" class="progress-bar progress-bar--accent"></div>
+          </div>
+          <div class="progress-grid">
+            <div><strong>KML 数：</strong><span id="splitPackageTotalLabel">0</span></div>
+            <div><strong>已完成：</strong><span id="splitPackageCompletedLabel">0</span></div>
+            <div><strong>已压缩：</strong><span id="splitZipCompletedLabel">0</span></div>
+            <div><strong>未重打包：</strong><span id="splitZipSkippedLabel">0</span></div>
+            <div><strong>已处理瓦片：</strong><span id="splitProcessedTileLabel">0</span></div>
+            <div><strong>已复制瓦片：</strong><span id="splitCopiedTileLabel">0</span></div>
+            <div><strong>已跳过：</strong><span id="splitSkippedTileLabel">0</span></div>
+            <div><strong>当前包：</strong><span id="splitCurrentPackageLabel">-</span></div>
+          </div>
         </div>
       </section>
 

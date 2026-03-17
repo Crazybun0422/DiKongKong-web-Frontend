@@ -238,6 +238,11 @@ button.danger {
   color: var(--text);
 }
 
+.field input[readonly] {
+  background: rgba(241, 245, 249, 0.96);
+  cursor: default;
+}
+
 .field-hint {
   min-height: 42px;
   display: flex;
@@ -450,6 +455,10 @@ button.danger {
   border-radius: inherit;
   background: linear-gradient(90deg, #0e7490, #16a34a);
   transition: width 0.18s ease;
+}
+
+.progress-bar--accent {
+  background: linear-gradient(90deg, #0f766e, #2563eb);
 }
 
 .map-stage {

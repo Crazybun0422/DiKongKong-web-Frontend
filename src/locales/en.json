@@ -246,6 +246,7 @@
     "tabs": {
       "all": "All",
       "pending": "Pending",
+      "ordinary": "Standard Listing",
       "approved": "Approved",
       "rejected": "Rejected",
       "draft": "Draft"
@@ -255,6 +256,7 @@
         "name": "Marker",
         "type": "Type",
         "createdAt": "Submitted At",
+        "authExpireAt": "Certification valid until",
         "status": "Status",
         "exposure": "Exposure",
         "phoneCall": "Phone calls",
@@ -290,8 +292,10 @@
       "unknown": "Not provided"
     },
     "sort": {
-      "ascend": "Oldest first",
-      "descend": "Newest first"
+      "createdAtAscend": "Submitted time: oldest first",
+      "createdAtDescend": "Submitted time: newest first",
+      "authExpireAscend": "Certification valid until: earliest first",
+      "authExpireDescend": "Certification valid until: latest first"
     },
     "pagination": {
       "showTotal": "Total {total} items · Showing {start}-{end}"
@@ -300,6 +304,7 @@
       "loadFailed": "Failed to load markers, please try again later.",
       "reviewSuccess": "Review result submitted.",
       "reviewFailed": "Failed to submit review result.",
+      "rejectReasonRequired": "Please enter a rejection reason.",
       "unpaidWarning": "Only paid markers can be reviewed.",
       "mapPreviewMissing": "Coordinates are missing, cannot locate on map."
     },
@@ -316,6 +321,10 @@
         "title": "Reject marker",
         "content": "Confirm rejecting “{name}”?",
         "ok": "Reject"
+      },
+      "rejectReason": {
+        "title": "Enter rejection reason",
+        "placeholder": "Enter the rejection reason for \"{name}\""
       },
       "cancel": "Cancel"
     },
@@ -339,8 +348,11 @@
         "location": "Location",
         "phone": "Phone",
         "status": "Status",
+        "rejectReason": "Rejection reason",
+        "rejectReasonEmpty": "No rejection reason provided",
         "paid": "Payment",
         "createdAt": "Created at",
+        "authExpireAt": "Certification valid until",
         "updatedAt": "Updated at",
         "exposure": "Exposure",
         "phoneCall": "Phone calls",
@@ -354,7 +366,9 @@
         "close": "Close",
         "approve": "Approve",
         "reject": "Reject",
-        "viewOrder": "View order"
+        "supplementReason": "Add reason",
+        "viewOrder": "View order",
+        "playVideo": "Play video"
       }
     },
     "orderModal": {
@@ -439,6 +453,7 @@
         "passB": "Approve B",
         "approve": "Approve",
         "reject": "Reject",
+        "supplementReason": "Add reason",
         "disable": "Disable",
         "enable": "Restore",
         "toggleStatus": "Confirm"
@@ -452,7 +467,10 @@
         "featureCode": "Feature Code",
         "visibility": "Visibility",
         "reviewStatus": "Review Status",
+        "lastApprovedStatus": "Last approved level",
         "status": "Enable Status",
+        "rejectReason": "Rejection reason",
+        "rejectReasonEmpty": "No rejection reason provided",
         "exposure": "Exposure",
         "publishedAt": "Published At",
         "groups": "Groups",
@@ -464,6 +482,9 @@
         "createdAt": "Submitted At",
         "updatedAt": "Updated At",
         "description": "Description",
+        "videoLink": "Video link",
+        "playVideo": "Play video",
+        "videoPlayerTitle": "Video player",
         "images": "Images",
         "close": "Close"
       },
@@ -472,8 +493,11 @@
         "onlyPublicReview": "Only public pins require review.",
         "reviewSuccess": "Review submitted.",
         "reviewFailed": "Review submission failed, please retry.",
+        "rejectReasonRequired": "Please enter a rejection reason.",
         "statusUpdated": "Pin status updated.",
-        "statusUpdateFailed": "Failed to update pin status, please retry."
+        "statusUpdateFailed": "Failed to update pin status, please retry.",
+        "videoUnavailable": "No playable video is available for this pin.",
+        "videoPlaybackFailed": "Failed to load the video playback URL. Please try again later."
       },
       "confirm": {
         "approve": {
@@ -484,8 +508,28 @@
           "title": "Confirm rejection",
           "content": "Reject \"{name}\"?"
         },
+        "rejectReason": {
+          "title": "Enter rejection reason",
+          "placeholder": "Enter the rejection reason for \"{name}\""
+        },
         "statusTitle": "Update pin status",
         "statusContent": "Set \"{name}\" to {status}?"
+      },
+      "reward": {
+        "approvedA": "Approved (A) reward",
+        "approvedB": "Approved (B) reward",
+        "videoUploadFlpLimit": "HD video upload FLP threshold",
+        "unit": "FLP",
+        "updatedAt": "Config updated at: {time}",
+        "loading": "Loading reward configuration...",
+        "loadFailed": "Failed to load reward configuration. Please try again later.",
+        "title": "Reward configuration",
+        "placeholder": "Enter the FLP amount",
+        "save": "Save",
+        "saving": "Saving...",
+        "reload": "Reload",
+        "saved": "Reward configuration saved",
+        "saveFailed": "Failed to save reward configuration. Please try again later."
       }
     }
   },
@@ -818,6 +862,7 @@
     "tabs": {
       "invite": "Referral rewards",
       "mapSettlement": "Merchant onboarding",
+      "tencentCos": "Tencent COS",
       "adSettings": "Ad settings",
       "copySettings": "Copy settings",
       "payment": "Payment settings",
@@ -1018,6 +1063,89 @@
       }
     },
     "system": {
+      "tencentCos": {
+        "title": "Tencent COS configuration",
+        "subtitle": "Configure COS credentials, role settings, and available buckets.",
+        "configuredLabel": "Configuration status",
+        "configured": "Configured",
+        "notConfigured": "Not configured",
+        "secretKeyHint": "For security reasons, saved SecretKey values are not echoed back. Leave it blank to keep the current value.",
+        "bucketHint": "One bucket per line, or separate multiple buckets with commas.",
+        "fields": {
+          "secretId": "SecretId",
+          "secretKey": "SecretKey",
+          "region": "Region",
+          "roleArn": "Role ARN",
+          "roleSessionName": "Role session name",
+          "durationSeconds": "STS duration (seconds)",
+          "buckets": "Bucket list"
+        },
+        "placeholders": {
+          "secretId": "Enter SecretId",
+          "secretKey": "Enter SecretKey",
+          "region": "For example: ap-guangzhou",
+          "roleArn": "For example: qcs::cam::uin/xxx:roleName/xxx",
+          "roleSessionName": "For example: dikongkong-admin",
+          "durationSeconds": "For example: 1800",
+          "buckets": "For example:\nbucket-a-1250000000\nbucket-b-1250000000"
+        },
+        "actions": {
+          "save": "Save configuration",
+          "reload": "Reload"
+        },
+        "messages": {
+          "loadFailed": "Failed to load Tencent COS configuration",
+          "saveSuccess": "Tencent COS configuration saved",
+          "saveFailed": "Failed to save Tencent COS configuration"
+        },
+        "test": {
+          "title": "Upload and download test",
+          "subtitle": "Use STS temporary credentials to test direct COS uploads and downloads.",
+          "stsReady": "STS loaded",
+          "stsIdle": "STS not loaded",
+          "emptyValue": "N/A",
+          "fields": {
+            "bucket": "Test bucket",
+            "uploadKey": "Upload object key",
+            "downloadKey": "Download object key",
+            "file": "Test file"
+          },
+          "placeholders": {
+            "bucket": "Select a bucket",
+            "uploadKey": "For example: console-test/example.txt",
+            "downloadKey": "Enter the object key to download"
+          },
+          "labels": {
+            "stsStatus": "STS status",
+            "region": "Test region",
+            "expiration": "Expiration time",
+            "buckets": "STS buckets",
+            "lastUploadedKey": "Last uploaded key",
+            "lastDownloadedAt": "Last download time",
+            "uploadedUrl": "Object URL"
+          },
+          "actions": {
+            "fetchSts": "Fetch STS",
+            "selectFile": "Select test file",
+            "replaceFile": "Replace test file",
+            "removeFile": "Remove file",
+            "uploadTest": "Test upload",
+            "downloadTest": "Test download"
+          },
+          "messages": {
+            "stsLoaded": "STS refreshed",
+            "stsLoadFailed": "Failed to load STS",
+            "bucketRequired": "Please select a bucket first",
+            "regionRequired": "Region is unavailable",
+            "fileRequired": "Please select a test file first",
+            "downloadKeyRequired": "Please enter the object key to download",
+            "uploadSuccess": "COS upload test succeeded",
+            "uploadFailed": "COS upload test failed",
+            "downloadSuccess": "COS download test succeeded",
+            "downloadFailed": "COS download test failed"
+          }
+        }
+      },
       "guide": {
         "title": "Guide page settings",
         "subtitle": "Upload GIFs for the onboarding guide screen and set a guide title for each.",
@@ -1167,6 +1295,21 @@
           "loadFailed": "Failed to load font config"
         }
       },
+      "posterService": {
+        "title": "Poster service version",
+        "subtitle": "View the current poster service version and pull the latest version number manually.",
+        "currentVersionLabel": "Current version",
+        "emptyVersion": "Not set",
+        "actions": {
+          "pullLatest": "Pull poster version",
+          "reload": "Reload"
+        },
+        "messages": {
+          "loadFailed": "Failed to load poster service version",
+          "refreshSuccess": "Poster service version refreshed",
+          "refreshFailed": "Failed to refresh poster service version"
+        }
+      },
       "easterEggResource": {
         "title": "Easter egg resource package",
         "subtitle": "Upload and configure the ZIP package used by the easter egg game.",
@@ -1271,7 +1414,13 @@
         "wechatListPrice": "WeChat list price",
         "wechatNetPrice": "WeChat net price",
         "flpListPrice": "FLP list price",
-        "flpNetPrice": "FLP net price"
+        "flpNetPrice": "FLP net price",
+        "longImageUrl": "Merchant intro long image"
+      },
+      "actions": {
+        "upload": "Upload long image",
+        "uploadReplace": "Replace long image",
+        "remove": "Remove"
       },
       "validation": {
         "wechatListPrice": "Enter the WeChat list price",
@@ -1282,7 +1431,11 @@
       "messages": {
         "loadFailed": "Failed to load merchant onboarding prices",
         "saveSuccess": "Merchant onboarding prices saved",
-        "saveFailed": "Failed to save merchant onboarding prices"
+        "saveFailed": "Failed to save merchant onboarding prices",
+        "longImageSaveSuccess": "Merchant intro long image saved",
+        "longImageSaveFailed": "Failed to save merchant intro long image",
+        "uploadSuccess": "Long image uploaded",
+        "uploadFailed": "Failed to upload long image"
       }
     },
     "adSettings": {
@@ -1352,6 +1505,9 @@
       },
       "options": {
         "openPlatform": "Open platform",
+        "planetMerchantAdvancedGuide": "Planet merchant advanced guide",
+        "planetCreationAdvancedGuide": "Planet creation advanced guide",
+        "shareToPlatform": "Share to platform",
         "flpRewardHelp": "FLP mechanism",
         "inviteGuide": "Invite guide",
         "coordinateLongPressGuide": "Center long-press guide",

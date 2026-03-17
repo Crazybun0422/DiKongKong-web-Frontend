@@ -1,10 +1,11 @@
 <script setup>
 import { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { Modal, message } from 'ant-design-vue'
+import { Input, Modal, message } from 'ant-design-vue'
+import COS from 'cos-js-sdk-v5'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { EnvironmentOutlined } from '@ant-design/icons-vue'
-import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS } from '../../services/markers'
+import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS, MARKER_SORT_BY } from '../../services/markers'
 import {
   fetchPins,
   reviewPin,
@@ -14,7 +15,13 @@ import {
   PIN_STATUS,
 } from '../../services/pins'
 import { fetchOrderByReference } from '../../services/orders'
-import { fetchPinReviewRewardConfig, savePinReviewRewardConfig } from '../../services/config'
+import {
+  fetchPinReviewRewardConfig,
+  savePinReviewRewardConfig,
+  fetchPinVideoUploadFlpLimitConfig,
+  savePinVideoUploadFlpLimitConfig,
+  fetchTencentCosSts,
+} from '../../services/config'
 import detailIcon from '../../assets/img/detail.png'
 import pointDefaultIcon from '../../assets/img/default.png'
 import pointWarningIcon from '../../assets/img/drone-warning.png'
@@ -30,6 +37,10 @@ const route = useRoute()
 const loading = ref(false)
 const tableData = ref([])
 const activeMainTab = ref('markers')
+const MARKER_TAB_STATUS = {
+  ...MARKER_REVIEW_STATUS,
+  ORDINARY: 'ORDINARY',
+}
 const activeStatus = ref(MARKER_REVIEW_STATUS.ALL)
 const pagination = reactive({
   current: 1,
@@ -42,11 +53,19 @@ const detailRecord = ref(null)
 const orderDetailVisible = ref(false)
 const orderDetailLoading = ref(false)
 const orderDetail = ref(null)
+const markerSortBy = ref(MARKER_SORT_BY.CREATED_AT)
 const sortOrder = ref('DESC')
 const sortIndicator = computed(() => (sortOrder.value === 'ASC' ? '↑' : '↓'))
-const sortLabel = computed(() =>
-  sortOrder.value === 'ASC' ? t('airspace.sort.ascend') : t('airspace.sort.descend'),
-)
+const sortLabel = computed(() => {
+  if (markerSortBy.value === MARKER_SORT_BY.CERTIFICATION_EXPIRE_AT) {
+    return sortOrder.value === 'ASC'
+      ? t('airspace.sort.authExpireAscend')
+      : t('airspace.sort.authExpireDescend')
+  }
+  return sortOrder.value === 'ASC'
+    ? t('airspace.sort.createdAtAscend')
+    : t('airspace.sort.createdAtDescend')
+})
 
 const pinAuditLoading = ref(false)
 const pinAuditData = ref([])
@@ -59,6 +78,10 @@ const pinAuditVisibility = ref(PIN_VISIBILITY.PUBLIC)
 const pinAuditReviewStatus = ref(PIN_REVIEW_STATUS.PENDING)
 const pinDetailVisible = ref(false)
 const pinDetailRecord = ref(null)
+const pinVideoPlayerVisible = ref(false)
+const pinVideoPlayerLoading = ref(false)
+const pinVideoPlayerUrl = ref('')
+const pinVideoPlayerName = ref('')
 const mapPreviewVisible = ref(false)
 const mapPreviewTarget = ref(null)
 const mapPreviewKind = ref('pin')
@@ -71,6 +94,7 @@ const pinRewardSaving = ref(false)
 const pinRewardForm = reactive({
   approvedARewardFlp: null,
   approvedBRewardFlp: null,
+  videoUploadFlpLimit: null,
 })
 
 const ORDER_STATUS_COLORS = {
@@ -85,7 +109,7 @@ const normalizeStatus = (value) => {
   }
   if (!value) return MARKER_REVIEW_STATUS.ALL
   const formatted = String(value).toUpperCase()
-  return Object.values(MARKER_REVIEW_STATUS).includes(formatted) ? formatted : MARKER_REVIEW_STATUS.ALL
+  return Object.values(MARKER_TAB_STATUS).includes(formatted) ? formatted : MARKER_REVIEW_STATUS.ALL
 }
 
 const updateRouteStatus = (status) => {
@@ -125,11 +149,12 @@ const pinReviewStatusTabs = computed(() =>
 )
 
 const statusTabs = computed(() => [
-  { key: MARKER_REVIEW_STATUS.ALL, label: t('airspace.tabs.all') },
-  { key: MARKER_REVIEW_STATUS.PENDING, label: t('airspace.tabs.pending') },
-  { key: MARKER_REVIEW_STATUS.APPROVED, label: t('airspace.tabs.approved') },
-  { key: MARKER_REVIEW_STATUS.REJECTED, label: t('airspace.tabs.rejected') },
-  { key: MARKER_REVIEW_STATUS.DRAFT, label: t('airspace.tabs.draft') },
+  { key: MARKER_TAB_STATUS.ALL, label: t('airspace.tabs.all') },
+  { key: MARKER_TAB_STATUS.DRAFT, label: t('airspace.tabs.draft') },
+  { key: MARKER_TAB_STATUS.PENDING, label: t('airspace.tabs.pending') },
+  { key: MARKER_TAB_STATUS.APPROVED, label: t('airspace.tabs.approved') },
+  { key: MARKER_TAB_STATUS.ORDINARY, label: t('airspace.tabs.ordinary') },
+  { key: MARKER_TAB_STATUS.REJECTED, label: t('airspace.tabs.rejected') },
 ])
 
 const statusColors = {
@@ -538,6 +563,114 @@ const initMapPreview = async () => {
   }
 }
 
+const formatUnixSecondsDateTime = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-'
+  return formatDateTime(numeric * 1000)
+}
+
+const COS_HOST_PATTERN = /^(?<bucket>.+)\.cos\.(?<region>[^.]+)\.(?:myqcloud\.com|tencentcos\.cn)$/i
+
+const normalizeObjectKey = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/^\/+/, '')
+    .split('?')[0]
+    .split('#')[0]
+
+const parseCosVideoSource = (value, stsConfig) => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const target = new URL(raw)
+      const hostMatch = target.hostname.match(COS_HOST_PATTERN)
+      if (!hostMatch?.groups?.bucket || !hostMatch?.groups?.region) {
+        return { mode: 'direct', url: raw }
+      }
+      return {
+        mode: 'cos',
+        bucket: hostMatch.groups.bucket,
+        region: hostMatch.groups.region,
+        key: normalizeObjectKey(decodeURIComponent(target.pathname || '')),
+      }
+    } catch (error) {
+      return { mode: 'direct', url: raw }
+    }
+  }
+
+  const defaultBucket = Array.isArray(stsConfig?.buckets) ? stsConfig.buckets[0] : ''
+  const defaultRegion = String(stsConfig?.region || '').trim()
+  if (!defaultBucket || !defaultRegion) {
+    return null
+  }
+
+  return {
+    mode: 'cos',
+    bucket: defaultBucket,
+    region: defaultRegion,
+    key: normalizeObjectKey(raw),
+  }
+}
+
+const createTencentCosClient = (sts) =>
+  new COS({
+    SecretId: sts.tmpSecretId,
+    SecretKey: sts.tmpSecretKey,
+    SecurityToken: sts.sessionToken,
+    Protocol: 'https:',
+  })
+
+const getTencentCosObjectUrl = (client, params) =>
+  new Promise((resolve, reject) => {
+    client.getObjectUrl(params, (error, data) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      resolve(data)
+    })
+  })
+
+const resolvePinVideoPlaybackUrl = async (videoLink) => {
+  const trimmedLink = String(videoLink || '').trim()
+  if (!trimmedLink) return ''
+
+  const directSource = parseCosVideoSource(trimmedLink)
+  if (directSource?.mode === 'direct') {
+    return directSource.url
+  }
+
+  const sts = await fetchTencentCosSts()
+  const source = directSource || parseCosVideoSource(trimmedLink, sts)
+  if (!source) return ''
+  if (source.mode === 'direct') return source.url
+
+  const client = createTencentCosClient(sts)
+  const result = await getTencentCosObjectUrl(client, {
+    Bucket: source.bucket,
+    Region: source.region,
+    Key: source.key,
+    Sign: true,
+    Protocol: 'https:',
+  })
+
+  return result?.Url || result || ''
+}
+
+const resolveLatestUpdatedAt = (...values) => {
+  const latestValue = values
+    .map((value) => ({
+      raw: value,
+      time: value ? new Date(value).getTime() : Number.NaN,
+    }))
+    .filter((entry) => Number.isFinite(entry.time))
+    .sort((left, right) => right.time - left.time)[0]
+
+  return latestValue?.raw || values.find(Boolean) || null
+}
+
 const getPinCoordinates = (pin, preferredKey) => {
   const coords = resolvePinCoordinates(pin, preferredKey)
   if (!coords.length || !window.qq?.maps) return []
@@ -776,10 +909,41 @@ const isDraftRecord = (record) => {
   if (typeof record.draft === 'boolean') {
     return record.draft
   }
-  if (typeof record.paid === 'boolean') {
-    return !record.paid
+  return String(record.reviewStatus || '').toUpperCase() === MARKER_REVIEW_STATUS.DRAFT
+}
+
+const isOrdinaryMarkerRecord = (record) =>
+  String(record?.reviewStatus || '').toUpperCase() === MARKER_REVIEW_STATUS.APPROVED && !record?.paid
+
+const isPaidApprovedMarkerRecord = (record) =>
+  String(record?.reviewStatus || '').toUpperCase() === MARKER_REVIEW_STATUS.APPROVED && !!record?.paid
+
+const normalizeApprovedReviewStatus = (value) => {
+  const normalized = String(value || '').toUpperCase()
+  if ([PIN_REVIEW_STATUS.APPROVED_A, PIN_REVIEW_STATUS.APPROVED_B].includes(normalized)) {
+    return normalized
   }
-  return false
+  return null
+}
+
+const resolvePinHistoricalApprovedStatus = (pin) => {
+  const candidates = [
+    pin?.lastRewardedStatus,
+    pin?.lastApprovedReviewStatus,
+    pin?.previousApprovedReviewStatus,
+    pin?.previousApprovedStatus,
+    pin?.lastApprovedStatus,
+    pin?.historicalApprovedStatus,
+    pin?.historyReviewStatus,
+    pin?.previousReviewStatus,
+    pin?.lastReviewStatus,
+    pin?.auditInfo?.lastRewardedStatus,
+    pin?.auditInfo?.lastApprovedReviewStatus,
+    pin?.auditInfo?.previousApprovedReviewStatus,
+    pin?.auditInfo?.previousReviewStatus,
+    pin?.auditInfo?.lastReviewStatus,
+  ]
+  return candidates.map((value) => normalizeApprovedReviewStatus(value)).find(Boolean) || null
 }
 
 const canReviewPin = (pin) =>
@@ -808,7 +972,43 @@ const getStatusDisplay = (record) => {
   }
 }
 
-const canReviewRecord = (record) => record?.paid && record?.reviewStatus === MARKER_REVIEW_STATUS.PENDING
+const canReviewRecord = (record) => record?.reviewStatus === MARKER_REVIEW_STATUS.PENDING
+const isMarkerRejected = (record) => record?.reviewStatus === MARKER_REVIEW_STATUS.REJECTED
+const isPinRejected = (pin) => pin?.reviewStatus === PIN_REVIEW_STATUS.REJECTED
+const canSubmitMarkerReview = (record, status) =>
+  status === MARKER_REVIEW_STATUS.REJECTED && isMarkerRejected(record)
+    ? !!record?.id
+    : canReviewRecord(record)
+const canSubmitPinReview = (pin, status) =>
+  status === PIN_REVIEW_STATUS.REJECTED && isPinRejected(pin)
+    ? hasPinId(pin)
+    : canReviewPin(pin)
+
+const pinPrimaryApproveStatus = (pin) => {
+  const historicalStatus = resolvePinHistoricalApprovedStatus(pin)
+  return historicalStatus || PIN_REVIEW_STATUS.APPROVED_A
+}
+
+const pinSecondaryApproveStatus = (pin) => {
+  const historicalStatus = resolvePinHistoricalApprovedStatus(pin)
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_A) return PIN_REVIEW_STATUS.APPROVED_B
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_B) return PIN_REVIEW_STATUS.APPROVED_A
+  return PIN_REVIEW_STATUS.APPROVED_B
+}
+
+const pinPrimaryApproveLabel = (pin) => {
+  const historicalStatus = resolvePinHistoricalApprovedStatus(pin)
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_A) return t('airspace.pinAudit.actions.markA')
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_B) return t('airspace.pinAudit.actions.markB')
+  return t('airspace.pinAudit.actions.passA')
+}
+
+const pinSecondaryApproveLabel = (pin) => {
+  const historicalStatus = resolvePinHistoricalApprovedStatus(pin)
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_A) return t('airspace.pinAudit.actions.downgradeToB')
+  if (historicalStatus === PIN_REVIEW_STATUS.APPROVED_B) return t('airspace.pinAudit.actions.upgradeToA')
+  return t('airspace.pinAudit.actions.passB')
+}
 
 const formatOrderStatus = (status) => {
   switch (status) {
@@ -901,6 +1101,7 @@ const columns = computed(() => [
   { title: t('airspace.table.columns.name'), dataIndex: 'name', key: 'name' },
   { title: t('airspace.table.columns.type'), dataIndex: 'type', key: 'type', width: 120 },
   { title: t('airspace.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: t('airspace.table.columns.authExpireAt'), dataIndex: 'expireAtSeconds', key: 'authExpireAt', width: 180 },
   { title: t('airspace.table.columns.status'), dataIndex: 'reviewStatus', key: 'status', width: 140 },
   { title: t('airspace.table.columns.exposure'), dataIndex: 'exposureCount', key: 'exposureCount', width: 120 },
   { title: t('airspace.table.columns.phoneCall'), dataIndex: 'phoneCallCount', key: 'phoneCallCount', width: 140 },
@@ -944,13 +1145,86 @@ const syncDetailRecord = () => {
   }
 }
 
+const fetchAllMarkersByStatus = async (status) => {
+  const pageSize = 100
+  const allContent = []
+  let requestPage = 1
+  let totalElements = 0
+
+  while (true) {
+    const params = {
+      page: requestPage,
+      size: pageSize,
+      sortOrder: sortOrder.value,
+      sortBy: markerSortBy.value,
+    }
+    if (status && status !== MARKER_REVIEW_STATUS.ALL) {
+      params.status = status
+    }
+
+    const response = await fetchMarkers(params)
+    const content = Array.isArray(response?.content) ? response.content : []
+    totalElements = Number(response?.totalElements) || totalElements
+    allContent.push(...content)
+
+    const totalPages = Number(response?.totalPages)
+    const reachedLastPage =
+      Number.isFinite(totalPages) && totalPages > 0
+        ? requestPage >= totalPages
+        : !content.length || allContent.length >= totalElements
+
+    if (reachedLastPage) {
+      break
+    }
+    requestPage += 1
+  }
+
+  return allContent
+}
+
+const applyMarkerTabFilter = (content, status) => {
+  if (!Array.isArray(content)) return []
+  if (status === MARKER_TAB_STATUS.PENDING) {
+    return content.filter((item) => String(item?.reviewStatus || '').toUpperCase() === MARKER_REVIEW_STATUS.PENDING)
+  }
+  if (status === MARKER_TAB_STATUS.ORDINARY) {
+    return content.filter((item) => isOrdinaryMarkerRecord(item))
+  }
+  if (status === MARKER_TAB_STATUS.APPROVED) {
+    return content.filter((item) => isPaidApprovedMarkerRecord(item))
+  }
+  return content
+}
+
 const loadData = async () => {
   loading.value = true
   try {
+    if ([MARKER_TAB_STATUS.PENDING, MARKER_TAB_STATUS.ORDINARY, MARKER_TAB_STATUS.APPROVED].includes(activeStatus.value)) {
+      const sourceStatus = activeStatus.value === MARKER_TAB_STATUS.PENDING
+        ? MARKER_REVIEW_STATUS.ALL
+        : MARKER_REVIEW_STATUS.APPROVED
+      const sourceContent = await fetchAllMarkersByStatus(sourceStatus)
+      const filteredContent = applyMarkerTabFilter(sourceContent, activeStatus.value)
+      const safePageSize = Math.max(1, Number(pagination.pageSize) || 10)
+      const total = filteredContent.length
+      const totalPages = Math.max(1, Math.ceil(total / safePageSize))
+      const safeCurrent = Math.min(Math.max(1, Number(pagination.current) || 1), totalPages)
+      const startIndex = (safeCurrent - 1) * safePageSize
+      const endIndex = startIndex + safePageSize
+
+      tableData.value = filteredContent.slice(startIndex, endIndex)
+      pagination.total = total
+      pagination.current = safeCurrent
+      pagination.pageSize = safePageSize
+      syncDetailRecord()
+      return
+    }
+
     const params = {
       page: pagination.current,
       size: pagination.pageSize,
       sortOrder: sortOrder.value,
+      sortBy: markerSortBy.value,
     }
 
     if (activeStatus.value === MARKER_REVIEW_STATUS.DRAFT) {
@@ -1017,10 +1291,20 @@ const loadPinRewardConfig = async () => {
   if (pinRewardLoading.value) return
   pinRewardLoading.value = true
   try {
-    const config = await fetchPinReviewRewardConfig()
-    pinRewardConfig.value = config || null
-    pinRewardForm.approvedARewardFlp = Number(config?.approvedARewardFlp) || 0
-    pinRewardForm.approvedBRewardFlp = Number(config?.approvedBRewardFlp) || 0
+    const [rewardConfig, videoUploadConfig] = await Promise.all([
+      fetchPinReviewRewardConfig(),
+      fetchPinVideoUploadFlpLimitConfig(),
+    ])
+    pinRewardConfig.value = {
+      ...(rewardConfig || {}),
+      videoUploadFlpLimit: Number(videoUploadConfig?.threshold) || 0,
+      rewardUpdatedAt: rewardConfig?.updatedAt || null,
+      videoUploadUpdatedAt: videoUploadConfig?.updatedAt || null,
+      updatedAt: resolveLatestUpdatedAt(rewardConfig?.updatedAt, videoUploadConfig?.updatedAt),
+    }
+    pinRewardForm.approvedARewardFlp = Number(rewardConfig?.approvedARewardFlp) || 0
+    pinRewardForm.approvedBRewardFlp = Number(rewardConfig?.approvedBRewardFlp) || 0
+    pinRewardForm.videoUploadFlpLimit = Number(videoUploadConfig?.threshold) || 0
   } catch (error) {
     console.error('Failed to load pin reward config', error)
     message.error(t('airspace.pinAudit.reward.loadFailed'))
@@ -1032,12 +1316,28 @@ const loadPinRewardConfig = async () => {
 const submitPinRewardConfig = async () => {
   pinRewardSaving.value = true
   try {
-    const payload = {
+    const rewardPayload = {
       approvedARewardFlp: Number(pinRewardForm.approvedARewardFlp) || 0,
       approvedBRewardFlp: Number(pinRewardForm.approvedBRewardFlp) || 0,
     }
-    const saved = await savePinReviewRewardConfig(payload)
-    pinRewardConfig.value = saved || payload
+    const videoUploadPayload = {
+      threshold: Number(pinRewardForm.videoUploadFlpLimit) || 0,
+    }
+    const [savedReward, savedVideoUpload] = await Promise.all([
+      savePinReviewRewardConfig(rewardPayload),
+      savePinVideoUploadFlpLimitConfig(videoUploadPayload),
+    ])
+    pinRewardConfig.value = {
+      ...(savedReward || rewardPayload),
+      videoUploadFlpLimit: Number(savedVideoUpload?.threshold ?? videoUploadPayload.threshold) || 0,
+      rewardUpdatedAt: savedReward?.updatedAt || pinRewardConfig.value?.rewardUpdatedAt || null,
+      videoUploadUpdatedAt: savedVideoUpload?.updatedAt || pinRewardConfig.value?.videoUploadUpdatedAt || null,
+      updatedAt: resolveLatestUpdatedAt(
+        savedReward?.updatedAt,
+        savedVideoUpload?.updatedAt,
+        pinRewardConfig.value?.updatedAt,
+      ),
+    }
     message.success(t('airspace.pinAudit.reward.saved'))
   } catch (error) {
     console.error('Failed to save pin reward config', error)
@@ -1098,8 +1398,13 @@ const syncPinDetailRecord = (pin) => {
   }
 }
 
-const toggleCreatedAtSort = () => {
-  sortOrder.value = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
+const toggleMarkerSort = (nextSortBy) => {
+  if (markerSortBy.value === nextSortBy) {
+    sortOrder.value = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
+  } else {
+    markerSortBy.value = nextSortBy
+    sortOrder.value = 'DESC'
+  }
   pagination.current = 1
   loadData()
 }
@@ -1112,6 +1417,7 @@ const openDetail = (record) => {
 const closeDetail = () => {
   detailVisible.value = false
   detailRecord.value = null
+  closePinVideoPlayer()
 }
 
 const openPinDetail = (record) => {
@@ -1122,6 +1428,46 @@ const openPinDetail = (record) => {
 const closePinDetail = () => {
   pinDetailVisible.value = false
   pinDetailRecord.value = null
+  closePinVideoPlayer()
+}
+
+const openPinVideoPlayer = async (record) => {
+  const videoLink = record?.videoLink
+  if (!videoLink) {
+    message.warning(t('airspace.pinAudit.messages.videoUnavailable'))
+    return
+  }
+
+  pinVideoPlayerVisible.value = true
+  pinVideoPlayerLoading.value = true
+  pinVideoPlayerUrl.value = ''
+  pinVideoPlayerName.value = record?.name || ''
+
+  try {
+    const playbackUrl = await resolvePinVideoPlaybackUrl(videoLink)
+    if (!playbackUrl) {
+      throw new Error('Empty playback url')
+    }
+    pinVideoPlayerUrl.value = playbackUrl
+  } catch (error) {
+    console.error('Failed to open pin video player', error)
+    message.error(t('airspace.pinAudit.messages.videoPlaybackFailed'))
+    pinVideoPlayerVisible.value = false
+    pinVideoPlayerName.value = ''
+  } finally {
+    pinVideoPlayerLoading.value = false
+  }
+}
+
+const closePinVideoPlayer = () => {
+  pinVideoPlayerVisible.value = false
+  pinVideoPlayerLoading.value = false
+  pinVideoPlayerUrl.value = ''
+  pinVideoPlayerName.value = ''
+}
+
+const openDetailVideoPlayer = async (record) => {
+  await openPinVideoPlayer(record)
 }
 
 const openOrderDetail = async (referenceId) => {
@@ -1164,14 +1510,43 @@ const closeOrderDetail = () => {
   orderDetail.value = null
 }
 
-const executeReview = async (record, status) => {
+const openRejectReasonModal = ({ title, okText, placeholder, requiredMessage, initialValue = '', onSubmit }) => {
+  let rejectDetail = typeof initialValue === 'string' ? initialValue : ''
+
+  Modal.confirm({
+    title,
+    content: h(Input.TextArea, {
+      rows: 4,
+      autofocus: true,
+      placeholder,
+      defaultValue: rejectDetail,
+      'onUpdate:value': (value) => {
+        rejectDetail = value ?? ''
+      },
+    }),
+    okText,
+    cancelText: t('airspace.confirm.cancel'),
+    okButtonProps: {
+      danger: true,
+    },
+    onOk: async () => {
+      const normalizedReason = rejectDetail.trim()
+      if (!normalizedReason) {
+        message.warning(requiredMessage)
+        return Promise.reject(new Error('rejectDetail is required'))
+      }
+      await onSubmit(normalizedReason)
+    },
+  })
+}
+
+const executeReview = async (record, status, rejectDetail) => {
   if (!record?.id) return
-  if (!canReviewRecord(record)) {
-    message.warning(t('airspace.messages.unpaidWarning'))
+  if (!canSubmitMarkerReview(record, status)) {
     return
   }
   try {
-    const updated = await reviewMarker(record.id, status)
+    const updated = await reviewMarker(record.id, status, rejectDetail)
     message.success(t('airspace.messages.reviewSuccess'))
     await loadData()
     if (updated && detailRecord.value?.id === record.id) {
@@ -1185,6 +1560,17 @@ const executeReview = async (record, status) => {
 
 const handleReview = (record, status) => {
   const statusKey = status === MARKER_REVIEW_STATUS.APPROVED ? 'approve' : 'reject'
+  if (status === MARKER_REVIEW_STATUS.REJECTED) {
+    openRejectReasonModal({
+      title: t('airspace.confirm.rejectReason.title'),
+      okText: t('airspace.confirm.reject.ok'),
+      placeholder: t('airspace.confirm.rejectReason.placeholder', { name: record.name || '' }),
+      requiredMessage: t('airspace.messages.rejectReasonRequired'),
+      initialValue: record?.rejectDetail || '',
+      onSubmit: (rejectDetail) => executeReview(record, status, rejectDetail),
+    })
+    return
+  }
   Modal.confirm({
     title: t(`airspace.confirm.${statusKey}.title`),
     content: t(`airspace.confirm.${statusKey}.content`, { name: record.name || '' }),
@@ -1198,8 +1584,8 @@ const handleReview = (record, status) => {
   })
 }
 
-const submitPinReview = async (pin, status) => {
-  if (!canReviewPin(pin)) {
+const submitPinReview = async (pin, status, rejectDetail) => {
+  if (!canSubmitPinReview(pin, status)) {
     message.info(t('airspace.pinAudit.messages.onlyPublicReview'))
     return
   }
@@ -1209,7 +1595,7 @@ const submitPinReview = async (pin, status) => {
       message.error(t('airspace.pinAudit.messages.reviewFailed'))
       return
     }
-    const updated = await reviewPin(pinId, status)
+    const updated = await reviewPin(pinId, status, rejectDetail)
     message.success(t('airspace.pinAudit.messages.reviewSuccess'))
     await loadPinAuditData()
     syncPinDetailRecord(updated)
@@ -1221,6 +1607,17 @@ const submitPinReview = async (pin, status) => {
 
 const confirmPinReview = (pin, status) => {
   const statusKey = status === PIN_REVIEW_STATUS.REJECTED ? 'reject' : 'approve'
+  if (status === PIN_REVIEW_STATUS.REJECTED) {
+    openRejectReasonModal({
+      title: t('airspace.pinAudit.confirm.rejectReason.title'),
+      okText: t('airspace.pinAudit.actions.reject'),
+      placeholder: t('airspace.pinAudit.confirm.rejectReason.placeholder', { name: pin.name || '' }),
+      requiredMessage: t('airspace.pinAudit.messages.rejectReasonRequired'),
+      initialValue: pin?.rejectDetail || '',
+      onSubmit: (rejectDetail) => submitPinReview(pin, status, rejectDetail),
+    })
+    return
+  }
   Modal.confirm({
     title: t(`airspace.pinAudit.confirm.${statusKey}.title`),
     content: t(`airspace.pinAudit.confirm.${statusKey}.content`, {
@@ -1310,10 +1707,13 @@ watch(
         <a-table :columns="columns" :data-source="tableData" :loading="loading" :pagination="paginationConfig"
           row-key="id" class="markers-table" @change="handleTableChange">
           <template #headerCell="{ column }">
-            <template v-if="column.key === 'createdAt'">
-              <button class="sort-toggle" type="button" @click.stop="toggleCreatedAtSort">
-                <span>{{ t('airspace.table.columns.createdAt') }}</span>
-                <span class="sort-indicator" aria-hidden="true">{{ sortIndicator }}</span>
+            <template v-if="column.key === 'createdAt' || column.key === 'authExpireAt'">
+              <button class="sort-toggle" type="button"
+                @click.stop="toggleMarkerSort(column.key === 'authExpireAt' ? MARKER_SORT_BY.CERTIFICATION_EXPIRE_AT : MARKER_SORT_BY.CREATED_AT)">
+                <span>{{ column.key === 'authExpireAt' ? t('airspace.table.columns.authExpireAt') : t('airspace.table.columns.createdAt') }}</span>
+                <span class="sort-indicator" aria-hidden="true">
+                  {{ markerSortBy === (column.key === 'authExpireAt' ? MARKER_SORT_BY.CERTIFICATION_EXPIRE_AT : MARKER_SORT_BY.CREATED_AT) ? sortIndicator : '' }}
+                </span>
                 <span class="sr-only">{{ sortLabel }}</span>
               </button>
             </template>
@@ -1335,6 +1735,9 @@ watch(
             </template>
             <template v-else-if="column.key === 'createdAt'">
               {{ formatDateTime(record.createdAt) }}
+            </template>
+            <template v-else-if="column.key === 'authExpireAt'">
+              {{ formatUnixSecondsDateTime(record.expireAtSeconds) }}
             </template>
             <template v-else-if="column.key === 'status'">
               <a-tag :color="getStatusDisplay(record).color">
@@ -1369,15 +1772,21 @@ watch(
           <div class="reward-inputs">
             <a-form layout="vertical">
               <a-row :gutter="[16, 0]">
-                  <a-col :xs="24" :sm="12">
-                    <a-form-item :label="t('airspace.pinAudit.reward.approvedB')">
+                <a-col :xs="24" :sm="8">
+                  <a-form-item :label="t('airspace.pinAudit.reward.approvedB')">
                     <a-input-number v-model:value="pinRewardForm.approvedBRewardFlp" :min="0" :step="0.01" :precision="2"
                       :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
                   </a-form-item>
                 </a-col>
-                <a-col :xs="24" :sm="12">
+                <a-col :xs="24" :sm="8">
                   <a-form-item :label="t('airspace.pinAudit.reward.approvedA')">
                     <a-input-number v-model:value="pinRewardForm.approvedARewardFlp" :min="0" :step="0.01" :precision="2"
+                      :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
+                  </a-form-item>
+                </a-col>
+                <a-col :xs="24" :sm="8">
+                  <a-form-item :label="t('airspace.pinAudit.reward.videoUploadFlpLimit')">
+                    <a-input-number v-model:value="pinRewardForm.videoUploadFlpLimit" :min="0" :step="0.01" :precision="2"
                       :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
                   </a-form-item>
                 </a-col>
@@ -1476,18 +1885,22 @@ watch(
                 : t('airspace.pinAudit.actions.disable') }}
             </a-button>
             <a-button type="primary" ghost :disabled="!canReviewPin(pinDetailRecord)"
-              @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.APPROVED_A)">
-              {{ t('airspace.pinAudit.actions.passA') }}
+              @click="confirmPinReview(pinDetailRecord, pinPrimaryApproveStatus(pinDetailRecord))">
+              {{ pinPrimaryApproveLabel(pinDetailRecord) }}
             </a-button>
             <a-button type="primary" ghost :disabled="!canReviewPin(pinDetailRecord)"
-              @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.APPROVED_B)">
-              {{ t('airspace.pinAudit.actions.passB') }}
+              @click="confirmPinReview(pinDetailRecord, pinSecondaryApproveStatus(pinDetailRecord))">
+              {{ pinSecondaryApproveLabel(pinDetailRecord) }}
             </a-button>
             <a-button type="primary" danger :disabled="!canReviewPin(pinDetailRecord)"
               @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.REJECTED)">
               {{ t('airspace.pinAudit.actions.reject') }}
             </a-button>
           </template>
+          <a-button v-else-if="isPinRejected(pinDetailRecord)" type="primary" danger ghost
+            @click="confirmPinReview(pinDetailRecord, PIN_REVIEW_STATUS.REJECTED)">
+            {{ t('airspace.pinAudit.actions.supplementReason') }}
+          </a-button>
         </div>
       </template>
 
@@ -1524,10 +1937,20 @@ watch(
                 {{ pinReviewStatusText(pinDetailRecord.reviewStatus) }}
               </a-tag>
             </a-descriptions-item>
+            <a-descriptions-item v-if="resolvePinHistoricalApprovedStatus(pinDetailRecord)"
+              :label="t('airspace.pinAudit.detail.lastApprovedStatus')">
+              <a-tag :color="pinReviewColors[resolvePinHistoricalApprovedStatus(pinDetailRecord)] || 'default'">
+                {{ pinReviewStatusText(resolvePinHistoricalApprovedStatus(pinDetailRecord)) }}
+              </a-tag>
+            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.status')">
               <a-tag :color="pinStatusColors[pinDetailRecord.status] || 'default'">
                 {{ pinStatusText(pinDetailRecord.status) }}
               </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item v-if="pinDetailRecord?.reviewStatus === PIN_REVIEW_STATUS.REJECTED" :span="2"
+              :label="t('airspace.pinAudit.detail.rejectReason')">
+              {{ pinDetailRecord?.rejectDetail || t('airspace.pinAudit.detail.rejectReasonEmpty') }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.pinAudit.detail.exposure')">
               {{ pinDetailRecord?.exposureCount ?? 0 }}
@@ -1576,6 +1999,15 @@ watch(
           <p class="description-text">{{ pinDetailRecord.description }}</p>
         </section>
 
+        <section v-if="pinDetailRecord.videoLink" class="detail-section">
+          <h3>{{ t('airspace.pinAudit.detail.videoLink') }}</h3>
+          <div class="video-action-row">
+            <a-button type="primary" :loading="pinVideoPlayerLoading" @click="openPinVideoPlayer(pinDetailRecord)">
+              {{ t('airspace.pinAudit.detail.playVideo') }}
+            </a-button>
+          </div>
+        </section>
+
         <section v-if="pinDetailRecord.images?.length" class="detail-section">
           <h3>{{ t('airspace.pinAudit.detail.images') }}</h3>
           <div class="image-grid">
@@ -1589,21 +2021,36 @@ watch(
       <a-empty v-else />
     </a-modal>
 
+    <a-modal :open="pinVideoPlayerVisible"
+      :title="pinVideoPlayerName || t('airspace.pinAudit.detail.videoPlayerTitle')" width="880px"
+      :footer="null" :destroy-on-close="true" @cancel="closePinVideoPlayer">
+      <a-spin :spinning="pinVideoPlayerLoading">
+        <div class="video-player-panel">
+          <video v-if="pinVideoPlayerUrl" class="video-player" :src="pinVideoPlayerUrl" controls autoplay playsinline />
+          <a-empty v-else />
+        </div>
+      </a-spin>
+    </a-modal>
+
     <a-modal :open="detailVisible" :title="detailRecord?.name || t('airspace.modal.title')" width="960px"
       :destroy-on-close="true" @cancel="closeDetail">
       <template #footer>
         <div class="modal-footer">
           <a-button @click="closeDetail">{{ t('airspace.modal.actions.close') }}</a-button>
           <template v-if="detailRecord?.reviewStatus === MARKER_REVIEW_STATUS.PENDING">
-            <a-button type="primary" ghost :disabled="!detailRecord?.paid"
+            <a-button type="primary" ghost
               @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.REJECTED)">
               {{ t('airspace.modal.actions.reject') }}
             </a-button>
-            <a-button type="primary" :disabled="!detailRecord?.paid"
+            <a-button type="primary"
               @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.APPROVED)">
               {{ t('airspace.modal.actions.approve') }}
             </a-button>
           </template>
+          <a-button v-else-if="isMarkerRejected(detailRecord)" type="primary" danger ghost
+            @click="handleReview(detailRecord, MARKER_REVIEW_STATUS.REJECTED)">
+            {{ t('airspace.modal.actions.supplementReason') }}
+          </a-button>
         </div>
       </template>
 
@@ -1639,6 +2086,10 @@ watch(
 
               </div>
             </a-descriptions-item>
+            <a-descriptions-item v-if="detailRecord?.reviewStatus === MARKER_REVIEW_STATUS.REJECTED" :span="2"
+              :label="t('airspace.modal.fields.rejectReason')">
+              {{ detailRecord?.rejectDetail || t('airspace.modal.fields.rejectReasonEmpty') }}
+            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.paid')">
               <a-tag :color="detailRecord.paid ? 'green' : 'orange'">
                 {{ detailRecord.paid ? t('airspace.paidStatus.paid') : t('airspace.paidStatus.unpaid') }}
@@ -1650,6 +2101,9 @@ watch(
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.createdAt')">
               {{ formatDateTime(detailRecord.createdAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.modal.fields.authExpireAt')">
+              {{ formatUnixSecondsDateTime(detailRecord.expireAtSeconds) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.updatedAt')">
               {{ formatDateTime(detailRecord.updatedAt) }}
@@ -1703,7 +2157,7 @@ watch(
           </div>
         </section>
 
-        <section class="detail-section" v-if="detailRecord.videoChannelId || detailRecord.videoId">
+        <section class="detail-section" v-if="detailRecord.videoChannelId || detailRecord.videoId || detailRecord.videoLink">
           <h3>{{ t('airspace.modal.sections.videoInfo') }}</h3>
           <a-descriptions :column="2" bordered size="small">
             <a-descriptions-item :label="t('airspace.modal.fields.videoChannelId')">
@@ -1711,6 +2165,14 @@ watch(
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.modal.fields.videoId')">
               {{ detailRecord.videoId || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="detailRecord.videoLink" :span="2"
+              :label="t('airspace.modal.fields.videoLink')">
+              <div class="video-action-row">
+                <a-button type="primary" :loading="pinVideoPlayerLoading" @click="openDetailVideoPlayer(detailRecord)">
+                  {{ t('airspace.modal.actions.playVideo') }}
+                </a-button>
+              </div>
             </a-descriptions-item>
           </a-descriptions>
         </section>
@@ -2081,6 +2543,24 @@ watch(
   margin: 0;
   color: #1f2937;
   line-height: 1.6;
+}
+
+.video-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-player-panel {
+  min-height: 180px;
+}
+
+.video-player {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  border-radius: 12px;
 }
 
 .image-grid {

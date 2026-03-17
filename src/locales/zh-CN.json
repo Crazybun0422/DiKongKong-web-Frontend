@@ -246,6 +246,7 @@
     "tabs": {
       "all": "全部",
       "pending": "待审核",
+      "ordinary": "普通入驻",
       "approved": "已通过",
       "rejected": "已驳回",
       "draft": "草稿"
@@ -255,6 +256,7 @@
         "name": "标记信息",
         "type": "类型",
         "createdAt": "提交时间",
+        "authExpireAt": "认证有效期",
         "status": "审核状态",
         "exposure": "曝光量",
         "phoneCall": "拨打电话数",
@@ -290,8 +292,10 @@
       "unknown": "未提供"
     },
     "sort": {
-      "ascend": "提交时间从早到晚",
-      "descend": "提交时间从晚到早"
+      "createdAtAscend": "提交时间从早到晚",
+      "createdAtDescend": "提交时间从晚到早",
+      "authExpireAscend": "认证有效期从早到晚",
+      "authExpireDescend": "认证有效期从晚到早"
     },
     "pagination": {
       "showTotal": "共 {total} 条记录 · 当前 {start}-{end}"
@@ -300,6 +304,7 @@
       "loadFailed": "标记数据加载失败，请稍后重试。",
       "reviewSuccess": "审核结果已提交。",
       "reviewFailed": "审核提交失败，请稍后重试。",
+      "rejectReasonRequired": "请填写驳回理由。",
       "unpaidWarning": "仅已付款的标记可以审核。",
       "mapPreviewMissing": "缺少坐标，无法定位。"
     },
@@ -316,6 +321,10 @@
         "title": "确认驳回",
         "content": "确定驳回“{name}”吗？",
         "ok": "确认驳回"
+      },
+      "rejectReason": {
+        "title": "填写驳回理由",
+        "placeholder": "请填写“{name}”的驳回理由"
       },
       "cancel": "取消"
     },
@@ -339,11 +348,15 @@
         "location": "位置",
         "phone": "联系电话",
         "status": "审核状态",
+        "rejectReason": "驳回理由",
+        "rejectReasonEmpty": "未填写驳回理由",
         "paid": "付款状态",
         "createdAt": "创建时间",
+        "authExpireAt": "认证有效期",
         "updatedAt": "更新时间",
         "exposure": "曝光量",
         "phoneCall": "拨打电话数",
+        "videoLink": "视频链接",
         "videoChannelId": "视频号ID",
         "videoId": "视频ID",
         "adminName": "联系人",
@@ -354,7 +367,9 @@
         "close": "关闭",
         "approve": "审核通过",
         "reject": "驳回",
-        "viewOrder": "查看订单"
+        "supplementReason": "补充理由",
+        "viewOrder": "查看订单",
+        "playVideo": "播放视频"
       }
     },
     "pinAudit": {
@@ -411,8 +426,13 @@
         "detail": "查看详情",
         "passA": "通过A",
         "passB": "通过B",
+        "markA": "A类标记",
+        "markB": "B类标记",
+        "downgradeToB": "降级为B类标记",
+        "upgradeToA": "升级为A类标记",
         "approve": "通过",
         "reject": "驳回",
+        "supplementReason": "补充理由",
         "disable": "禁用",
         "enable": "恢复",
         "toggleStatus": "确认"
@@ -426,7 +446,10 @@
         "featureCode": "低空号",
         "visibility": "可见性",
         "reviewStatus": "审核状态",
+        "lastApprovedStatus": "上次通过等级",
         "status": "启用状态",
+        "rejectReason": "驳回理由",
+        "rejectReasonEmpty": "未填写驳回理由",
         "exposure": "曝光量",
         "publishedAt": "发布时间",
         "groups": "群组",
@@ -438,6 +461,9 @@
         "createdAt": "提交时间",
         "updatedAt": "更新时间",
         "description": "描述",
+        "videoLink": "视频链接",
+        "playVideo": "播放视频",
+        "videoPlayerTitle": "视频播放",
         "images": "图片",
         "close": "关闭"
       },
@@ -446,8 +472,11 @@
         "onlyPublicReview": "仅对公开可见的标记进行审核。",
         "reviewSuccess": "审核结果已提交。",
         "reviewFailed": "审核提交失败，请稍后重试。",
+        "rejectReasonRequired": "请填写驳回理由。",
         "statusUpdated": "标记状态已更新。",
-        "statusUpdateFailed": "更新标记状态失败，请稍后重试。"
+        "statusUpdateFailed": "更新标记状态失败，请稍后重试。",
+        "videoUnavailable": "当前没有可播放的视频。",
+        "videoPlaybackFailed": "视频播放地址获取失败，请稍后重试。"
       },
       "confirm": {
         "approve": {
@@ -458,12 +487,17 @@
           "title": "确认驳回",
           "content": "确定驳回“{name}”吗？"
         },
+        "rejectReason": {
+          "title": "填写驳回理由",
+          "placeholder": "请填写“{name}”的驳回理由"
+        },
         "statusTitle": "更新标记状态",
         "statusContent": "确认将“{name}”设置为 {status} 状态吗？"
       },
       "reward": {
         "approvedA": "通过（A级）奖励",
         "approvedB": "通过（B级）奖励",
+        "videoUploadFlpLimit": "上传高清视频 FLP 门槛",
         "unit": "FLP",
         "updatedAt": "配置更新时间：{time}",
         "loading": "加载奖励配置中...",
@@ -836,6 +870,7 @@
     "tabs": {
       "invite": "拉新奖励配置",
       "mapSettlement": "地图商户入驻配置",
+      "tencentCos": "腾讯云配置",
       "adSettings": "广告设置",
       "copySettings": "文案设置",
       "payment": "支付设置",
@@ -1036,6 +1071,89 @@
       }
     },
     "system": {
+      "tencentCos": {
+        "title": "腾讯云 COS 配置",
+        "subtitle": "配置 COS 鉴权信息、角色信息和可用存储桶列表。",
+        "configuredLabel": "配置状态",
+        "configured": "已配置",
+        "notConfigured": "未配置",
+        "secretKeyHint": "出于安全原因，已保存的 SecretKey 不会回显；留空表示不修改。",
+        "bucketHint": "每行一个存储桶，或使用英文逗号分隔。",
+        "fields": {
+          "secretId": "SecretId",
+          "secretKey": "SecretKey",
+          "region": "地域",
+          "roleArn": "角色 ARN",
+          "roleSessionName": "角色会话名",
+          "durationSeconds": "STS 有效期（秒）",
+          "buckets": "存储桶列表"
+        },
+        "placeholders": {
+          "secretId": "请输入 SecretId",
+          "secretKey": "请输入 SecretKey",
+          "region": "例如 ap-guangzhou",
+          "roleArn": "例如 qcs::cam::uin/xxx:roleName/xxx",
+          "roleSessionName": "例如 dikongkong-admin",
+          "durationSeconds": "例如 1800",
+          "buckets": "例如\nbucket-a-1250000000\nbucket-b-1250000000"
+        },
+        "actions": {
+          "save": "保存配置",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "loadFailed": "腾讯云 COS 配置加载失败",
+          "saveSuccess": "腾讯云 COS 配置已保存",
+          "saveFailed": "腾讯云 COS 配置保存失败"
+        },
+        "test": {
+          "title": "上传下载测试",
+          "subtitle": "通过 STS 临时密钥直接测试 COS 上传和下载。",
+          "stsReady": "STS 已获取",
+          "stsIdle": "未获取 STS",
+          "emptyValue": "暂无",
+          "fields": {
+            "bucket": "测试存储桶",
+            "uploadKey": "上传对象 Key",
+            "downloadKey": "下载对象 Key",
+            "file": "测试文件"
+          },
+          "placeholders": {
+            "bucket": "请选择存储桶",
+            "uploadKey": "例如 console-test/example.txt",
+            "downloadKey": "请输入要下载的对象 Key"
+          },
+          "labels": {
+            "stsStatus": "STS 状态",
+            "region": "测试地域",
+            "expiration": "过期时间",
+            "buckets": "STS 存储桶",
+            "lastUploadedKey": "最近上传 Key",
+            "lastDownloadedAt": "最近下载时间",
+            "uploadedUrl": "对象访问地址"
+          },
+          "actions": {
+            "fetchSts": "获取 STS",
+            "selectFile": "选择测试文件",
+            "replaceFile": "更换测试文件",
+            "removeFile": "移除文件",
+            "uploadTest": "测试上传",
+            "downloadTest": "测试下载"
+          },
+          "messages": {
+            "stsLoaded": "STS 已更新",
+            "stsLoadFailed": "STS 获取失败",
+            "bucketRequired": "请先选择存储桶",
+            "regionRequired": "缺少可用地域",
+            "fileRequired": "请先选择测试文件",
+            "downloadKeyRequired": "请先填写下载对象 Key",
+            "uploadSuccess": "COS 上传测试成功",
+            "uploadFailed": "COS 上传测试失败",
+            "downloadSuccess": "COS 下载测试成功",
+            "downloadFailed": "COS 下载测试失败"
+          }
+        }
+      },
       "guide": {
         "title": "引导页设置",
         "subtitle": "上传引导页面展示的 GIF 动图，并为每张设置引导标题。",
@@ -1185,6 +1303,21 @@
           "loadFailed": "字体配置加载失败"
         }
       },
+      "posterService": {
+        "title": "海报服务版本",
+        "subtitle": "查看当前海报服务版本，并手动拉取最新海报版本号。",
+        "currentVersionLabel": "当前版本",
+        "emptyVersion": "未设置",
+        "actions": {
+          "pullLatest": "拉取海报版本",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "loadFailed": "海报服务版本加载失败",
+          "refreshSuccess": "海报服务版本已刷新",
+          "refreshFailed": "海报服务版本刷新失败"
+        }
+      },
       "easterEggResource": {
         "title": "彩蛋游戏资源包设置",
         "subtitle": "上传并配置彩蛋游戏使用的 zip 资源包。",
@@ -1289,7 +1422,13 @@
         "wechatListPrice": "微信支付划线价",
         "wechatNetPrice": "微信支付实收价",
         "flpListPrice": "FLP余额划线价",
-        "flpNetPrice": "FLP余额实收价"
+        "flpNetPrice": "FLP余额实收价",
+        "longImageUrl": "商户介绍长图"
+      },
+      "actions": {
+        "upload": "上传长图",
+        "uploadReplace": "更换长图",
+        "remove": "移除"
       },
       "validation": {
         "wechatListPrice": "请输入微信划线价",
@@ -1300,7 +1439,11 @@
       "messages": {
         "loadFailed": "地图入驻配置加载失败",
         "saveSuccess": "地图入驻配置已保存",
-        "saveFailed": "地图入驻配置保存失败"
+        "saveFailed": "地图入驻配置保存失败",
+        "longImageSaveSuccess": "商户介绍长图已保存",
+        "longImageSaveFailed": "商户介绍长图保存失败",
+        "uploadSuccess": "长图上传成功",
+        "uploadFailed": "长图上传失败"
       }
     },
     "adSettings": {
@@ -1370,6 +1513,9 @@
       },
       "options": {
         "openPlatform": "开放平台",
+        "planetMerchantAdvancedGuide": "星球商户进阶攻略",
+        "planetCreationAdvancedGuide": "星球创作进阶攻略",
+        "shareToPlatform": "共享到平台",
         "flpRewardHelp": "FLP机制",
         "inviteGuide": "邀请攻略",
         "coordinateLongPressGuide": "中心点长按说明",

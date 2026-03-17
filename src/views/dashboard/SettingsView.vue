@@ -2,13 +2,22 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
+import COS from 'cos-js-sdk-v5'
 import {
   fetchInviteConfig,
   saveInviteConfig,
   fetchMapSettlementConfig,
   saveMapSettlementConfig,
+  fetchMerchantIntroLongImageConfig,
+  saveMerchantIntroLongImageConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchPlanetMerchantAdvancedGuideCopy,
+  savePlanetMerchantAdvancedGuideCopy,
+  fetchPlanetCreationAdvancedGuideCopy,
+  savePlanetCreationAdvancedGuideCopy,
+  fetchShareToPlatformCopy,
+  saveShareToPlatformCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
@@ -23,8 +32,13 @@ import {
   saveCoordinateSystemDescriptionCopy,
   fetchGuideUrls,
   saveGuideUrls,
+  fetchTencentCosConfig,
+  saveTencentCosConfig,
+  fetchTencentCosSts,
   fetchFontFileConfig,
   uploadFontFileConfig,
+  fetchPosterServiceVersion,
+  refreshPosterServiceVersion,
   fetchEasterEggResourceConfig,
   uploadEasterEggResourceConfig,
   fetchTemplateSettings,
@@ -145,6 +159,7 @@ const mapForm = reactive({
   wechatNetPrice: 0,
   flpListPrice: 0,
   flpNetPrice: 0,
+  longImageUrl: '',
 })
 const mapRules = computed(() => ({
   wechatListPrice: [{ required: true, message: t('settings.mapSettlement.validation.wechatListPrice') }],
@@ -154,6 +169,46 @@ const mapRules = computed(() => ({
 }))
 const mapLoading = ref(false)
 const mapSaving = ref(false)
+const mapLongImageSaving = ref(false)
+const mapLongImageUploading = ref(false)
+const tencentCosForm = reactive({
+  secretId: '',
+  secretKey: '',
+  region: '',
+  roleArn: '',
+  roleSessionName: '',
+  durationSeconds: 1800,
+  bucketsText: '',
+})
+const tencentCosLoading = ref(false)
+const tencentCosSaving = ref(false)
+const tencentCosConfigured = ref(false)
+const tencentCosStsState = reactive({
+  tmpSecretId: '',
+  tmpSecretKey: '',
+  sessionToken: '',
+  expiredTime: 0,
+  startTime: '',
+  expiration: '',
+  region: '',
+  buckets: [],
+  durationSeconds: 0,
+})
+const tencentCosStsLoading = ref(false)
+const tencentCosUploadTesting = ref(false)
+const tencentCosDownloadTesting = ref(false)
+const tencentCosUploadProgress = ref(0)
+const tencentCosSelectedFile = ref(null)
+const tencentCosTestForm = reactive({
+  bucket: '',
+  uploadKey: '',
+  downloadKey: '',
+})
+const tencentCosTestResult = reactive({
+  uploadedKey: '',
+  uploadedUrl: '',
+  downloadedAt: '',
+})
 
 const adThresholdForm = reactive({
   threshold: 0,
@@ -199,6 +254,9 @@ const copyHasContent = computed(() => {
 })
 const copyTypeOptions = computed(() => [
   { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
+  { value: 'planetMerchantAdvancedGuide', label: t('settings.copySettings.options.planetMerchantAdvancedGuide') },
+  { value: 'planetCreationAdvancedGuide', label: t('settings.copySettings.options.planetCreationAdvancedGuide') },
+  { value: 'shareToPlatform', label: t('settings.copySettings.options.shareToPlatform') },
   { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
   { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
   { value: 'coordinateLongPressGuide', label: t('settings.copySettings.options.coordinateLongPressGuide') },
@@ -208,6 +266,18 @@ const copyHandlers = {
   openPlatform: {
     fetch: fetchOpenPlatformCopy,
     save: saveOpenPlatformCopy,
+  },
+  planetMerchantAdvancedGuide: {
+    fetch: fetchPlanetMerchantAdvancedGuideCopy,
+    save: savePlanetMerchantAdvancedGuideCopy,
+  },
+  planetCreationAdvancedGuide: {
+    fetch: fetchPlanetCreationAdvancedGuideCopy,
+    save: savePlanetCreationAdvancedGuideCopy,
+  },
+  shareToPlatform: {
+    fetch: fetchShareToPlatformCopy,
+    save: saveShareToPlatformCopy,
   },
   flpRewardHelp: {
     fetch: fetchFlpRewardHelpCopy,
@@ -411,6 +481,9 @@ const fontFileForm = reactive({
 const fontFileLoading = ref(false)
 const fontFileSaving = ref(false)
 const fontFileSelected = ref(null)
+const posterServiceVersion = ref('')
+const posterServiceVersionLoading = ref(false)
+const posterServiceVersionRefreshing = ref(false)
 const easterEggResourceConfig = reactive({
   fileName: '',
   version: '',
@@ -786,6 +859,33 @@ const resetFontFileForm = (currentVersion = '') => {
 }
 
 const fontFileDownloadUrl = computed(() => buildDownloadUrl(fontFileConfig.fileName || ''))
+const posterServiceVersionDisplay = computed(() =>
+  posterServiceVersion.value || t('settings.system.posterService.emptyVersion'),
+)
+const tencentCosConfiguredText = computed(() =>
+  tencentCosConfigured.value ? t('settings.system.tencentCos.configured') : t('settings.system.tencentCos.notConfigured'),
+)
+const tencentCosAvailableBuckets = computed(() =>
+  Array.from(
+    new Set([
+      ...parseTencentCosBuckets(tencentCosForm.bucketsText),
+      ...(Array.isArray(tencentCosStsState.buckets) ? tencentCosStsState.buckets : []),
+    ]),
+  ),
+)
+const tencentCosStsExpirationText = computed(() => {
+  if (tencentCosStsState.expiration) {
+    return tencentCosStsState.expiration
+  }
+  if (Number(tencentCosStsState.expiredTime) > 0) {
+    return new Date(Number(tencentCosStsState.expiredTime) * 1000).toLocaleString()
+  }
+  return t('settings.system.tencentCos.test.emptyValue')
+})
+const tencentCosStsRegionText = computed(() =>
+  tencentCosStsState.region || tencentCosForm.region || t('settings.system.tencentCos.test.emptyValue'),
+)
+const tencentCosStsFetched = computed(() => Boolean(tencentCosStsState.tmpSecretId && tencentCosStsState.sessionToken))
 
 const resetEasterEggResourceForm = (currentVersion = '') => {
   easterEggResourceForm.fileName = ''
@@ -1022,11 +1122,18 @@ const submitInviteForm = async () => {
 const loadMapConfig = async () => {
   mapLoading.value = true
   try {
-    const data = await fetchMapSettlementConfig()
+    const [data, longImageConfig] = await Promise.all([
+      fetchMapSettlementConfig(),
+      fetchMerchantIntroLongImageConfig().catch((error) => {
+        if (error?.response?.status === 404) return { imageUrl: '' }
+        throw error
+      }),
+    ])
     mapForm.wechatListPrice = data?.wechatListPrice ?? 0
     mapForm.wechatNetPrice = data?.wechatNetPrice ?? 0
     mapForm.flpListPrice = data?.flpListPrice ?? 0
     mapForm.flpNetPrice = data?.flpNetPrice ?? 0
+    mapForm.longImageUrl = longImageConfig?.imageUrl ?? ''
   } catch (error) {
     console.error('Failed to load map settlement config', error)
     message.error(t('settings.mapSettlement.messages.loadFailed'))
@@ -1045,13 +1152,339 @@ const submitMapForm = async () => {
       flpNetPrice: Number(mapForm.flpNetPrice) || 0,
     })
     message.success(t('settings.mapSettlement.messages.saveSuccess'))
-    loadMapConfig()
+    await loadMapConfig()
   } catch (error) {
     console.error('Failed to save map settlement config', error)
     message.error(t('settings.mapSettlement.messages.saveFailed'))
   } finally {
     mapSaving.value = false
   }
+}
+
+const submitMapLongImageForm = async () => {
+  mapLongImageSaving.value = true
+  try {
+    await saveMerchantIntroLongImageConfig({
+      imageUrl: String(mapForm.longImageUrl || '').trim(),
+    })
+    message.success(t('settings.mapSettlement.messages.longImageSaveSuccess'))
+    await loadMapConfig()
+  } catch (error) {
+    console.error('Failed to save merchant intro long image config', error)
+    message.error(t('settings.mapSettlement.messages.longImageSaveFailed'))
+  } finally {
+    mapLongImageSaving.value = false
+  }
+}
+
+const parseTencentCosBuckets = (input) =>
+  Array.from(
+    new Set(
+      String(input || '')
+        .split(/[\r\n,]+/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  )
+
+const applyTencentCosConfig = (data = {}) => {
+  tencentCosForm.secretId = data?.secretId || ''
+  tencentCosForm.secretKey = ''
+  tencentCosForm.region = data?.region || ''
+  tencentCosForm.roleArn = data?.roleArn || ''
+  tencentCosForm.roleSessionName = data?.roleSessionName || ''
+  tencentCosForm.durationSeconds = Number(data?.durationSeconds) || 1800
+  tencentCosForm.bucketsText = Array.isArray(data?.buckets) ? data.buckets.join('\n') : ''
+  tencentCosConfigured.value = Boolean(data?.configured)
+}
+
+const applyTencentCosSts = (data = {}) => {
+  tencentCosStsState.tmpSecretId = data?.tmpSecretId || ''
+  tencentCosStsState.tmpSecretKey = data?.tmpSecretKey || ''
+  tencentCosStsState.sessionToken = data?.sessionToken || ''
+  tencentCosStsState.expiredTime = Number(data?.expiredTime) || 0
+  tencentCosStsState.startTime = data?.startTime || ''
+  tencentCosStsState.expiration = data?.expiration || ''
+  tencentCosStsState.region = data?.region || ''
+  tencentCosStsState.buckets = Array.isArray(data?.buckets) ? data.buckets : []
+  tencentCosStsState.durationSeconds = Number(data?.durationSeconds) || 0
+}
+
+const resetTencentCosTestResult = () => {
+  tencentCosUploadProgress.value = 0
+  tencentCosTestResult.uploadedKey = ''
+  tencentCosTestResult.uploadedUrl = ''
+  tencentCosTestResult.downloadedAt = ''
+}
+
+const loadTencentCosConfig = async () => {
+  tencentCosLoading.value = true
+  try {
+    const data = await fetchTencentCosConfig()
+    applyTencentCosConfig(data)
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      applyTencentCosConfig()
+      return
+    }
+    console.error('Failed to load Tencent COS config', error)
+    message.error(t('settings.system.tencentCos.messages.loadFailed'))
+  } finally {
+    tencentCosLoading.value = false
+  }
+}
+
+const submitTencentCosConfig = async () => {
+  tencentCosSaving.value = true
+  try {
+    const payload = {
+      secretId: String(tencentCosForm.secretId || '').trim(),
+      region: String(tencentCosForm.region || '').trim(),
+      roleArn: String(tencentCosForm.roleArn || '').trim(),
+      roleSessionName: String(tencentCosForm.roleSessionName || '').trim(),
+      durationSeconds: Number(tencentCosForm.durationSeconds) || 0,
+      buckets: parseTencentCosBuckets(tencentCosForm.bucketsText),
+    }
+    const secretKey = String(tencentCosForm.secretKey || '').trim()
+    if (secretKey) {
+      payload.secretKey = secretKey
+    }
+    await saveTencentCosConfig(payload)
+    message.success(t('settings.system.tencentCos.messages.saveSuccess'))
+    await loadTencentCosConfig()
+  } catch (error) {
+    console.error('Failed to save Tencent COS config', error)
+    message.error(t('settings.system.tencentCos.messages.saveFailed'))
+  } finally {
+    tencentCosSaving.value = false
+  }
+}
+
+const isTencentCosStsExpired = () => {
+  const expiredTime = Number(tencentCosStsState.expiredTime)
+  if (!expiredTime) return true
+  return expiredTime - Math.floor(Date.now() / 1000) <= 60
+}
+
+const loadTencentCosSts = async ({ force = false, silent = false } = {}) => {
+  if (!force && tencentCosStsFetched.value && !isTencentCosStsExpired()) {
+    return { ...tencentCosStsState }
+  }
+  tencentCosStsLoading.value = true
+  try {
+    const data = await fetchTencentCosSts()
+    applyTencentCosSts(data)
+    if (!silent) {
+      message.success(t('settings.system.tencentCos.test.messages.stsLoaded'))
+    }
+    return data
+  } catch (error) {
+    console.error('Failed to load Tencent COS STS', error)
+    if (!silent) {
+      message.error(t('settings.system.tencentCos.test.messages.stsLoadFailed'))
+    }
+    throw error
+  } finally {
+    tencentCosStsLoading.value = false
+  }
+}
+
+const createTencentCosClient = async () => {
+  const sts = await loadTencentCosSts({ silent: true })
+  return new COS({
+    SecretId: sts.tmpSecretId,
+    SecretKey: sts.tmpSecretKey,
+    SecurityToken: sts.sessionToken,
+    Protocol: 'https:',
+  })
+}
+
+const resolveTencentCosRegion = () => tencentCosStsState.region || String(tencentCosForm.region || '').trim()
+
+const makeTencentCosObjectUrl = (bucket, region, key) =>
+  `https://${bucket}.cos.${region}.myqcloud.com/${String(key || '')
+    .split('/')
+    .map((item) => encodeURIComponent(item))
+    .join('/')}`
+
+const sanitizeTencentCosObjectKey = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/\s+/g, '-')
+
+const buildTencentCosUploadKey = (file) => {
+  const fileName = sanitizeTencentCosObjectKey(file?.name || 'file')
+  return `console-test/${Date.now()}-${fileName}`
+}
+
+const putTencentCosObject = (client, params) =>
+  new Promise((resolve, reject) => {
+    client.putObject(params, (error, data) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      resolve(data)
+    })
+  })
+
+const getTencentCosObjectUrl = (client, params) =>
+  new Promise((resolve, reject) => {
+    client.getObjectUrl(params, (error, data) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      resolve(data)
+    })
+  })
+
+const handleTencentCosTestFileChange = (event) => {
+  const file = event?.target?.files?.[0] || null
+  tencentCosSelectedFile.value = file
+  resetTencentCosTestResult()
+  if (file && !String(tencentCosTestForm.uploadKey || '').trim()) {
+    tencentCosTestForm.uploadKey = buildTencentCosUploadKey(file)
+  }
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearTencentCosTestFile = () => {
+  tencentCosSelectedFile.value = null
+}
+
+const ensureTencentCosTestBucket = () => {
+  const bucket = String(tencentCosTestForm.bucket || '').trim()
+  if (!bucket) {
+    message.warning(t('settings.system.tencentCos.test.messages.bucketRequired'))
+    return ''
+  }
+  return bucket
+}
+
+const submitTencentCosUploadTest = async () => {
+  const bucket = ensureTencentCosTestBucket()
+  if (!bucket) return
+  if (!tencentCosSelectedFile.value) {
+    message.warning(t('settings.system.tencentCos.test.messages.fileRequired'))
+    return
+  }
+  const region = resolveTencentCosRegion()
+  if (!region) {
+    message.warning(t('settings.system.tencentCos.test.messages.regionRequired'))
+    return
+  }
+  const key = sanitizeTencentCosObjectKey(tencentCosTestForm.uploadKey) || buildTencentCosUploadKey(tencentCosSelectedFile.value)
+
+  tencentCosUploadTesting.value = true
+  tencentCosUploadProgress.value = 0
+  try {
+    const client = await createTencentCosClient()
+    await putTencentCosObject(client, {
+      Bucket: bucket,
+      Region: region,
+      Protocol: 'https:',
+      Key: key,
+      Body: tencentCosSelectedFile.value,
+      onProgress: (progressData) => {
+        tencentCosUploadProgress.value = Math.max(
+          0,
+          Math.min(100, Math.round((Number(progressData?.percent) || 0) * 100)),
+        )
+      },
+    })
+    const signedUrlResult = await getTencentCosObjectUrl(client, {
+      Bucket: bucket,
+      Region: region,
+      Protocol: 'https:',
+      Key: key,
+      Sign: true,
+    }).catch(() => null)
+    tencentCosTestForm.uploadKey = key
+    tencentCosTestForm.downloadKey = key
+    tencentCosTestResult.uploadedKey = key
+    tencentCosTestResult.uploadedUrl =
+      signedUrlResult?.Url || signedUrlResult || makeTencentCosObjectUrl(bucket, region, key)
+    message.success(t('settings.system.tencentCos.test.messages.uploadSuccess'))
+  } catch (error) {
+    console.error('Failed to upload Tencent COS object', error)
+    message.error(t('settings.system.tencentCos.test.messages.uploadFailed'))
+  } finally {
+    tencentCosUploadTesting.value = false
+  }
+}
+
+const runTencentCosDownloadTest = async () => {
+  const bucket = ensureTencentCosTestBucket()
+  if (!bucket) return
+  const region = resolveTencentCosRegion()
+  if (!region) {
+    message.warning(t('settings.system.tencentCos.test.messages.regionRequired'))
+    return
+  }
+  const key = sanitizeTencentCosObjectKey(tencentCosTestForm.downloadKey)
+  if (!key) {
+    message.warning(t('settings.system.tencentCos.test.messages.downloadKeyRequired'))
+    return
+  }
+
+  tencentCosDownloadTesting.value = true
+  try {
+    const client = await createTencentCosClient()
+    const result = await getTencentCosObjectUrl(client, {
+      Bucket: bucket,
+      Region: region,
+      Protocol: 'https:',
+      Key: key,
+      Sign: true,
+    })
+    const signedUrl = result?.Url || result
+    const response = await fetch(signedUrl)
+    if (!response.ok) {
+      throw new Error(`download failed with status ${response.status}`)
+    }
+    const blob = await response.blob()
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = key.split('/').pop() || 'download'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(link.href)
+    tencentCosTestResult.downloadedAt = new Date().toLocaleString()
+    message.success(t('settings.system.tencentCos.test.messages.downloadSuccess'))
+  } catch (error) {
+    console.error('Failed to download Tencent COS object', error)
+    message.error(t('settings.system.tencentCos.test.messages.downloadFailed'))
+  } finally {
+    tencentCosDownloadTesting.value = false
+  }
+}
+
+const handleMapLongImageUpload = async (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  mapLongImageUploading.value = true
+  try {
+    const result = await uploadPublicFile(file)
+    mapForm.longImageUrl = result?.url || ''
+    message.success(t('settings.mapSettlement.messages.uploadSuccess'))
+  } catch (error) {
+    console.error('Failed to upload merchant intro long image', error)
+    message.error(t('settings.mapSettlement.messages.uploadFailed'))
+  } finally {
+    mapLongImageUploading.value = false
+    if (event?.target) {
+      event.target.value = ''
+    }
+  }
+}
+
+const clearMapLongImage = () => {
+  mapForm.longImageUrl = ''
 }
 
 const loadAdThresholdConfig = async () => {
@@ -1989,6 +2422,37 @@ const loadFontFileConfig = async () => {
   }
 }
 
+const loadPosterServiceVersion = async () => {
+  posterServiceVersionLoading.value = true
+  try {
+    const data = await fetchPosterServiceVersion()
+    posterServiceVersion.value = data?.version || ''
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load poster service version', error)
+      message.error(t('settings.system.posterService.messages.loadFailed'))
+    }
+    posterServiceVersion.value = ''
+  } finally {
+    posterServiceVersionLoading.value = false
+  }
+}
+
+const handleRefreshPosterServiceVersion = async () => {
+  if (posterServiceVersionRefreshing.value) return
+  posterServiceVersionRefreshing.value = true
+  try {
+    const data = await refreshPosterServiceVersion()
+    posterServiceVersion.value = data?.version || ''
+    message.success(t('settings.system.posterService.messages.refreshSuccess'))
+  } catch (error) {
+    console.error('Failed to refresh poster service version', error)
+    message.error(t('settings.system.posterService.messages.refreshFailed'))
+  } finally {
+    posterServiceVersionRefreshing.value = false
+  }
+}
+
 const handleFontFileSelect = (event) => {
   const file = event?.target?.files?.[0]
   if (!file) return
@@ -2597,6 +3061,20 @@ watch(copyType, (next, previous) => {
   }
 })
 
+watch(
+  tencentCosAvailableBuckets,
+  (buckets) => {
+    if (!Array.isArray(buckets) || !buckets.length) {
+      tencentCosTestForm.bucket = ''
+      return
+    }
+    if (!buckets.includes(tencentCosTestForm.bucket)) {
+      tencentCosTestForm.bucket = buckets[0]
+    }
+  },
+  { immediate: true },
+)
+
 watch(reportEntryTreeFilterResult, (result) => {
   if (!reportEntrySearch.value.trim()) {
     reportEntryTreeExpandedKeys.value = reportEntryDefaultExpandedKeys
@@ -2611,6 +3089,7 @@ onMounted(() => {
   loadInviteConfig()
   loadInviteLogs()
   loadMapConfig()
+  loadTencentCosConfig()
   loadAdThresholdConfig()
   loadAdLastCrowdRecord()
   loadCopyContent()
@@ -2624,6 +3103,7 @@ onMounted(() => {
   loadUserAgreements()
   loadPrivacyPolicies()
   loadFontFileConfig()
+  loadPosterServiceVersion()
   loadEasterEggResourceConfig()
   loadLadderLeaderboard()
   loadLotteryConfig()
@@ -2755,12 +3235,271 @@ onMounted(() => {
                   <a-button type="primary" html-type="submit" :loading="mapSaving">
                     {{ t('common.actions.save') }}
                   </a-button>
-                  <a-button type="default" @click="loadMapConfig" :disabled="mapLoading || mapSaving">
+                  <a-button type="default" @click="loadMapConfig" :disabled="mapLoading || mapSaving || mapLongImageSaving">
+                    {{ t('common.actions.reset') }}
+                  </a-button>
+                </div>
+              </a-form>
+
+              <a-form :model="mapForm" layout="vertical" @finish="submitMapLongImageForm">
+                <a-row :gutter="[24, 12]">
+                  <a-col :xs="24" :md="24">
+                    <a-form-item name="longImageUrl" :label="t('settings.mapSettlement.form.longImageUrl')">
+                      <div class="lottery-upload">
+                        <label class="lottery-upload__trigger">
+                          <input class="lottery-upload__input" type="file" accept="image/*"
+                            :disabled="mapLongImageUploading || mapLongImageSaving" @change="handleMapLongImageUpload" />
+                          <a-button type="dashed" :loading="mapLongImageUploading">
+                            {{ mapForm.longImageUrl
+                              ? t('settings.mapSettlement.actions.uploadReplace')
+                              : t('settings.mapSettlement.actions.upload') }}
+                          </a-button>
+                        </label>
+                        <span v-if="mapForm.longImageUrl" class="lottery-upload__name">
+                          {{ mapForm.longImageUrl }}
+                        </span>
+                        <a-button v-if="mapForm.longImageUrl" type="link" danger size="small"
+                          @click="clearMapLongImage">
+                          {{ t('settings.mapSettlement.actions.remove') }}
+                        </a-button>
+                      </div>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div class="actions">
+                  <a-button type="primary" html-type="submit" :loading="mapLongImageSaving"
+                    :disabled="mapLongImageUploading">
+                    {{ t('common.actions.save') }}
+                  </a-button>
+                  <a-button type="default" @click="loadMapConfig"
+                    :disabled="mapLoading || mapSaving || mapLongImageSaving || mapLongImageUploading">
                     {{ t('common.actions.reset') }}
                   </a-button>
                 </div>
               </a-form>
             </a-spin>
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="tencent-cos" :tab="t('settings.tabs.tencentCos')">
+          <div class="tab-section">
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.tencentCos.title') }}</h3>
+                  <p>{{ t('settings.system.tencentCos.subtitle') }}</p>
+                </div>
+                <div class="actions actions--inline">
+                  <div class="system-settings__meta">
+                    <span class="system-settings__meta-label">
+                      {{ t('settings.system.tencentCos.configuredLabel') }}
+                    </span>
+                    <a-tag :color="tencentCosConfigured ? 'green' : 'default'">
+                      {{ tencentCosConfiguredText }}
+                    </a-tag>
+                  </div>
+                  <a-button type="default" @click="loadTencentCosConfig"
+                    :disabled="tencentCosLoading || tencentCosSaving">
+                    {{ t('settings.system.tencentCos.actions.reload') }}
+                  </a-button>
+                </div>
+              </header>
+
+              <a-spin :spinning="tencentCosLoading">
+                <a-form layout="vertical" :model="tencentCosForm" @finish="submitTencentCosConfig">
+                  <a-row :gutter="[24, 12]">
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.secretId')">
+                        <a-input v-model:value="tencentCosForm.secretId"
+                          :placeholder="t('settings.system.tencentCos.placeholders.secretId')" allow-clear />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.secretKey')">
+                        <a-input-password v-model:value="tencentCosForm.secretKey"
+                          :placeholder="t('settings.system.tencentCos.placeholders.secretKey')" allow-clear />
+                        <div class="system-font-helper">{{ t('settings.system.tencentCos.secretKeyHint') }}</div>
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.region')">
+                        <a-input v-model:value="tencentCosForm.region"
+                          :placeholder="t('settings.system.tencentCos.placeholders.region')" allow-clear />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.durationSeconds')">
+                        <a-input-number v-model:value="tencentCosForm.durationSeconds" :min="0" :step="1"
+                          style="width: 100%" :placeholder="t('settings.system.tencentCos.placeholders.durationSeconds')" />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.roleArn')">
+                        <a-input v-model:value="tencentCosForm.roleArn"
+                          :placeholder="t('settings.system.tencentCos.placeholders.roleArn')" allow-clear />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :xs="24" :md="12">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.roleSessionName')">
+                        <a-input v-model:value="tencentCosForm.roleSessionName"
+                          :placeholder="t('settings.system.tencentCos.placeholders.roleSessionName')" allow-clear />
+                      </a-form-item>
+                    </a-col>
+                    <a-col :span="24">
+                      <a-form-item :label="t('settings.system.tencentCos.fields.buckets')">
+                        <a-textarea v-model:value="tencentCosForm.bucketsText" :rows="6"
+                          :placeholder="t('settings.system.tencentCos.placeholders.buckets')" />
+                        <div class="system-font-helper">{{ t('settings.system.tencentCos.bucketHint') }}</div>
+                      </a-form-item>
+                    </a-col>
+                  </a-row>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="tencentCosSaving">
+                      {{ t('settings.system.tencentCos.actions.save') }}
+                    </a-button>
+                    <a-button type="default" @click="loadTencentCosConfig"
+                      :disabled="tencentCosLoading || tencentCosSaving">
+                      {{ t('settings.system.tencentCos.actions.reload') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.tencentCos.test.title') }}</h3>
+                  <p>{{ t('settings.system.tencentCos.test.subtitle') }}</p>
+                </div>
+                <div class="actions actions--inline">
+                  <div class="system-settings__meta">
+                    <span class="system-settings__meta-label">
+                      {{ t('settings.system.tencentCos.test.labels.stsStatus') }}
+                    </span>
+                    <a-tag :color="tencentCosStsFetched ? 'green' : 'default'">
+                      {{
+                        tencentCosStsFetched
+                          ? t('settings.system.tencentCos.test.stsReady')
+                          : t('settings.system.tencentCos.test.stsIdle')
+                      }}
+                    </a-tag>
+                  </div>
+                  <a-button type="primary" @click="loadTencentCosSts({ force: true })"
+                    :loading="tencentCosStsLoading">
+                    {{ t('settings.system.tencentCos.test.actions.fetchSts') }}
+                  </a-button>
+                </div>
+              </header>
+
+              <a-descriptions :column="2" bordered size="small">
+                <a-descriptions-item :label="t('settings.system.tencentCos.test.labels.region')">
+                  {{ tencentCosStsRegionText }}
+                </a-descriptions-item>
+                <a-descriptions-item :label="t('settings.system.tencentCos.test.labels.expiration')">
+                  {{ tencentCosStsExpirationText }}
+                </a-descriptions-item>
+                <a-descriptions-item :label="t('settings.system.tencentCos.test.labels.buckets')" :span="2">
+                  <span v-if="tencentCosAvailableBuckets.length">{{ tencentCosAvailableBuckets.join(', ') }}</span>
+                  <span v-else class="empty-hint">{{ t('settings.system.tencentCos.test.emptyValue') }}</span>
+                </a-descriptions-item>
+              </a-descriptions>
+
+              <a-form layout="vertical" :model="tencentCosTestForm">
+                <a-row :gutter="[24, 12]">
+                  <a-col :xs="24" :md="12">
+                    <a-form-item :label="t('settings.system.tencentCos.test.fields.bucket')">
+                      <a-select v-model:value="tencentCosTestForm.bucket"
+                        :options="tencentCosAvailableBuckets.map((item) => ({ label: item, value: item }))"
+                        :placeholder="t('settings.system.tencentCos.test.placeholders.bucket')"
+                        :disabled="!tencentCosAvailableBuckets.length" show-search allow-clear />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :xs="24" :md="12">
+                    <a-form-item :label="t('settings.system.tencentCos.test.fields.uploadKey')">
+                      <a-input v-model:value="tencentCosTestForm.uploadKey"
+                        :placeholder="t('settings.system.tencentCos.test.placeholders.uploadKey')" allow-clear />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="24">
+                    <a-form-item :label="t('settings.system.tencentCos.test.fields.file')">
+                      <div class="system-font-upload">
+                        <label class="system-font-upload__trigger">
+                          <input class="system-font-upload__input" type="file"
+                            :disabled="tencentCosUploadTesting || tencentCosDownloadTesting"
+                            @change="handleTencentCosTestFileChange" />
+                          <a-button type="dashed" :loading="tencentCosUploadTesting">
+                            {{
+                              tencentCosSelectedFile
+                                ? t('settings.system.tencentCos.test.actions.replaceFile')
+                                : t('settings.system.tencentCos.test.actions.selectFile')
+                            }}
+                          </a-button>
+                        </label>
+                        <span v-if="tencentCosSelectedFile" class="system-font-upload__name">
+                          {{ tencentCosSelectedFile.name }}
+                        </span>
+                        <a-button v-if="tencentCosSelectedFile" type="link" danger size="small"
+                          @click="clearTencentCosTestFile">
+                          {{ t('settings.system.tencentCos.test.actions.removeFile') }}
+                        </a-button>
+                      </div>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div v-if="tencentCosUploadTesting || tencentCosUploadProgress" class="cos-test-progress">
+                  <a-progress :percent="tencentCosUploadProgress" size="small" />
+                </div>
+                <div class="actions">
+                  <a-button type="primary" :loading="tencentCosUploadTesting" @click="submitTencentCosUploadTest">
+                    {{ t('settings.system.tencentCos.test.actions.uploadTest') }}
+                  </a-button>
+                </div>
+              </a-form>
+
+              <a-form layout="vertical" :model="tencentCosTestForm">
+                <a-row :gutter="[24, 12]">
+                  <a-col :span="24">
+                    <a-form-item :label="t('settings.system.tencentCos.test.fields.downloadKey')">
+                      <a-input v-model:value="tencentCosTestForm.downloadKey"
+                        :placeholder="t('settings.system.tencentCos.test.placeholders.downloadKey')" allow-clear />
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <div class="actions">
+                  <a-button type="primary" ghost :loading="tencentCosDownloadTesting" @click="runTencentCosDownloadTest">
+                    {{ t('settings.system.tencentCos.test.actions.downloadTest') }}
+                  </a-button>
+                </div>
+              </a-form>
+
+              <div class="cos-test-result">
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.tencentCos.test.labels.lastUploadedKey') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ tencentCosTestResult.uploadedKey || t('settings.system.tencentCos.test.emptyValue') }}
+                  </span>
+                </div>
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.tencentCos.test.labels.lastDownloadedAt') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ tencentCosTestResult.downloadedAt || t('settings.system.tencentCos.test.emptyValue') }}
+                  </span>
+                </div>
+                <div v-if="tencentCosTestResult.uploadedUrl" class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.tencentCos.test.labels.uploadedUrl') }}
+                  </span>
+                  <a :href="tencentCosTestResult.uploadedUrl" target="_blank" rel="noreferrer">
+                    {{ tencentCosTestResult.uploadedUrl }}
+                  </a>
+                </div>
+              </div>
+            </section>
           </div>
         </a-tab-pane>
 
@@ -4017,6 +4756,35 @@ onMounted(() => {
             <section class="system-settings">
               <header class="section-header">
                 <div>
+                  <h3>{{ t('settings.system.posterService.title') }}</h3>
+                  <p>{{ t('settings.system.posterService.subtitle') }}</p>
+                </div>
+                <div class="actions actions--inline">
+                  <div class="system-settings__meta">
+                    <span class="system-settings__meta-label">
+                      {{ t('settings.system.posterService.currentVersionLabel') }}
+                    </span>
+                    <span class="system-settings__meta-value">
+                      {{ posterServiceVersionDisplay }}
+                    </span>
+                  </div>
+                  <a-button type="primary" @click="handleRefreshPosterServiceVersion"
+                    :loading="posterServiceVersionRefreshing"
+                    :disabled="posterServiceVersionLoading">
+                    {{ t('settings.system.posterService.actions.pullLatest') }}
+                  </a-button>
+                  <a-button type="default" @click="loadPosterServiceVersion"
+                    :loading="posterServiceVersionLoading"
+                    :disabled="posterServiceVersionRefreshing">
+                    {{ t('settings.system.posterService.actions.reload') }}
+                  </a-button>
+                </div>
+              </header>
+            </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
                   <h3>{{ t('settings.system.easterEggResource.title') }}</h3>
                   <p>{{ t('settings.system.easterEggResource.subtitle') }}</p>
                 </div>
@@ -4288,6 +5056,13 @@ onMounted(() => {
   margin-top: 12px;
   display: flex;
   gap: 12px;
+}
+
+.actions--inline {
+  margin-top: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .amount {
@@ -4638,6 +5413,16 @@ onMounted(() => {
 .system-settings__meta-value {
   font-weight: 600;
   color: #111827;
+}
+
+.cos-test-progress {
+  margin-bottom: 12px;
+}
+
+.cos-test-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .system-font-current {

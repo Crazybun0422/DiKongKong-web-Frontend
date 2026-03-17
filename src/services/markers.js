@@ -9,6 +9,11 @@ export const MARKER_REVIEW_STATUS = {
   DRAFT: 'DRAFT',
 }
 
+export const MARKER_SORT_BY = {
+  CREATED_AT: 'CREATED_AT',
+  CERTIFICATION_EXPIRE_AT: 'CERTIFICATION_EXPIRE_AT',
+}
+
 const normalizeMarker = (marker = {}) => {
   const imageResources = normalizeFileList(marker.images)
   const attachmentResources = normalizeFileList(marker.attachments || marker.attachmentUrls)
@@ -18,6 +23,7 @@ const normalizeMarker = (marker = {}) => {
 
   return {
     ...marker,
+    rejectDetail: marker.reviewRejectDetail || marker.rejectDetail || '',
     images: imageResources.map((item) => item.url),
     imageResources,
     attachments: attachmentResources,
@@ -38,6 +44,7 @@ export const fetchMarkers = async ({
   size = 10,
   status = MARKER_REVIEW_STATUS.ALL,
   sortOrder = 'DESC',
+  sortBy = MARKER_SORT_BY.CREATED_AT,
   draft,
 } = {}) => {
   const params = {
@@ -51,6 +58,10 @@ export const fetchMarkers = async ({
 
   if (sortOrder) {
     params.sortOrder = sortOrder
+  }
+
+  if (sortBy) {
+    params.sortBy = sortBy
   }
 
   if (typeof draft === 'boolean') {
@@ -71,16 +82,21 @@ export const fetchMarkers = async ({
   }
 }
 
-export const reviewMarker = async (markerId, status) => {
+export const reviewMarker = async (markerId, status, rejectDetail) => {
   if (!markerId) throw new Error('markerId is required')
+  const payload = { status }
+  if (typeof rejectDetail === 'string' && rejectDetail.trim()) {
+    payload.rejectDetail = rejectDetail.trim()
+  }
   if (import.meta.env.DEV) {
     console.info('[reviewMarker] request', {
       baseURL: http.defaults.baseURL,
       markerId,
       status,
+      rejectDetail: payload.rejectDetail,
     })
   }
-  const { data } = await http.post(`/markers/${markerId}/review`, { status })
+  const { data } = await http.post(`/markers/${markerId}/review`, payload)
   return normalizeMarker(data?.data)
 }
 
@@ -93,4 +109,5 @@ export default {
   fetchMarkers,
   reviewMarker,
   fetchPendingMarkersCount,
+  MARKER_SORT_BY,
 }

@@ -10,6 +10,14 @@ const dom = {
   resumeTaskBtn: document.getElementById('resumeTaskBtn'),
   pauseBtn: document.getElementById('pauseBtn'),
   stopBtn: document.getElementById('stopBtn'),
+  browseSplitKmlBtn: document.getElementById('browseSplitKmlBtn'),
+  browseSplitOutputBtn: document.getElementById('browseSplitOutputBtn'),
+  loadSplitPreviewKmlBtn: document.getElementById('loadSplitPreviewKmlBtn'),
+  clearSplitPreviewKmlBtn: document.getElementById('clearSplitPreviewKmlBtn'),
+  startSplitBtn: document.getElementById('startSplitBtn'),
+  startCompressBtn: document.getElementById('startCompressBtn'),
+  splitPreviewKmlInput: document.getElementById('splitPreviewKmlInput'),
+  splitKmlDirectoryInput: document.getElementById('splitKmlDirectoryInput'),
   startDrawBtn: document.getElementById('startDrawBtn'),
   finishDrawBtn: document.getElementById('finishDrawBtn'),
   undoAnchorBtn: document.getElementById('undoAnchorBtn'),
@@ -24,6 +32,9 @@ const dom = {
   downloadCurrentBtn: document.getElementById('downloadCurrentBtn'),
   downloadRangeBtn: document.getElementById('downloadRangeBtn'),
   workspacePathInput: document.getElementById('workspacePathInput'),
+  splitKmlRootInput: document.getElementById('splitKmlRootInput'),
+  splitOutputPathInput: document.getElementById('splitOutputPathInput'),
+  splitPreviewKmlLabel: document.getElementById('splitPreviewKmlLabel'),
   startZoomInput: document.getElementById('startZoomInput'),
   endZoomInput: document.getElementById('endZoomInput'),
   concurrencyInput: document.getElementById('concurrencyInput'),
@@ -49,6 +60,17 @@ const dom = {
   downloadChunkLabel: document.getElementById('downloadChunkLabel'),
   countChunkLabel: document.getElementById('countChunkLabel'),
   progressBar: document.getElementById('progressBar'),
+  splitProgressText: document.getElementById('splitProgressText'),
+  splitProgressPercentText: document.getElementById('splitProgressPercentText'),
+  splitProgressBar: document.getElementById('splitProgressBar'),
+  splitPackageTotalLabel: document.getElementById('splitPackageTotalLabel'),
+  splitPackageCompletedLabel: document.getElementById('splitPackageCompletedLabel'),
+  splitZipCompletedLabel: document.getElementById('splitZipCompletedLabel'),
+  splitZipSkippedLabel: document.getElementById('splitZipSkippedLabel'),
+  splitProcessedTileLabel: document.getElementById('splitProcessedTileLabel'),
+  splitCopiedTileLabel: document.getElementById('splitCopiedTileLabel'),
+  splitSkippedTileLabel: document.getElementById('splitSkippedTileLabel'),
+  splitCurrentPackageLabel: document.getElementById('splitCurrentPackageLabel'),
   anchorList: document.getElementById('anchorList'),
   polygonLibraryList: document.getElementById('polygonLibraryList'),
   eventList: document.getElementById('eventList'),
@@ -73,6 +95,12 @@ const state = {
   workspacePath: '',
   activeRequests: 0,
   running: false,
+  packageTask: null,
+  splitKmlFiles: [],
+  splitKmlSelectionLabel: '',
+  splitPreviewPolygons: [],
+  splitPreviewOverlays: [],
+  splitPreviewFileName: '',
   pendingAction: '',
   overlayRange: { minZoom: 6, maxZoom: 7 },
   events: [],
@@ -88,6 +116,9 @@ const ACTION_BUTTONS = {
   resumeTask: dom.resumeTaskBtn,
   pauseTask: dom.pauseBtn,
   stopTask: dom.stopBtn,
+  browseSplitOutput: dom.browseSplitOutputBtn,
+  startSplitPackages: dom.startSplitBtn,
+  startCompressPackages: dom.startCompressBtn,
   startCurrentDownload: dom.downloadCurrentBtn,
   startRangeDownload: dom.downloadRangeBtn,
 }
@@ -459,6 +490,74 @@ function estimatePolygonWeight(points = []) {
   return Math.abs(area / 2)
 }
 
+function clearSplitPreviewOverlays() {
+  state.splitPreviewOverlays.forEach((overlay) => overlay?.setMap?.(null))
+  state.splitPreviewOverlays = []
+}
+
+function fitMapToPolygons(polygons = []) {
+  if (!state.map || !window.qq?.maps?.LatLngBounds) return
+  const bounds = new window.qq.maps.LatLngBounds()
+  let hasPoint = false
+  polygons.forEach((polygon) => {
+    normalizePolygonPoints(polygon).forEach((point) => {
+      bounds.extend(new window.qq.maps.LatLng(point.latitude, point.longitude))
+      hasPoint = true
+    })
+  })
+  if (hasPoint) state.map.fitBounds(bounds)
+}
+
+function renderSplitPreviewOverlays() {
+  clearSplitPreviewOverlays()
+  if (!state.map || !window.qq?.maps || !state.splitPreviewPolygons.length) return
+  state.splitPreviewOverlays = state.splitPreviewPolygons
+    .filter((polygon) => polygon.length >= 3)
+    .map((polygon) => new window.qq.maps.Polygon({
+      map: state.map,
+      path: polygon.map((point) => new window.qq.maps.LatLng(point.latitude, point.longitude)),
+      strokeColor: toQqColor('#e0c24f', 0.88),
+      strokeWeight: 2,
+      strokeOpacity: 0.88,
+      fillColor: toQqColor('#fff3a6', 0.3),
+      fillOpacity: 0.3,
+      zIndex: 4,
+    }))
+}
+
+function updateSplitPreviewLabel() {
+  if (!dom.splitPreviewKmlLabel) return
+  if (!state.splitPreviewPolygons.length) {
+    dom.splitPreviewKmlLabel.textContent = '未加载预览 KML'
+    return
+  }
+  dom.splitPreviewKmlLabel.textContent = `${state.splitPreviewFileName || '未命名 KML'} | ${state.splitPreviewPolygons.length} 个区域`
+}
+
+function clearSplitPreview({ silent = false } = {}) {
+  clearSplitPreviewOverlays()
+  state.splitPreviewPolygons = []
+  state.splitPreviewFileName = ''
+  updateSplitPreviewLabel()
+  refreshButtons()
+  if (!silent) {
+    setStatus('已清除 KML 预览区域。')
+  }
+}
+
+async function loadSplitPreviewKml(file) {
+  if (!file) return
+  const text = await file.text()
+  const polygons = parseKmlText(text, file.name.replace(/\.kml$/i, '') || 'Split Preview')
+  state.splitPreviewPolygons = polygons.map((polygon) => normalizePolygonPoints(polygon.points)).filter((polygon) => polygon.length >= 3)
+  state.splitPreviewFileName = String(file.name || '未命名 KML')
+  updateSplitPreviewLabel()
+  renderSplitPreviewOverlays()
+  fitMapToPolygons(state.splitPreviewPolygons)
+  refreshButtons()
+  setStatus(`已加载 KML 预览：${state.splitPreviewFileName}，共 ${state.splitPreviewPolygons.length} 个区域。`)
+}
+
 function clearSavedPolygonOverlays() {
   state.savedPolygonOverlays.forEach((overlay) => overlay?.setMap?.(null))
   state.savedPolygonOverlays = []
@@ -659,35 +758,47 @@ function refreshButtons() {
   const hasPolygon = anchorCount >= 3
   const hasTaskPolygons = getTaskPolygons().length > 0
   const hasWorkspace = Boolean((dom.workspacePathInput.value || state.workspacePath || '').trim())
+  const hasSplitKmlRoot = state.splitKmlFiles.length > 0
+  const hasSplitOutput = Boolean((dom.splitOutputPathInput.value || '').trim() || hasWorkspace)
   const taskStatus = state.taskState?.status || ''
   const running = ['running', 'stopping', 'pausing'].includes(taskStatus)
+  const packageStatus = state.packageTask?.status || ''
+  const packageRunning = ['running', 'preparing', 'zipping'].includes(packageStatus)
   const pending = Boolean(state.pendingAction)
   const resumeAvailable = Boolean(state.taskState && ['paused', 'stopped', 'failed', 'ready'].includes(taskStatus))
 
-  dom.workspacePathInput.disabled = pending || running
-  dom.startZoomInput.disabled = pending || running
-  dom.endZoomInput.disabled = pending || running
-  dom.concurrencyInput.disabled = pending || running
-  dom.highZoomStageStartInput.disabled = pending || running
-  dom.highZoomStageEndInput.disabled = pending || running
-  dom.autoShutdownInput.disabled = pending || running
+  dom.workspacePathInput.disabled = true
+  dom.splitKmlRootInput.disabled = true
+  dom.splitOutputPathInput.disabled = true
+  dom.startZoomInput.disabled = pending || running || packageRunning
+  dom.endZoomInput.disabled = pending || running || packageRunning
+  dom.concurrencyInput.disabled = pending || running || packageRunning
+  dom.highZoomStageStartInput.disabled = pending || running || packageRunning
+  dom.highZoomStageEndInput.disabled = pending || running || packageRunning
+  dom.autoShutdownInput.disabled = pending || running || packageRunning
 
-  dom.pickDirBtn.disabled = pending || running
-  dom.reloadTaskBtn.disabled = pending || running || !hasWorkspace
-  dom.startDrawBtn.disabled = pending || !state.mapReady || running
-  dom.finishDrawBtn.disabled = pending || !state.mapReady || running || !state.drawMode
-  dom.undoAnchorBtn.disabled = pending || running || anchorCount === 0
-  dom.clearAnchorsBtn.disabled = pending || running || anchorCount === 0
-  dom.importKmlBtn.disabled = pending || running
-  dom.importKmlBatchBtn.disabled = pending || running
-  dom.savePolygonBtn.disabled = pending || running || !hasPolygon
-  dom.exportCurrentKmlBtn.disabled = pending || !hasPolygon
-  dom.exportBatchKmlBtn.disabled = pending || (!state.savedPolygons.length && !hasPolygon)
-  dom.downloadCurrentBtn.disabled = pending || !state.mapReady || !hasTaskPolygons || !hasWorkspace || running
-  dom.downloadRangeBtn.disabled = pending || !state.mapReady || !hasTaskPolygons || !hasWorkspace || running
+  dom.pickDirBtn.disabled = pending || running || packageRunning
+  dom.reloadTaskBtn.disabled = pending || running || packageRunning || !hasWorkspace
+  dom.loadSplitPreviewKmlBtn.disabled = pending || !state.mapReady || running || packageRunning
+  dom.clearSplitPreviewKmlBtn.disabled = pending || running || packageRunning || !state.splitPreviewPolygons.length
+  dom.browseSplitKmlBtn.disabled = pending || running || packageRunning || !hasWorkspace
+  dom.browseSplitOutputBtn.disabled = pending || running || packageRunning || !hasWorkspace
+  dom.startSplitBtn.disabled = pending || running || packageRunning || !hasWorkspace || !hasSplitKmlRoot
+  dom.startCompressBtn.disabled = pending || running || packageRunning || !hasWorkspace || !hasSplitOutput
+  dom.startDrawBtn.disabled = pending || !state.mapReady || running || packageRunning
+  dom.finishDrawBtn.disabled = pending || !state.mapReady || running || packageRunning || !state.drawMode
+  dom.undoAnchorBtn.disabled = pending || running || packageRunning || anchorCount === 0
+  dom.clearAnchorsBtn.disabled = pending || running || packageRunning || anchorCount === 0
+  dom.importKmlBtn.disabled = pending || running || packageRunning
+  dom.importKmlBatchBtn.disabled = pending || running || packageRunning
+  dom.savePolygonBtn.disabled = pending || running || packageRunning || !hasPolygon
+  dom.exportCurrentKmlBtn.disabled = pending || packageRunning || !hasPolygon
+  dom.exportBatchKmlBtn.disabled = pending || packageRunning || (!state.savedPolygons.length && !hasPolygon)
+  dom.downloadCurrentBtn.disabled = pending || !state.mapReady || !hasTaskPolygons || !hasWorkspace || running || packageRunning
+  dom.downloadRangeBtn.disabled = pending || !state.mapReady || !hasTaskPolygons || !hasWorkspace || running || packageRunning
   dom.pauseBtn.disabled = pending || taskStatus !== 'running'
-  dom.stopBtn.disabled = pending || !running
-  dom.resumeTaskBtn.disabled = pending || !resumeAvailable || running
+  dom.stopBtn.disabled = pending || !running || packageRunning
+  dom.resumeTaskBtn.disabled = pending || !resumeAvailable || running || packageRunning
 }
 
 function setButtonLoading(actionName, loading) {
@@ -767,6 +878,76 @@ function refreshProgress() {
   renderEventList(state.events)
 }
 
+function refreshSplitProgress() {
+  const task = state.packageTask
+  if (!task) {
+    dom.splitProgressText.textContent = '尚未开始分包'
+    dom.splitProgressPercentText.textContent = '0%'
+    dom.splitPackageTotalLabel.textContent = '0'
+    dom.splitPackageCompletedLabel.textContent = '0'
+    dom.splitZipCompletedLabel.textContent = '0'
+    dom.splitZipSkippedLabel.textContent = '0'
+    dom.splitProcessedTileLabel.textContent = '0'
+    dom.splitCopiedTileLabel.textContent = '0'
+    dom.splitSkippedTileLabel.textContent = '0'
+    dom.splitCurrentPackageLabel.textContent = '-'
+    dom.splitProgressBar.style.width = '0%'
+    return
+  }
+
+  const totalTiles = Number(task.totalTiles || 0)
+  const processedTiles = Number(task.processedTiles || 0)
+  const totalPackages = Number(task.totalPackages || 0)
+  const zippedPackages = Number(task.zippedPackages || 0)
+  const skippedZipPackages = Number(task.skippedZipPackages || 0)
+  const zipHandledPackages = Number(task.completedPackages || 0)
+  const phase = String(task.phase || '')
+  const mode = String(task.mode || 'split')
+  const tilePercent = totalTiles > 0 ? processedTiles / totalTiles : 0
+  const zipPercent = totalPackages > 0 ? zipHandledPackages / totalPackages : 0
+  let percent = 0
+
+  if (mode === 'compress') {
+    if (phase === 'scan-packages') {
+      percent = 5
+    } else if (phase === 'zipping') {
+      percent = 10 + (zipPercent * 80)
+    } else if (phase === 'bundling') {
+      percent = 95
+    } else if (phase === 'completed' || task.status === 'completed') {
+      percent = 100
+    } else if (phase === 'failed' || task.status === 'failed') {
+      percent = clamp(zipPercent * 90, 0, 99)
+    }
+  } else if (phase === 'scan-kml') {
+    percent = 2
+  } else if (phase === 'scan-tiles') {
+    percent = 8
+  } else if (phase === 'copying') {
+    percent = 10 + (tilePercent * 70)
+  } else if (phase === 'zipping') {
+    percent = 80 + (zipPercent * 15)
+  } else if (phase === 'bundling') {
+    percent = 95
+  } else if (phase === 'completed' || task.status === 'completed') {
+    percent = 100
+  } else if (phase === 'failed' || task.status === 'failed') {
+    percent = clamp((tilePercent * 70) + (zipPercent * 15), 0, 99)
+  }
+
+  dom.splitProgressText.textContent = `${task.status || 'idle'} | ${task.phaseLabel || task.phase || '等待中'}`
+  dom.splitProgressPercentText.textContent = `${percent.toFixed(2).replace(/\.?0+$/, '')}%`
+  dom.splitPackageTotalLabel.textContent = String(totalPackages)
+  dom.splitPackageCompletedLabel.textContent = String(Number(task.completedPackages || 0))
+  dom.splitZipCompletedLabel.textContent = String(zippedPackages)
+  dom.splitZipSkippedLabel.textContent = String(skippedZipPackages)
+  dom.splitProcessedTileLabel.textContent = String(processedTiles)
+  dom.splitCopiedTileLabel.textContent = String(Number(task.copiedTiles || 0))
+  dom.splitSkippedTileLabel.textContent = String(Number(task.skippedTiles || 0))
+  dom.splitCurrentPackageLabel.textContent = task.currentPackageName || '-'
+  dom.splitProgressBar.style.width = `${percent}%`
+}
+
 function parseRangeInputs() {
   let startZoom = Math.round(toNumber(dom.startZoomInput.value, 6))
   let endZoom = Math.round(toNumber(dom.endZoomInput.value, 18))
@@ -829,12 +1010,48 @@ async function requestJson(url, options = {}) {
   return payload.data
 }
 
+async function chooseDirectory({ title, initialPath } = {}) {
+  const data = await requestJson('/api/dialog/select-directory', {
+    method: 'POST',
+    body: {
+      title,
+      initialPath,
+    },
+  })
+  return String(data?.path || '').trim()
+}
+
+function formatSplitKmlSelectionLabel(files = []) {
+  const normalizedFiles = Array.isArray(files) ? files : []
+  if (!normalizedFiles.length) return ''
+  const firstRelativePath = String(normalizedFiles[0]?.webkitRelativePath || normalizedFiles[0]?.relativePath || normalizedFiles[0]?.name || '')
+  const rootName = firstRelativePath.split('/')[0] || firstRelativePath.split('\\')[0] || '已选目录'
+  return `${rootName}（${normalizedFiles.length} 个 KML）`
+}
+
+function setSplitKmlSelection(files = []) {
+  state.splitKmlFiles = Array.from(files || []).filter((file) => /\.kml$/i.test(file?.name || ''))
+  state.splitKmlSelectionLabel = formatSplitKmlSelectionLabel(state.splitKmlFiles)
+  dom.splitKmlRootInput.value = state.splitKmlSelectionLabel || ''
+  refreshButtons()
+}
+
+async function serializeSelectedKmlFiles(files = []) {
+  const normalizedFiles = Array.from(files || []).filter((file) => /\.kml$/i.test(file?.name || ''))
+  return Promise.all(normalizedFiles.map(async (file) => ({
+    name: String(file.name || ''),
+    relativePath: String(file.webkitRelativePath || file.relativePath || file.name || ''),
+    content: await file.text(),
+  })))
+}
+
 function applySnapshot(snapshot, { syncAnchors = false } = {}) {
   if (!snapshot) return
   state.workspacePath = snapshot.workspacePath || ''
   state.taskState = snapshot.taskState || null
   state.activeRequests = Number(snapshot.activeRequests || 0)
   state.running = Boolean(snapshot.running)
+  state.packageTask = snapshot.packageTask || null
   state.overlayRange = snapshot.overlay || state.overlayRange
   state.events = Array.isArray(snapshot.events) ? snapshot.events : []
   state.liveChunks = Array.isArray(snapshot.liveChunks) ? snapshot.liveChunks : []
@@ -844,6 +1061,9 @@ function applySnapshot(snapshot, { syncAnchors = false } = {}) {
   syncHighZoomStageInputs()
   dom.autoShutdownInput.checked = Boolean(snapshot.taskState?.options?.autoShutdown)
   dom.dirLabel.textContent = state.workspacePath || '未设置'
+  dom.workspacePathInput.value = state.workspacePath || ''
+  dom.splitKmlRootInput.value = snapshot.packageTask?.kmlRootPath || state.splitKmlSelectionLabel || ''
+  dom.splitOutputPathInput.value = snapshot.packageTask?.outputPath || dom.splitOutputPathInput.value || snapshot.splitOutputDefaultPath || ''
   syncSavedPolygonsFromTask(state.taskState)
   if (syncAnchors) {
     const editablePolygon = normalizePolygonPoints(state.taskState?.polygon || state.taskState?.polygons?.[0] || [])
@@ -853,6 +1073,7 @@ function applySnapshot(snapshot, { syncAnchors = false } = {}) {
   }
   state.overlayVersion += 1
   refreshProgress()
+  refreshSplitProgress()
   refreshButtons()
   syncOfflineLayerForCurrentZoom()
 }
@@ -889,13 +1110,43 @@ function connectWebSocket() {
 
 async function applyWorkspace() {
   return withPendingAction('applyWorkspace', async () => {
-    const basePath = String(dom.workspacePathInput.value || '').trim()
+    setStatus('正在打开下载目录选择器...')
+    const basePath = await chooseDirectory({
+      title: '选择离线瓦片下载目录',
+      initialPath: String(dom.workspacePathInput.value || state.workspacePath || '').trim(),
+    })
     if (!basePath) {
-      throw new Error('请先填写服务端下载目录')
+      setStatus('已取消目录选择。')
+      return
     }
+    dom.workspacePathInput.value = basePath
     const data = await requestJson('/api/workspace', { method: 'POST', body: { basePath } })
     applySnapshot(data, { syncAnchors: true })
     setStatus(`服务端目录已应用：${data.workspacePath}`)
+  })
+}
+
+async function pickSplitKmlDirectory() {
+  dom.splitKmlDirectoryInput.click()
+}
+
+async function pickSplitPreviewKml() {
+  dom.splitPreviewKmlInput.click()
+}
+
+async function pickSplitOutputDirectory() {
+  return withPendingAction('browseSplitOutput', async () => {
+    const selectedPath = await chooseDirectory({
+      title: '选择分包输出目录',
+      initialPath: String(dom.splitOutputPathInput.value || state.workspacePath || '').trim(),
+    })
+    if (!selectedPath) {
+      setStatus('已取消输出目录选择。')
+      return
+    }
+    dom.splitOutputPathInput.value = selectedPath
+    refreshButtons()
+    setStatus(`分包输出目录已选择：${selectedPath}`)
   })
 }
 
@@ -932,6 +1183,40 @@ async function stopTask() {
     const data = await requestJson('/api/task/stop', { method: 'POST' })
     applySnapshot(data)
     setStatus('已向服务端发送停止请求。')
+  })
+}
+
+async function startSplitPackages() {
+  return withPendingAction('startSplitPackages', async () => {
+    if (!state.splitKmlFiles.length) {
+      throw new Error('请先选择 KML 根目录')
+    }
+    const outputPath = String(dom.splitOutputPathInput.value || '').trim()
+    const kmlFiles = await serializeSelectedKmlFiles(state.splitKmlFiles)
+    const data = await requestJson('/api/task/split-packages', {
+      method: 'POST',
+      body: {
+        kmlRootPath: state.splitKmlSelectionLabel || '浏览器已选目录',
+        kmlFiles,
+        outputPath,
+      },
+    })
+    applySnapshot(data)
+    setStatus('KML 分包任务已启动，进度将通过 WebSocket 实时更新。')
+  })
+}
+
+async function startCompressPackages() {
+  return withPendingAction('startCompressPackages', async () => {
+    const outputPath = String(dom.splitOutputPathInput.value || '').trim()
+    const data = await requestJson('/api/task/compress-packages', {
+      method: 'POST',
+      body: {
+        outputPath,
+      },
+    })
+    applySnapshot(data)
+    setStatus('分包压缩任务已启动，进度将通过 WebSocket 实时更新。')
   })
 }
 
@@ -1043,6 +1328,7 @@ async function initMap() {
   dom.zoomLabel.textContent = `Z${DEFAULT_ZOOM}`
   dom.mapStateLabel.textContent = '腾讯地图已加载'
   ensureOfflineMapType()
+  renderSplitPreviewOverlays()
 
   window.qq.maps.event.addListener(state.map, 'click', (event) => {
     if (!state.drawMode) return
@@ -1063,6 +1349,12 @@ async function initMap() {
 function bindEvents() {
   dom.pickDirBtn.addEventListener('click', () => applyWorkspace().catch((error) => setStatus(error.message || String(error))))
   dom.reloadTaskBtn.addEventListener('click', () => reloadWorkspace().catch((error) => setStatus(error.message || String(error))))
+  dom.loadSplitPreviewKmlBtn.addEventListener('click', () => pickSplitPreviewKml().catch((error) => setStatus(error.message || String(error))))
+  dom.clearSplitPreviewKmlBtn.addEventListener('click', () => clearSplitPreview())
+  dom.browseSplitKmlBtn.addEventListener('click', () => pickSplitKmlDirectory().catch((error) => setStatus(error.message || String(error))))
+  dom.browseSplitOutputBtn.addEventListener('click', () => pickSplitOutputDirectory().catch((error) => setStatus(error.message || String(error))))
+  dom.startSplitBtn.addEventListener('click', () => startSplitPackages().catch((error) => setStatus(error.message || String(error))))
+  dom.startCompressBtn.addEventListener('click', () => startCompressPackages().catch((error) => setStatus(error.message || String(error))))
   dom.resumeTaskBtn.addEventListener('click', () => resumeTask().catch((error) => setStatus(error.message || String(error))))
   dom.pauseBtn.addEventListener('click', () => pauseTask().catch((error) => setStatus(error.message || String(error))))
   dom.highZoomStageStartInput.addEventListener('input', () => syncHighZoomStageInputs('start'))
@@ -1114,6 +1406,27 @@ function bindEvents() {
       event.target.value = ''
     }
   })
+  dom.splitKmlDirectoryInput.addEventListener('change', (event) => {
+    try {
+      setSplitKmlSelection(event.target.files)
+      if (state.splitKmlFiles.length) {
+        setStatus(`已选择 KML 目录：${state.splitKmlSelectionLabel}`)
+      } else {
+        setStatus('所选目录中没有找到 KML 文件。')
+      }
+    } finally {
+      event.target.value = ''
+    }
+  })
+  dom.splitPreviewKmlInput.addEventListener('change', async (event) => {
+    try {
+      await loadSplitPreviewKml(event.target.files?.[0])
+    } catch (error) {
+      setStatus(error.message || String(error))
+    } finally {
+      event.target.value = ''
+    }
+  })
   dom.polygonLibraryList?.addEventListener('click', (event) => {
     const action = event.target?.dataset?.action
     const polygonId = event.target?.dataset?.id
@@ -1148,8 +1461,10 @@ async function bootstrap() {
   renderAnchorList([])
   renderPolygonLibrary()
   renderEventList([])
+  updateSplitPreviewLabel()
   syncHighZoomStageInputs()
   refreshProgress()
+  refreshSplitProgress()
   refreshButtons()
 
   if (window.location.protocol === 'file:') {

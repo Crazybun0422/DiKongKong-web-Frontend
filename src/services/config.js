@@ -25,6 +25,16 @@ export const saveMapSettlementConfig = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchMerchantIntroLongImageConfig = async () => {
+  const response = await http.get('/config/merchant-intro-long-image')
+  return normalizePagePayload(response, { imageUrl: '' })
+}
+
+export const saveMerchantIntroLongImageConfig = async (payload) => {
+  const response = await http.put('/config/merchant-intro-long-image', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchOpenPlatformCopy = async () => {
   const response = await http.get('/config/open-platform-copy')
   return normalizePagePayload(response, { content: '' })
@@ -32,6 +42,36 @@ export const fetchOpenPlatformCopy = async () => {
 
 export const saveOpenPlatformCopy = async (payload) => {
   const response = await http.put('/config/open-platform-copy', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchPlanetMerchantAdvancedGuideCopy = async () => {
+  const response = await http.get('/config/planet-merchant-advanced-guide')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const savePlanetMerchantAdvancedGuideCopy = async (payload) => {
+  const response = await http.put('/config/planet-merchant-advanced-guide', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchPlanetCreationAdvancedGuideCopy = async () => {
+  const response = await http.get('/config/planet-creation-advanced-guide')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const savePlanetCreationAdvancedGuideCopy = async (payload) => {
+  const response = await http.put('/config/planet-creation-advanced-guide', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchShareToPlatformCopy = async () => {
+  const response = await http.get('/config/share-to-platform-copy')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveShareToPlatformCopy = async (payload) => {
+  const response = await http.put('/config/share-to-platform-copy', payload)
   return normalizePagePayload(response, {})
 }
 
@@ -105,6 +145,39 @@ export const saveGuideUrls = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchTencentCosConfig = async () => {
+  const response = await http.get('/tencent-cos/config')
+  return normalizePagePayload(response, {
+    secretId: '',
+    region: '',
+    roleArn: '',
+    roleSessionName: '',
+    buckets: [],
+    durationSeconds: 0,
+    configured: false,
+  })
+}
+
+export const saveTencentCosConfig = async (payload) => {
+  const response = await http.put('/tencent-cos/config', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchTencentCosSts = async () => {
+  const response = await http.get('/tencent-cos/sts')
+  return normalizePagePayload(response, {
+    tmpSecretId: '',
+    tmpSecretKey: '',
+    sessionToken: '',
+    expiredTime: 0,
+    startTime: '',
+    expiration: '',
+    region: '',
+    buckets: [],
+    durationSeconds: 0,
+  })
+}
+
 export const fetchFontFileConfig = async () => {
   const response = await http.get('/config/font-file')
   return normalizePagePayload(response, {})
@@ -137,6 +210,16 @@ export const uploadEasterEggResourceConfig = async (file, version) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchPosterServiceVersion = async () => {
+  const response = await http.get('/config/poster-service-version')
+  return normalizePagePayload(response, {})
+}
+
+export const refreshPosterServiceVersion = async () => {
+  const response = await http.post('/config/poster-service-version/refresh')
+  return normalizePagePayload(response, {})
+}
+
 export const fetchPinReviewRewardConfig = async () => {
   const response = await http.get('/config/pin-review-reward')
   return normalizePagePayload(response, { approvedARewardFlp: 0, approvedBRewardFlp: 0 })
@@ -144,6 +227,16 @@ export const fetchPinReviewRewardConfig = async () => {
 
 export const savePinReviewRewardConfig = async (payload) => {
   const response = await http.put('/config/pin-review-reward', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchPinVideoUploadFlpLimitConfig = async () => {
+  const response = await http.get('/config/pin-video-upload-flp-limit')
+  return normalizePagePayload(response, { threshold: 0, updatedAt: null })
+}
+
+export const savePinVideoUploadFlpLimitConfig = async (payload) => {
+  const response = await http.put('/config/pin-video-upload-flp-limit', payload)
   return normalizePagePayload(response, {})
 }
 
@@ -186,8 +279,16 @@ export default {
   saveInviteConfig,
   fetchMapSettlementConfig,
   saveMapSettlementConfig,
+  fetchMerchantIntroLongImageConfig,
+  saveMerchantIntroLongImageConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchPlanetMerchantAdvancedGuideCopy,
+  savePlanetMerchantAdvancedGuideCopy,
+  fetchPlanetCreationAdvancedGuideCopy,
+  savePlanetCreationAdvancedGuideCopy,
+  fetchShareToPlatformCopy,
+  saveShareToPlatformCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
@@ -202,12 +303,19 @@ export default {
   saveCoordinateSystemDescriptionCopy,
   fetchGuideUrls,
   saveGuideUrls,
+  fetchTencentCosConfig,
+  saveTencentCosConfig,
+  fetchTencentCosSts,
   fetchFontFileConfig,
   uploadFontFileConfig,
   fetchEasterEggResourceConfig,
   uploadEasterEggResourceConfig,
+  fetchPosterServiceVersion,
+  refreshPosterServiceVersion,
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
+  fetchPinVideoUploadFlpLimitConfig,
+  savePinVideoUploadFlpLimitConfig,
   fetchTemplateSettings,
   saveTemplateSetting,
   saveTemplateSettingsBatch,

@@ -1,8 +1,10 @@
 ﻿import { createHash } from 'node:crypto'
 import http from 'node:http'
 import fs from 'node:fs/promises'
-import { createReadStream } from 'node:fs'
+import { createReadStream, createWriteStream } from 'node:fs'
 import { execFile } from 'node:child_process'
+import { once } from 'node:events'
+import { availableParallelism, cpus } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
@@ -50,6 +52,7 @@ const TASK_METADATA_FILE = 'metadata.json'
 const ANCHOR_MODEL_FILE = 'anchor-model.json'
 const TILE_ROOT_DIR = 'tiles'
 const CHUNK_STATE_DIR = 'chunk-state'
+const SPLIT_OUTPUT_DIR = 'split-packages'
 const MAX_EVENTS = 80
 const RETRY_BASE_DELAY_MS = 20
 const RETRY_MAX_DELAY_MS = 100
@@ -64,6 +67,28 @@ const PROGRESS_BROADCAST_INTERVAL_MS = 250
 const COUNT_PROGRESS_STEP = 100000
 const HIGH_ZOOM_STAGE_MIN_ZOOM = 15
 const STAGE_BUCKET_SCALE = 10000
+const ZIP_MAX_CONCURRENCY = Number(process.env.OFFLINE_TILE_ZIP_MAX_CONCURRENCY || 4)
+const TILE_LAYER_PARAM_CACHE_MAX = 5000
+const ZIP_STORE_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.bmp',
+  '.tif',
+  '.tiff',
+  '.avif',
+  '.mp4',
+  '.mov',
+  '.zip',
+  '.kmz',
+  '.gz',
+  '.br',
+  '.woff',
+  '.woff2',
+  '.ttf',
+])
 const CHUNK_STATUS_PRIORITY = {
   pending: 0,
   counting: 1,
@@ -88,12 +113,27 @@ const runtime = {
   countWorkerDonePromise: null,
   countWorkerError: null,
   liveChunks: new Map(),
+  packagePromise: null,
+  packageTaskState: null,
 }
 
 const PROVINCE_LAYER_RECORDS = buildProvinceLayerRecords(
   JSON.parse(await fs.readFile(CHINA_GEOJSON_PATH, 'utf8')),
 )
 const TILE_LAYER_PARAM_CACHE = new Map()
+
+function resolveZipConcurrency() {
+  const manualConcurrency = Number(process.env.OFFLINE_TILE_ZIP_CONCURRENCY || 0)
+  if (Number.isFinite(manualConcurrency) && manualConcurrency > 0) {
+    return Math.max(1, Math.floor(manualConcurrency))
+  }
+  const cpuCount = typeof availableParallelism === 'function' ? availableParallelism() : (cpus()?.length || 1)
+  if (process.platform === 'win32') return 1
+  if (cpuCount <= 2) return 1
+  return Math.max(1, Math.min(ZIP_MAX_CONCURRENCY, cpuCount - 1))
+}
+
+const ZIP_CONCURRENCY = resolveZipConcurrency()
 
 function getLiveChunkKey(phase, chunkKey) {
   return `${phase}:${chunkKey}`
@@ -257,12 +297,17 @@ function buildSnapshotTaskState(taskContext) {
 }
 
 function makeSnapshot() {
+  const splitOutputDefaultPath = runtime.workspacePath
+    ? path.join(runtime.workspacePath, SPLIT_OUTPUT_DIR)
+    : ''
   return {
     ok: true,
     data: {
       workspacePath: runtime.workspacePath,
       workspaceLabel: runtime.workspacePath ? path.basename(runtime.workspacePath) : '',
       taskState: buildSnapshotTaskState(runtime.taskContext || null),
+      packageTask: runtime.packageTaskState ? JSON.parse(JSON.stringify(runtime.packageTaskState)) : null,
+      splitOutputDefaultPath,
       activeRequests: runtime.activeAbortControllers.size,
       running: Boolean(runtime.runPromise),
       overlay: { minZoom: OVERLAY_MIN_ZOOM, maxZoom: OVERLAY_MAX_ZOOM },
@@ -1028,7 +1073,13 @@ function getTileLayerParams(cacheKey, bbox) {
     return TILE_LAYER_PARAM_CACHE.get(cacheKey)
   }
   const params = buildProvinceLayerParams(PROVINCE_LAYER_RECORDS, bbox)
-  if (cacheKey) TILE_LAYER_PARAM_CACHE.set(cacheKey, params)
+  if (cacheKey) {
+    TILE_LAYER_PARAM_CACHE.set(cacheKey, params)
+    if (TILE_LAYER_PARAM_CACHE.size > TILE_LAYER_PARAM_CACHE_MAX) {
+      const oldestKey = TILE_LAYER_PARAM_CACHE.keys().next().value
+      if (oldestKey) TILE_LAYER_PARAM_CACHE.delete(oldestKey)
+    }
+  }
   return params
 }
 
@@ -1084,6 +1135,24 @@ function buildWmsTileEntry(x, y, zoom) {
     src: `${CAAC_BASE}?${query}`,
     bounds,
     provinceCodes,
+  }
+}
+
+function buildTileBoundsEntry(x, y, zoom) {
+  const requestBBox = buildTileRequestBBox(x, y, zoom)
+  const wgsSW = mercatorToLonLat(requestBBox[0], requestBBox[1])
+  const wgsNE = mercatorToLonLat(requestBBox[2], requestBBox[3])
+  const gcjSW = wgs84ToGcj02(wgsSW.lng, wgsSW.lat)
+  const gcjNE = wgs84ToGcj02(wgsNE.lng, wgsNE.lat)
+  return {
+    id: `${zoom}-${x}-${y}`,
+    zoom,
+    x,
+    y,
+    bounds: {
+      southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
+      northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
+    },
   }
 }
 
@@ -1517,6 +1586,1052 @@ function execFileAsync(command, args) {
       resolve({ stdout, stderr })
     })
   })
+}
+
+async function openDirectorySelectionDialog({ title = '选择目录', initialPath = '' } = {}) {
+  if (process.platform !== 'win32') {
+    throw new Error('当前仅在 Windows 环境支持原生目录选择')
+  }
+  const dialogTitle = JSON.stringify(String(title || '选择目录'))
+  const dialogInitialPath = JSON.stringify(String(initialPath || ''))
+  const script = [
+    '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
+    'Add-Type -AssemblyName System.Windows.Forms',
+    '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
+    `$dialog.Description = ${dialogTitle}`,
+    '$dialog.ShowNewFolderButton = $true',
+    `$initialPath = ${dialogInitialPath}`,
+    'if ($initialPath -and (Test-Path -LiteralPath $initialPath -PathType Container)) { $dialog.SelectedPath = $initialPath }',
+    '$result = $dialog.ShowDialog()',
+    'if ($result -eq [System.Windows.Forms.DialogResult]::OK -and $dialog.SelectedPath) { [Console]::Out.Write($dialog.SelectedPath) }',
+  ].join('; ')
+  const { stdout } = await execFileAsync('powershell.exe', [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-STA',
+    '-Command',
+    script,
+  ])
+  return String(stdout || '').trim()
+}
+
+function decodeXmlEntities(value = '') {
+  return String(value)
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&')
+}
+
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function collectTagBlocks(xml = '', localName = '') {
+  const pattern = new RegExp(`<(?:[\\w.-]+:)?${escapeRegExp(localName)}\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?${escapeRegExp(localName)}>`, 'gi')
+  return Array.from(String(xml).matchAll(pattern), (match) => String(match[0] || ''))
+}
+
+function extractTagTexts(xml = '', localName = '') {
+  const pattern = new RegExp(`<(?:[\\w.-]+:)?${escapeRegExp(localName)}\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?${escapeRegExp(localName)}>`, 'gi')
+  return Array.from(String(xml).matchAll(pattern), (match) => decodeXmlEntities(String(match[1] || '').trim()))
+}
+
+function sanitizeFileSegment(value = '', fallback = 'unnamed') {
+  const sanitized = String(value || '')
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return sanitized || fallback
+}
+
+function parseKmlCoordinateText(text = '') {
+  const points = String(text || '')
+    .trim()
+    .split(/\s+/)
+    .map((row) => row.split(','))
+    .map(([longitude, latitude]) => normalizeGcjPoint({ longitude, latitude }))
+    .filter(Boolean)
+  if (points.length >= 2) {
+    const first = points[0]
+    const last = points[points.length - 1]
+    if (first && last && first.latitude === last.latitude && first.longitude === last.longitude) {
+      points.pop()
+    }
+  }
+  return points.length >= 3 ? points : []
+}
+
+function parseKmlPolygons(text = '', fallbackName = 'Imported') {
+  const xml = String(text || '')
+  const placemarks = collectTagBlocks(xml, 'Placemark')
+  const polygonSources = placemarks.length ? placemarks : [xml]
+  const polygons = []
+
+  polygonSources.forEach((placemark, placemarkIndex) => {
+    const baseName = sanitizeFileSegment(
+      extractTagTexts(placemark, 'name')[0] || `${fallbackName}-${placemarkIndex + 1}`,
+      `${fallbackName}-${placemarkIndex + 1}`,
+    )
+    const polygonBlocks = collectTagBlocks(placemark, 'Polygon')
+    const polygonContainers = polygonBlocks.length ? polygonBlocks : [placemark]
+    polygonContainers.forEach((polygonBlock, polygonIndex) => {
+      const outerBlocks = collectTagBlocks(polygonBlock, 'outerBoundaryIs')
+      const coordinateTexts = (outerBlocks.length ? outerBlocks : [polygonBlock])
+        .flatMap((block) => extractTagTexts(block, 'coordinates'))
+      coordinateTexts.forEach((coordinateText) => {
+        const points = parseKmlCoordinateText(coordinateText)
+        if (points.length < 3) return
+        polygons.push({
+          name: polygonContainers.length > 1 ? `${baseName}-${polygonIndex + 1}` : baseName,
+          points,
+        })
+      })
+    })
+  })
+
+  if (!polygons.length) {
+    throw new Error('KML 中没有可用的 Polygon')
+  }
+  return polygons
+}
+
+async function collectKmlFiles(rootDir, currentDir = rootDir, bucket = []) {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = path.join(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      await collectKmlFiles(rootDir, fullPath, bucket)
+      continue
+    }
+    if (/\.kml$/i.test(entry.name)) {
+      bucket.push(fullPath)
+    }
+  }
+  return bucket
+}
+
+function mergeZoomBounds(boundsList = []) {
+  if (!boundsList.length) return null
+  return {
+    xMin: Math.min(...boundsList.map((item) => item.xMin)),
+    xMax: Math.max(...boundsList.map((item) => item.xMax)),
+    yMin: Math.min(...boundsList.map((item) => item.yMin)),
+    yMax: Math.max(...boundsList.map((item) => item.yMax)),
+  }
+}
+
+function buildPackageZoomBounds(polygons = []) {
+  const zoomBounds = {}
+  for (let zoom = WMS_MIN_ZOOM; zoom <= WMS_MAX_ZOOM; zoom += 1) {
+    const boundsList = polygons
+      .map((polygon) => computeZoomScanBounds(polygon, zoom))
+      .filter(Boolean)
+    const merged = mergeZoomBounds(boundsList)
+    if (merged) zoomBounds[String(zoom)] = merged
+  }
+  return zoomBounds
+}
+
+async function buildSplitPackages(kmlRootPath, outputPath) {
+  const kmlFiles = await collectKmlFiles(kmlRootPath)
+  const packages = []
+
+  for (const filePath of kmlFiles) {
+    try {
+      const raw = await fs.readFile(filePath, 'utf8')
+      const fileName = path.basename(filePath, path.extname(filePath))
+      const polygons = parseKmlPolygons(raw, sanitizeFileSegment(fileName, 'package'))
+        .map((item) => item.points)
+        .filter((points) => points.length >= 3)
+      if (!polygons.length) continue
+      const relativeFilePath = path.relative(kmlRootPath, filePath)
+      const relativeDir = path.dirname(relativeFilePath) === '.' ? '' : path.dirname(relativeFilePath)
+      const packageName = sanitizeFileSegment(fileName, 'package')
+      const packageDir = path.join(outputPath, relativeDir, packageName)
+      const zipPath = path.join(outputPath, relativeDir, `${packageName}.zip`)
+      packages.push({
+        filePath,
+        relativeFilePath,
+        relativeDir,
+        packageName,
+        displayName: relativeDir ? path.join(relativeDir, packageName) : packageName,
+        packageDir,
+        zipPath,
+        polygons,
+        zoomBounds: buildPackageZoomBounds(polygons),
+        copiedTiles: 0,
+        changed: false,
+      })
+    } catch (error) {
+      pushRuntimeEvent('package-split-kml-skip', `跳过 KML：${path.relative(kmlRootPath, filePath)}，原因：${error.message || error}`)
+    }
+  }
+
+  if (!packages.length) {
+    throw new Error('指定目录下没有可用的 KML Polygon 文件')
+  }
+  return packages
+}
+
+function normalizeUploadedKmlFiles(files = []) {
+  return (Array.isArray(files) ? files : [])
+    .map((file) => ({
+      name: String(file?.name || ''),
+      relativePath: String(file?.relativePath || file?.webkitRelativePath || file?.name || ''),
+      content: String(file?.content || ''),
+    }))
+    .filter((file) => /\.kml$/i.test(file.name || file.relativePath) && file.content)
+}
+
+async function buildSplitPackagesFromUploadedFiles(kmlFiles = [], outputPath, rootLabel = '浏览器已选目录') {
+  const normalizedFiles = normalizeUploadedKmlFiles(kmlFiles)
+  const packages = []
+
+  for (const file of normalizedFiles) {
+    try {
+      const fileName = path.basename(file.name || file.relativePath, path.extname(file.name || file.relativePath))
+      const polygons = parseKmlPolygons(file.content, sanitizeFileSegment(fileName, 'package'))
+        .map((item) => item.points)
+        .filter((points) => points.length >= 3)
+      if (!polygons.length) continue
+      const normalizedRelativePath = String(file.relativePath || file.name || '').replace(/\\/g, '/')
+      const relativeFilePath = normalizedRelativePath.replace(/^[^/]+\//, '')
+      const relativeDirRaw = path.posix.dirname(relativeFilePath)
+      const relativeDir = relativeDirRaw === '.' ? '' : relativeDirRaw
+      const packageName = sanitizeFileSegment(fileName, 'package')
+      const packageDir = path.join(outputPath, ...relativeDir.split('/').filter(Boolean), packageName)
+      const zipPath = path.join(outputPath, ...relativeDir.split('/').filter(Boolean), `${packageName}.zip`)
+      packages.push({
+        filePath: '',
+        fileContent: file.content,
+        relativeFilePath,
+        relativeDir,
+        packageName,
+        displayName: relativeDir ? `${relativeDir}/${packageName}` : packageName,
+        packageDir,
+        zipPath,
+        polygons,
+        zoomBounds: buildPackageZoomBounds(polygons),
+        copiedTiles: 0,
+        changed: false,
+      })
+    } catch (error) {
+      pushRuntimeEvent('package-split-kml-skip', `跳过 KML：${file.relativePath || file.name}，原因：${error.message || error}`, {
+        kmlRootPath: rootLabel,
+      })
+    }
+  }
+
+  if (!packages.length) {
+    throw new Error('所选目录中没有可用的 KML Polygon 文件')
+  }
+  return packages
+}
+
+function parseTileRelativePath(relativePath = '') {
+  const normalized = String(relativePath).split(path.sep)
+  if (normalized.length < 3) return null
+  const [zoomSegment, xSegment, ySegment] = normalized.slice(-3)
+  const zoomMatch = /^z(\d+)$/i.exec(zoomSegment || '')
+  const xMatch = /^x(\d+)$/i.exec(xSegment || '')
+  const yMatch = /^y(\d+)\.png$/i.exec(ySegment || '')
+  if (!zoomMatch || !xMatch || !yMatch) return null
+  return {
+    zoom: Number(zoomMatch[1]),
+    x: Number(xMatch[1]),
+    y: Number(yMatch[1]),
+  }
+}
+
+async function walkTileFiles(tileRootDir, visitor, currentDir = tileRootDir) {
+  const entries = await fs.readdir(currentDir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = path.join(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      await walkTileFiles(tileRootDir, visitor, fullPath)
+      continue
+    }
+    if (!/\.png$/i.test(entry.name)) continue
+    const relativePath = path.relative(tileRootDir, fullPath)
+    const tileMeta = parseTileRelativePath(relativePath)
+    if (!tileMeta) continue
+    await visitor({
+      ...tileMeta,
+      fullPath,
+      relativePath,
+    })
+  }
+}
+
+function getMotherTileCountFromTaskContext(taskContext) {
+  const direct = Number(taskContext?.taskState?.progress?.downloadedTiles || 0)
+  if (direct > 0) return direct
+
+  let total = 0
+  for (const levelState of Object.values(taskContext?.taskState?.levels || {})) {
+    total += Number(levelState?.downloaded || 0)
+  }
+  return total
+}
+
+function createPackageTaskState(patch = {}) {
+  return {
+    mode: 'split',
+    status: 'idle',
+    phase: 'idle',
+    phaseLabel: '等待中',
+    workspacePath: runtime.workspacePath,
+    sourceTileRoot: '',
+    kmlRootPath: '',
+    outputPath: '',
+    totalPackages: 0,
+    completedPackages: 0,
+    zippedPackages: 0,
+    skippedZipPackages: 0,
+    totalTiles: 0,
+    processedTiles: 0,
+    copiedTiles: 0,
+    skippedTiles: 0,
+    currentPackageName: '',
+    currentTile: '',
+    bundleZipPath: '',
+    startedAt: null,
+    finishedAt: null,
+    error: '',
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+function updatePackageTaskState(patch = {}, { replace = false } = {}) {
+  runtime.packageTaskState = replace
+    ? createPackageTaskState(patch)
+    : {
+      ...(runtime.packageTaskState || createPackageTaskState()),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    }
+  scheduleBroadcast()
+  return runtime.packageTaskState
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256)
+  for (let index = 0; index < 256; index += 1) {
+    let value = index
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = (value & 1) ? (0xEDB88320 ^ (value >>> 1)) : (value >>> 1)
+    }
+    table[index] = value >>> 0
+  }
+  return table
+})()
+
+function updateCrc32(previous, chunk) {
+  let crc = (previous ^ 0xFFFFFFFF) >>> 0
+  for (let index = 0; index < chunk.length; index += 1) {
+    crc = CRC32_TABLE[(crc ^ chunk[index]) & 0xFF] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0
+}
+
+function toDosDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value || Date.now())
+  const year = Math.max(1980, date.getFullYear())
+  const month = Math.min(Math.max(date.getMonth() + 1, 1), 12)
+  const day = Math.min(Math.max(date.getDate(), 1), 31)
+  const hours = Math.min(Math.max(date.getHours(), 0), 23)
+  const minutes = Math.min(Math.max(date.getMinutes(), 0), 59)
+  const seconds = Math.min(Math.max(Math.floor(date.getSeconds() / 2), 0), 29)
+  return {
+    dosTime: (hours << 11) | (minutes << 5) | seconds,
+    dosDate: ((year - 1980) << 9) | (month << 5) | day,
+  }
+}
+
+function writeUInt64LE(buffer, value, offset) {
+  buffer.writeBigUInt64LE(BigInt(Math.max(0, Number(value || 0))), offset)
+}
+
+async function writeBufferWithBackpressure(stream, buffer) {
+  if (!stream.write(buffer)) {
+    await once(stream, 'drain')
+  }
+}
+
+async function createStoredZip(entries = [], zipPath) {
+  const normalizedEntries = Array.isArray(entries) ? entries.filter((entry) => entry?.filePath && entry?.entryName) : []
+  if (!normalizedEntries.length) {
+    throw new Error('没有可用于压缩的文件')
+  }
+  if (await fileExists(zipPath)) {
+    await fs.rm(zipPath, { force: true })
+  }
+  await ensureDir(path.dirname(zipPath))
+
+  const tempZipPath = `${zipPath}.tmp`
+  await fs.rm(tempZipPath, { force: true })
+
+  const output = createWriteStream(tempZipPath)
+  let offset = 0
+  const centralEntries = []
+
+  try {
+    for (const entry of normalizedEntries) {
+      const stats = await fs.stat(entry.filePath)
+      if (!stats.isFile()) continue
+
+      const nameBuffer = Buffer.from(String(entry.entryName).replace(/\\/g, '/'), 'utf8')
+      const { dosTime, dosDate } = toDosDateTime(stats.mtime)
+      const fileSize = stats.size
+      const localHeaderOffset = offset
+      const needsZip64 = fileSize > 0xFFFFFFFF || localHeaderOffset > 0xFFFFFFFF
+      const flags = 0x0808
+      const localHeader = Buffer.alloc(30)
+      localHeader.writeUInt32LE(0x04034B50, 0)
+      localHeader.writeUInt16LE(needsZip64 ? 45 : 20, 4)
+      localHeader.writeUInt16LE(flags, 6)
+      localHeader.writeUInt16LE(0, 8)
+      localHeader.writeUInt16LE(dosTime, 10)
+      localHeader.writeUInt16LE(dosDate, 12)
+      localHeader.writeUInt32LE(0, 14)
+      localHeader.writeUInt32LE(0, 18)
+      localHeader.writeUInt32LE(0, 22)
+      localHeader.writeUInt16LE(nameBuffer.length, 26)
+      localHeader.writeUInt16LE(0, 28)
+      await writeBufferWithBackpressure(output, localHeader)
+      await writeBufferWithBackpressure(output, nameBuffer)
+      offset += localHeader.length + nameBuffer.length
+
+      let crc32 = 0
+      let writtenSize = 0
+      const input = createReadStream(entry.filePath)
+      for await (const chunk of input) {
+        crc32 = updateCrc32(crc32, chunk)
+        writtenSize += chunk.length
+        await writeBufferWithBackpressure(output, chunk)
+        offset += chunk.length
+      }
+
+      const descriptor = Buffer.alloc(needsZip64 ? 24 : 16)
+      descriptor.writeUInt32LE(0x08074B50, 0)
+      descriptor.writeUInt32LE(crc32 >>> 0, 4)
+      if (needsZip64) {
+        writeUInt64LE(descriptor, writtenSize, 8)
+        writeUInt64LE(descriptor, writtenSize, 16)
+      } else {
+        descriptor.writeUInt32LE(writtenSize >>> 0, 8)
+        descriptor.writeUInt32LE(writtenSize >>> 0, 12)
+      }
+      await writeBufferWithBackpressure(output, descriptor)
+      offset += descriptor.length
+
+      centralEntries.push({
+        nameBuffer,
+        crc32,
+        size: writtenSize,
+        compressedSize: writtenSize,
+        localHeaderOffset,
+        dosTime,
+        dosDate,
+        needsZip64,
+      })
+    }
+
+    const centralDirectoryOffset = offset
+    let centralDirectorySize = 0
+
+    for (const entry of centralEntries) {
+      const zip64PayloadSize = entry.needsZip64 ? 24 : 0
+      const extraFieldSize = entry.needsZip64 ? 4 + zip64PayloadSize : 0
+      const centralHeader = Buffer.alloc(46)
+      centralHeader.writeUInt32LE(0x02014B50, 0)
+      centralHeader.writeUInt16LE(entry.needsZip64 ? 45 : 20, 4)
+      centralHeader.writeUInt16LE(entry.needsZip64 ? 45 : 20, 6)
+      centralHeader.writeUInt16LE(0x0808, 8)
+      centralHeader.writeUInt16LE(0, 10)
+      centralHeader.writeUInt16LE(entry.dosTime, 12)
+      centralHeader.writeUInt16LE(entry.dosDate, 14)
+      centralHeader.writeUInt32LE(entry.crc32 >>> 0, 16)
+      centralHeader.writeUInt32LE(entry.needsZip64 ? 0xFFFFFFFF : (entry.compressedSize >>> 0), 20)
+      centralHeader.writeUInt32LE(entry.needsZip64 ? 0xFFFFFFFF : (entry.size >>> 0), 24)
+      centralHeader.writeUInt16LE(entry.nameBuffer.length, 28)
+      centralHeader.writeUInt16LE(extraFieldSize, 30)
+      centralHeader.writeUInt16LE(0, 32)
+      centralHeader.writeUInt16LE(0, 34)
+      centralHeader.writeUInt16LE(0, 36)
+      centralHeader.writeUInt32LE(0, 38)
+      centralHeader.writeUInt32LE(entry.needsZip64 ? 0xFFFFFFFF : (entry.localHeaderOffset >>> 0), 42)
+      await writeBufferWithBackpressure(output, centralHeader)
+      await writeBufferWithBackpressure(output, entry.nameBuffer)
+      centralDirectorySize += centralHeader.length + entry.nameBuffer.length
+
+      if (entry.needsZip64) {
+        const extraField = Buffer.alloc(extraFieldSize)
+        extraField.writeUInt16LE(0x0001, 0)
+        extraField.writeUInt16LE(zip64PayloadSize, 2)
+        writeUInt64LE(extraField, entry.size, 4)
+        writeUInt64LE(extraField, entry.compressedSize, 12)
+        writeUInt64LE(extraField, entry.localHeaderOffset, 20)
+        await writeBufferWithBackpressure(output, extraField)
+        centralDirectorySize += extraField.length
+      }
+    }
+    offset += centralDirectorySize
+
+    const needsZip64 = centralEntries.length > 0xFFFF
+      || centralDirectorySize > 0xFFFFFFFF
+      || centralDirectoryOffset > 0xFFFFFFFF
+      || centralEntries.some((entry) => entry.needsZip64)
+
+    if (needsZip64) {
+      const zip64EocdOffset = offset
+      const zip64Eocd = Buffer.alloc(56)
+      zip64Eocd.writeUInt32LE(0x06064B50, 0)
+      writeUInt64LE(zip64Eocd, 44, 4)
+      zip64Eocd.writeUInt16LE(45, 12)
+      zip64Eocd.writeUInt16LE(45, 14)
+      zip64Eocd.writeUInt32LE(0, 16)
+      zip64Eocd.writeUInt32LE(0, 20)
+      writeUInt64LE(zip64Eocd, centralEntries.length, 24)
+      writeUInt64LE(zip64Eocd, centralEntries.length, 32)
+      writeUInt64LE(zip64Eocd, centralDirectorySize, 40)
+      writeUInt64LE(zip64Eocd, centralDirectoryOffset, 48)
+      await writeBufferWithBackpressure(output, zip64Eocd)
+      offset += zip64Eocd.length
+
+      const zip64Locator = Buffer.alloc(20)
+      zip64Locator.writeUInt32LE(0x07064B50, 0)
+      zip64Locator.writeUInt32LE(0, 4)
+      writeUInt64LE(zip64Locator, zip64EocdOffset, 8)
+      zip64Locator.writeUInt32LE(1, 16)
+      await writeBufferWithBackpressure(output, zip64Locator)
+      offset += zip64Locator.length
+    }
+
+    const eocd = Buffer.alloc(22)
+    eocd.writeUInt32LE(0x06054B50, 0)
+    eocd.writeUInt16LE(0, 4)
+    eocd.writeUInt16LE(0, 6)
+    eocd.writeUInt16LE(Math.min(centralEntries.length, 0xFFFF), 8)
+    eocd.writeUInt16LE(Math.min(centralEntries.length, 0xFFFF), 10)
+    eocd.writeUInt32LE(needsZip64 ? 0xFFFFFFFF : (centralDirectorySize >>> 0), 12)
+    eocd.writeUInt32LE(needsZip64 ? 0xFFFFFFFF : (centralDirectoryOffset >>> 0), 16)
+    eocd.writeUInt16LE(0, 20)
+    await writeBufferWithBackpressure(output, eocd)
+
+    output.end()
+    await once(output, 'close')
+    await fs.rename(tempZipPath, zipPath)
+  } catch (error) {
+    output.destroy()
+    await fs.rm(tempZipPath, { force: true }).catch(() => {})
+    throw error
+  }
+}
+
+async function createZipFromDirectory(sourceDir, zipPath) {
+  const entries = []
+  const rootDirName = path.basename(sourceDir)
+  const pendingDirs = ['']
+
+  while (pendingDirs.length > 0) {
+    const currentRelativeDir = pendingDirs.pop() || ''
+    const currentAbsoluteDir = currentRelativeDir
+      ? path.join(sourceDir, currentRelativeDir)
+      : sourceDir
+    const dirEntries = await fs.readdir(currentAbsoluteDir, { withFileTypes: true })
+
+    for (const entry of dirEntries) {
+      const relativePath = currentRelativeDir
+        ? `${currentRelativeDir.replace(/\\/g, '/')}/${entry.name}`
+        : entry.name
+      const absolutePath = path.join(currentAbsoluteDir, entry.name)
+
+      if (entry.isDirectory()) {
+        pendingDirs.push(relativePath)
+        continue
+      }
+      if (!entry.isFile()) {
+        continue
+      }
+
+      entries.push({
+        filePath: absolutePath,
+        entryName: `${rootDirName}/${relativePath}`,
+        shouldStore: ZIP_STORE_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
+      })
+    }
+  }
+
+  await createStoredZip(entries, zipPath)
+}
+
+async function createZipFromFiles(files = [], zipPath, baseDir = '') {
+  const normalizedFiles = Array.isArray(files)
+    ? files.map((file) => path.resolve(String(file || ''))).filter(Boolean)
+    : []
+  if (!normalizedFiles.length) {
+    throw new Error('没有可用于汇总打包的压缩包')
+  }
+
+  const normalizedBaseDir = baseDir ? path.resolve(baseDir) : ''
+  const entries = normalizedFiles.map((filePath) => ({
+    filePath,
+    entryName: (normalizedBaseDir
+      ? path.relative(normalizedBaseDir, filePath)
+      : path.basename(filePath)).replace(/\\/g, '/'),
+    shouldStore: true,
+  }))
+  await createStoredZip(entries, zipPath)
+}
+
+async function isUsableZipFile(zipPath) {
+  try {
+    const stats = await fs.stat(zipPath)
+    if (!stats.isFile() || stats.size < 22) {
+      return false
+    }
+
+    const handle = await fs.open(zipPath, 'r')
+    try {
+      const header = Buffer.alloc(4)
+      await handle.read(header, 0, 4, 0)
+      const headerSignature = header.readUInt32LE(0)
+      const validHeaderSignatures = new Set([0x04034b50, 0x06054b50, 0x08074b50])
+      if (!validHeaderSignatures.has(headerSignature)) {
+        return false
+      }
+
+      const tailSize = Math.min(stats.size, 65557)
+      const tailBuffer = Buffer.alloc(tailSize)
+      await handle.read(tailBuffer, 0, tailSize, stats.size - tailSize)
+      for (let index = tailSize - 22; index >= 0; index -= 1) {
+        if (tailBuffer.readUInt32LE(index) === 0x06054b50) {
+          return true
+        }
+      }
+      return false
+    } finally {
+      await handle.close()
+    }
+  } catch (_error) {
+    return false
+  }
+}
+
+async function collectExistingPackageDirectories(outputPath) {
+  const resolvedOutputPath = path.resolve(outputPath)
+  if (!await fileExists(resolvedOutputPath)) {
+    throw new Error('分包输出目录不存在')
+  }
+
+  const packages = []
+  const pendingDirs = [{ absolutePath: resolvedOutputPath, relativePath: '' }]
+
+  while (pendingDirs.length > 0) {
+    const current = pendingDirs.pop()
+    const entries = await fs.readdir(current.absolutePath, { withFileTypes: true })
+    const hasKmlFile = entries.some((entry) => entry.isFile() && /\.kml$/i.test(entry.name))
+    const hasTileDir = entries.some((entry) => entry.isDirectory() && entry.name === TILE_ROOT_DIR)
+
+    if (current.relativePath && (hasKmlFile || hasTileDir)) {
+      const packageName = path.basename(current.absolutePath)
+      const relativeDirRaw = path.dirname(current.relativePath)
+      const relativeDir = relativeDirRaw === '.' ? '' : relativeDirRaw
+      packages.push({
+        relativeDir,
+        relativeFilePath: '',
+        packageName,
+        displayName: current.relativePath.replace(/\\/g, '/'),
+        packageDir: current.absolutePath,
+        zipPath: path.join(path.dirname(current.absolutePath), `${packageName}.zip`),
+        polygons: [],
+        zoomBounds: {},
+        copiedTiles: 0,
+        changed: false,
+      })
+      continue
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name === TILE_ROOT_DIR || entry.name === TASK_META_DIR || entry.name === CHUNK_STATE_DIR) continue
+      pendingDirs.push({
+        absolutePath: path.join(current.absolutePath, entry.name),
+        relativePath: current.relativePath ? path.join(current.relativePath, entry.name) : entry.name,
+      })
+    }
+  }
+
+  if (!packages.length) {
+    throw new Error('输出目录中没有可压缩的分包目录')
+  }
+
+  packages.sort((left, right) => left.displayName.localeCompare(right.displayName, 'zh-CN'))
+  return packages
+}
+
+function buildBundleZipPath(outputPath) {
+  const baseName = sanitizeFileSegment(path.basename(outputPath), 'split-packages')
+  return path.join(outputPath, `${baseName}.zip`)
+}
+
+async function zipPackagesAndCreateBundle(packages, outputPath) {
+  let rebuiltPackageCount = 0
+  updatePackageTaskState({
+    status: 'zipping',
+    phase: 'zipping',
+    phaseLabel: `压缩分包目录（并行 ${Math.min(ZIP_CONCURRENCY, Math.max(packages.length, 1))}）`,
+    currentTile: '',
+  })
+
+  await processPackagesWithConcurrency(packages, async (pkg) => {
+    updatePackageTaskState({
+      currentPackageName: pkg.displayName,
+    })
+    const hasValidZip = await isUsableZipFile(pkg.zipPath)
+    if (pkg.changed || !hasValidZip) {
+      await createZipFromDirectory(pkg.packageDir, pkg.zipPath)
+      rebuiltPackageCount += 1
+      updatePackageTaskState({
+        zippedPackages: Number(runtime.packageTaskState?.zippedPackages || 0) + 1,
+      })
+      pushRuntimeEvent(
+        'package-split-package',
+        `分包 ${pkg.displayName} 已重打包。`,
+        {
+          packageName: pkg.displayName,
+          copiedTiles: pkg.copiedTiles,
+          zipPath: pkg.zipPath,
+        },
+      )
+    } else {
+      updatePackageTaskState({
+        skippedZipPackages: Number(runtime.packageTaskState?.skippedZipPackages || 0) + 1,
+      })
+      pushRuntimeEvent(
+        'package-split-package-skip',
+        `分包 ${pkg.displayName} 已有有效压缩包，已跳过重打包。`,
+        {
+          packageName: pkg.displayName,
+          zipPath: pkg.zipPath,
+        },
+      )
+    }
+    updatePackageTaskState({
+      completedPackages: Number(runtime.packageTaskState?.completedPackages || 0) + 1,
+      currentPackageName: pkg.displayName,
+    })
+  })
+
+  const bundleZipPath = buildBundleZipPath(outputPath)
+  updatePackageTaskState({
+    status: 'zipping',
+    phase: 'bundling',
+    phaseLabel: '汇总全部压缩包',
+    currentPackageName: path.basename(bundleZipPath),
+    bundleZipPath,
+  })
+
+  const zipFiles = []
+  for (const pkg of packages) {
+    if (await isUsableZipFile(pkg.zipPath)) {
+      zipFiles.push(pkg.zipPath)
+    }
+  }
+  const hasValidBundleZip = await isUsableZipFile(bundleZipPath)
+  if (rebuiltPackageCount > 0 || !hasValidBundleZip) {
+    await createZipFromFiles(zipFiles, bundleZipPath, outputPath)
+    pushRuntimeEvent('package-split-bundle', '已生成最外层汇总压缩包。', {
+      bundleZipPath,
+      zipCount: zipFiles.length,
+    })
+  } else {
+    pushRuntimeEvent('package-split-bundle-skip', '最外层汇总压缩包已存在且有效，已跳过重打包。', {
+      bundleZipPath,
+      zipCount: zipFiles.length,
+    })
+  }
+}
+
+async function writeTextFileIfChanged(targetPath, content) {
+  const nextContent = String(content ?? '')
+  try {
+    const currentContent = await fs.readFile(targetPath, 'utf8')
+    if (currentContent === nextContent) {
+      return false
+    }
+  } catch (_error) {
+    // ignore missing file
+  }
+  await ensureDir(path.dirname(targetPath))
+  await fs.writeFile(targetPath, nextContent, 'utf8')
+  return true
+}
+
+async function processPackagesWithConcurrency(packages = [], handler, concurrency = ZIP_CONCURRENCY) {
+  if (!packages.length) return
+  const workerCount = Math.max(1, Math.min(concurrency, packages.length))
+  let nextIndex = 0
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      if (currentIndex >= packages.length) return
+      await handler(packages[currentIndex], currentIndex)
+    }
+  })
+
+  await Promise.all(workers)
+}
+
+async function runSplitPackagesTask({ kmlRootPath, outputPath, kmlFiles }) {
+  ensureTaskIdle()
+  if (!runtime.workspacePath || !runtime.taskContext?.taskDir) {
+    throw new Error('请先选择并加载下载目录')
+  }
+
+  const sourceTileRoot = path.join(runtime.taskContext.taskDir, TILE_ROOT_DIR)
+  if (!await fileExists(sourceTileRoot)) {
+    throw new Error('当前下载目录中没有可用的母包瓦片')
+  }
+
+  const uploadedKmlFiles = normalizeUploadedKmlFiles(kmlFiles)
+  const rawKmlRoot = String(kmlRootPath || '').trim()
+  const useUploadedFiles = uploadedKmlFiles.length > 0
+  const resolvedKmlRoot = useUploadedFiles ? (rawKmlRoot || '浏览器已选目录') : path.resolve(rawKmlRoot)
+  if (!useUploadedFiles && (!resolvedKmlRoot || !await fileExists(resolvedKmlRoot))) {
+    throw new Error('KML 根目录不存在')
+  }
+  const resolvedOutputPath = path.resolve(String(outputPath || '').trim() || path.join(runtime.workspacePath, SPLIT_OUTPUT_DIR))
+
+  runtime.events = []
+  updatePackageTaskState({
+    mode: 'split',
+    status: 'preparing',
+    phase: 'scan-kml',
+    phaseLabel: '解析 KML',
+    workspacePath: runtime.workspacePath,
+    sourceTileRoot,
+    kmlRootPath: resolvedKmlRoot,
+    outputPath: resolvedOutputPath,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    error: '',
+    totalPackages: 0,
+    completedPackages: 0,
+    zippedPackages: 0,
+    skippedZipPackages: 0,
+    totalTiles: 0,
+    processedTiles: 0,
+    copiedTiles: 0,
+    skippedTiles: 0,
+    currentPackageName: '',
+    currentTile: '',
+  }, { replace: true })
+
+  pushRuntimeEvent('package-split-start', '开始按 KML 目录分包。', {
+    kmlRootPath: resolvedKmlRoot,
+    outputPath: resolvedOutputPath,
+  })
+
+  runtime.packagePromise = (async () => {
+    try {
+      const packages = useUploadedFiles
+        ? await buildSplitPackagesFromUploadedFiles(uploadedKmlFiles, resolvedOutputPath, resolvedKmlRoot)
+        : await buildSplitPackages(resolvedKmlRoot, resolvedOutputPath)
+      const totalTiles = getMotherTileCountFromTaskContext(runtime.taskContext)
+      updatePackageTaskState({
+        totalPackages: packages.length,
+        totalTiles,
+        phase: 'copying',
+        phaseLabel: totalTiles > 0 ? '按交集复制瓦片' : '按交集扫描并复制瓦片',
+        status: 'running',
+      })
+
+      for (const pkg of packages) {
+        await ensureDir(pkg.packageDir)
+        if (!await fileExists(pkg.zipPath)) {
+          pkg.changed = true
+        }
+        const kmlTargetPath = path.join(pkg.packageDir, path.basename(pkg.relativeFilePath || pkg.packageName || 'source.kml'))
+        if (pkg.fileContent) {
+          const changed = await writeTextFileIfChanged(kmlTargetPath, pkg.fileContent)
+          if (changed) pkg.changed = true
+        } else if (pkg.filePath) {
+          const sourceContent = await fs.readFile(pkg.filePath, 'utf8')
+          const changed = await writeTextFileIfChanged(kmlTargetPath, sourceContent)
+          if (changed) pkg.changed = true
+        }
+      }
+
+      await walkTileFiles(sourceTileRoot, async (tileMeta) => {
+        const zoomKey = String(tileMeta.zoom)
+        const candidates = packages.filter((pkg) => {
+          const bounds = pkg.zoomBounds[zoomKey]
+          if (!bounds) return false
+          return tileMeta.x >= bounds.xMin
+            && tileMeta.x <= bounds.xMax
+            && tileMeta.y >= bounds.yMin
+            && tileMeta.y <= bounds.yMax
+        })
+
+        let copiedDelta = 0
+        let skippedDelta = 0
+        let currentPackageName = ''
+        if (candidates.length) {
+          const tile = buildTileBoundsEntry(tileMeta.x, tileMeta.y, tileMeta.zoom)
+          if (tile) {
+            for (const pkg of candidates) {
+              if (!tileIntersectsAnyPolygon(tile, pkg.polygons)) continue
+              if (!currentPackageName) currentPackageName = pkg.displayName
+              const copied = await copyFileIfMissing(
+                tileMeta.fullPath,
+                path.join(pkg.packageDir, TILE_ROOT_DIR, tileMeta.relativePath),
+              )
+              if (copied) {
+                pkg.copiedTiles += 1
+                pkg.changed = true
+                copiedDelta += 1
+              } else {
+                skippedDelta += 1
+              }
+            }
+          }
+        }
+
+        updatePackageTaskState({
+          processedTiles: Number(runtime.packageTaskState?.processedTiles || 0) + 1,
+          copiedTiles: Number(runtime.packageTaskState?.copiedTiles || 0) + copiedDelta,
+          skippedTiles: Number(runtime.packageTaskState?.skippedTiles || 0) + skippedDelta,
+          currentPackageName: currentPackageName || runtime.packageTaskState?.currentPackageName || '',
+          currentTile: tileMeta.relativePath,
+        })
+      })
+
+      await zipPackagesAndCreateBundle(packages, resolvedOutputPath)
+
+      updatePackageTaskState({
+        status: 'completed',
+        phase: 'completed',
+        phaseLabel: '分包完成',
+        finishedAt: new Date().toISOString(),
+        currentPackageName: '',
+      })
+      pushRuntimeEvent('package-split-done', 'KML 分包已完成。', {
+        totalPackages: packages.length,
+        copiedTiles: runtime.packageTaskState?.copiedTiles || 0,
+        outputPath: resolvedOutputPath,
+      })
+    } catch (error) {
+      updatePackageTaskState({
+        status: 'failed',
+        phase: 'failed',
+        phaseLabel: '分包失败',
+        finishedAt: new Date().toISOString(),
+        error: error.message || String(error),
+      })
+      pushRuntimeEvent('package-split-failed', `KML 分包失败：${error.message || error}`)
+      throw error
+    } finally {
+      runtime.packagePromise = null
+      scheduleBroadcast(true)
+    }
+  })()
+    .catch((error) => {
+      console.error('[offline-tile-downloader] split packages failed:', error)
+    })
+
+  scheduleBroadcast(true)
+}
+
+async function runCompressPackagesTask({ outputPath } = {}) {
+  ensureTaskIdle()
+  if (!runtime.workspacePath || !runtime.taskContext?.taskDir) {
+    throw new Error('请先选择并加载下载目录')
+  }
+
+  const resolvedOutputPath = path.resolve(String(outputPath || '').trim() || path.join(runtime.workspacePath, SPLIT_OUTPUT_DIR))
+
+  runtime.events = []
+  updatePackageTaskState({
+    mode: 'compress',
+    status: 'preparing',
+    phase: 'scan-packages',
+    phaseLabel: '扫描已有分包目录',
+    workspacePath: runtime.workspacePath,
+    sourceTileRoot: path.join(runtime.taskContext.taskDir, TILE_ROOT_DIR),
+    kmlRootPath: '',
+    outputPath: resolvedOutputPath,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    error: '',
+    totalPackages: 0,
+    completedPackages: 0,
+    zippedPackages: 0,
+    skippedZipPackages: 0,
+    totalTiles: 0,
+    processedTiles: 0,
+    copiedTiles: 0,
+    skippedTiles: 0,
+    currentPackageName: '',
+    currentTile: '',
+    bundleZipPath: '',
+  }, { replace: true })
+
+  pushRuntimeEvent('package-compress-start', '开始压缩已有分包目录。', {
+    outputPath: resolvedOutputPath,
+  })
+
+  runtime.packagePromise = (async () => {
+    try {
+      const packages = await collectExistingPackageDirectories(resolvedOutputPath)
+      updatePackageTaskState({
+        totalPackages: packages.length,
+        status: 'running',
+        phase: 'zipping',
+        phaseLabel: `压缩分包目录（并行 ${Math.min(ZIP_CONCURRENCY, Math.max(packages.length, 1))}）`,
+      })
+
+      await zipPackagesAndCreateBundle(packages, resolvedOutputPath)
+
+      updatePackageTaskState({
+        status: 'completed',
+        phase: 'completed',
+        phaseLabel: '压缩完成',
+        finishedAt: new Date().toISOString(),
+        currentPackageName: '',
+      })
+      pushRuntimeEvent('package-compress-done', '已有分包目录压缩完成。', {
+        totalPackages: packages.length,
+        outputPath: resolvedOutputPath,
+        bundleZipPath: runtime.packageTaskState?.bundleZipPath || '',
+      })
+    } catch (error) {
+      updatePackageTaskState({
+        status: 'failed',
+        phase: 'failed',
+        phaseLabel: '压缩失败',
+        finishedAt: new Date().toISOString(),
+        error: error.message || String(error),
+      })
+      pushRuntimeEvent('package-compress-failed', `分包压缩失败：${error.message || error}`)
+      throw error
+    } finally {
+      runtime.packagePromise = null
+      scheduleBroadcast(true)
+    }
+  })()
+    .catch((error) => {
+      console.error('[offline-tile-downloader] compress packages failed:', error)
+    })
+
+  scheduleBroadcast(true)
 }
 
 async function requestSystemShutdown() {
@@ -2047,6 +3162,9 @@ function ensureTaskIdle() {
   if (runtime.runPromise) {
     throw new Error('当前已有任务在运行，请先停止或等待结束')
   }
+  if (runtime.packagePromise) {
+    throw new Error('当前正在执行 KML 分包，请等待完成')
+  }
 }
 
 function parseConcurrency(value, fallback = 4) {
@@ -2064,6 +3182,7 @@ async function selectWorkspace(basePathInput) {
   const resolved = path.resolve(rawPath)
   const startedAt = Date.now()
   runtime.events = []
+  runtime.packageTaskState = null
   clearLiveChunkProgress()
   pushRuntimeEvent('workspace-select-start', '开始应用目录。', { basePath: resolved })
   await ensureDir(resolved)
@@ -2081,6 +3200,7 @@ async function reloadWorkspace() {
   if (!runtime.workspacePath) throw new Error('请先设置下载目录')
   const startedAt = Date.now()
   runtime.events = []
+  runtime.packageTaskState = null
   clearLiveChunkProgress()
   pushRuntimeEvent('workspace-reload-start', '开始重新读取目录。', { basePath: runtime.workspacePath })
   runtime.taskContext = await loadTaskFromDirectory(runtime.workspacePath)
@@ -2200,6 +3320,15 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, makeSnapshot())
       return
     }
+    if (req.method === 'POST' && pathname === '/api/dialog/select-directory') {
+      const body = await readRequestJson(req)
+      const selectedPath = await openDirectorySelectionDialog({
+        title: body?.title,
+        initialPath: body?.initialPath,
+      })
+      sendJson(res, 200, { ok: true, data: { path: selectedPath } })
+      return
+    }
     if (req.method === 'POST' && pathname === '/api/workspace') {
       const body = await readRequestJson(req)
       await selectWorkspace(body.basePath)
@@ -2236,6 +3365,18 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && pathname === '/api/task/stop') {
       await requestStopDownload()
+      sendJson(res, 202, makeSnapshot())
+      return
+    }
+    if (req.method === 'POST' && pathname === '/api/task/split-packages') {
+      const body = await readRequestJson(req)
+      await runSplitPackagesTask(body || {})
+      sendJson(res, 202, makeSnapshot())
+      return
+    }
+    if (req.method === 'POST' && pathname === '/api/task/compress-packages') {
+      const body = await readRequestJson(req)
+      await runCompressPackagesTask(body || {})
       sendJson(res, 202, makeSnapshot())
       return
     }

@@ -417,6 +417,20 @@ const formatDateTime = (value) => {
   }
 }
 
+const formatUnixSecondsDateTime = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-'
+  return formatDateTime(numeric * 1000)
+}
+
+const resolveMarkerAuthExpireAt = (detail) =>
+  detail?.expireAtSeconds ??
+  detail?.expireAt ??
+  detail?.authExpireAt ??
+  detail?.validUntil ??
+  detail?.validTo ??
+  null
+
 const formatAmount = (value) => {
   if (value === null || value === undefined) return '-'
   const numeric = Number(value)
@@ -2137,6 +2151,10 @@ onBeforeUnmount(() => {
             <div v-if="markerDetail.createdAt" class="detail-row">
               <span class="detail-label">创建时间</span>
               <span class="detail-value">{{ formatDateTime(markerDetail.createdAt) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">{{ t('airspace.modal.fields.authExpireAt') }}</span>
+              <span class="detail-value">{{ formatUnixSecondsDateTime(resolveMarkerAuthExpireAt(markerDetail)) }}</span>
             </div>
             <div v-if="markerDetail.updatedAt" class="detail-row">
               <span class="detail-label">更新时间</span>
