@@ -1348,6 +1348,36 @@
           "loadFailed": "彩蛋资源包配置加载失败"
         }
       },
+      "provinceCityKmlZip": {
+        "title": "省区域信息压缩包设置",
+        "subtitle": "上传并配置省区域信息使用的 zip 资源包。",
+        "currentFileLabel": "当前压缩包",
+        "currentVersionLabel": "当前版本",
+        "emptyFile": "暂无压缩包",
+        "emptyVersion": "未设置",
+        "fields": {
+          "file": "压缩包文件",
+          "version": "版本号"
+        },
+        "placeholders": {
+          "version": "例如 1.0.1"
+        },
+        "helper": "仅支持 ZIP，默认会在当前版本基础上小版本号 +1，可手动修改。",
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "upload": "上传并保存",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "noFile": "请先选择压缩包文件",
+          "noVersion": "请填写版本号",
+          "uploadSuccess": "省区域信息压缩包已更新",
+          "uploadFailed": "省区域信息压缩包上传失败",
+          "loadFailed": "省区域信息压缩包配置加载失败"
+        }
+      },
       "ladderLeaderboard": {
         "title": "天梯排行榜",
         "subtitle": "展示菜单游戏天梯排名，含最高分与最近游戏时间。",

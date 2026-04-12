@@ -210,6 +210,22 @@ export const uploadEasterEggResourceConfig = async (file, version) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchProvinceCityKmlZipConfig = async () => {
+  const response = await http.get('/config/province-city-kml-zip')
+  return normalizePagePayload(response, {})
+}
+
+export const uploadProvinceCityKmlZipConfig = async (file, version) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('version', version)
+
+  const response = await http.post('/config/province-city-kml-zip', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return normalizePagePayload(response, {})
+}
+
 export const fetchPosterServiceVersion = async () => {
   const response = await http.get('/config/poster-service-version')
   return normalizePagePayload(response, {})
@@ -310,6 +326,8 @@ export default {
   uploadFontFileConfig,
   fetchEasterEggResourceConfig,
   uploadEasterEggResourceConfig,
+  fetchProvinceCityKmlZipConfig,
+  uploadProvinceCityKmlZipConfig,
   fetchPosterServiceVersion,
   refreshPosterServiceVersion,
   fetchPinReviewRewardConfig,

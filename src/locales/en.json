@@ -1340,6 +1340,36 @@
           "loadFailed": "Failed to load easter egg package config"
         }
       },
+      "provinceCityKmlZip": {
+        "title": "Province area package",
+        "subtitle": "Upload and configure the ZIP package used for province area data.",
+        "currentFileLabel": "Current package",
+        "currentVersionLabel": "Current version",
+        "emptyFile": "No package uploaded",
+        "emptyVersion": "Not set",
+        "fields": {
+          "file": "Package file",
+          "version": "Version"
+        },
+        "placeholders": {
+          "version": "e.g. 1.0.1"
+        },
+        "helper": "ZIP only. The patch version defaults to +1; you can edit it manually.",
+        "actions": {
+          "selectFile": "Choose file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "upload": "Upload & save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "noFile": "Please choose a package file first",
+          "noVersion": "Please enter a version",
+          "uploadSuccess": "Province area package updated",
+          "uploadFailed": "Failed to upload province area package",
+          "loadFailed": "Failed to load province area package config"
+        }
+      },
       "ladderLeaderboard": {
         "title": "Ladder leaderboard",
         "subtitle": "Display ranking data for the mini-game ladder, including highest score and latest play time.",

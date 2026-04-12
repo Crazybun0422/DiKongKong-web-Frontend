@@ -41,6 +41,8 @@ import {
   refreshPosterServiceVersion,
   fetchEasterEggResourceConfig,
   uploadEasterEggResourceConfig,
+  fetchProvinceCityKmlZipConfig,
+  uploadProvinceCityKmlZipConfig,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
@@ -495,6 +497,17 @@ const easterEggResourceForm = reactive({
 const easterEggResourceLoading = ref(false)
 const easterEggResourceSaving = ref(false)
 const easterEggResourceSelected = ref(null)
+const provinceCityKmlZipConfig = reactive({
+  fileName: '',
+  version: '',
+})
+const provinceCityKmlZipForm = reactive({
+  fileName: '',
+  version: '',
+})
+const provinceCityKmlZipLoading = ref(false)
+const provinceCityKmlZipSaving = ref(false)
+const provinceCityKmlZipSelected = ref(null)
 
 const userAgreementList = ref([])
 const userAgreementLoading = ref(false)
@@ -894,6 +907,14 @@ const resetEasterEggResourceForm = (currentVersion = '') => {
 }
 
 const easterEggResourceDownloadUrl = computed(() => buildDownloadUrl(easterEggResourceConfig.fileName || ''))
+
+const resetProvinceCityKmlZipForm = (currentVersion = '') => {
+  provinceCityKmlZipForm.fileName = ''
+  provinceCityKmlZipForm.version = getNextFontVersion(currentVersion)
+  provinceCityKmlZipSelected.value = null
+}
+
+const provinceCityKmlZipDownloadUrl = computed(() => buildDownloadUrl(provinceCityKmlZipConfig.fileName || ''))
 
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
@@ -2560,6 +2581,69 @@ const submitEasterEggResourceForm = async () => {
   }
 }
 
+const loadProvinceCityKmlZipConfig = async () => {
+  provinceCityKmlZipLoading.value = true
+  try {
+    const data = await fetchProvinceCityKmlZipConfig()
+    provinceCityKmlZipConfig.fileName = extractObjectName(data?.fileName || '')
+    provinceCityKmlZipConfig.version = data?.version || ''
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load province city kml zip config', error)
+      message.error(t('settings.system.provinceCityKmlZip.messages.loadFailed'))
+    }
+    provinceCityKmlZipConfig.fileName = ''
+    provinceCityKmlZipConfig.version = ''
+  } finally {
+    provinceCityKmlZipLoading.value = false
+    resetProvinceCityKmlZipForm(provinceCityKmlZipConfig.version)
+  }
+}
+
+const handleProvinceCityKmlZipSelect = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  provinceCityKmlZipSelected.value = file
+  provinceCityKmlZipForm.fileName = file.name || ''
+  if (!provinceCityKmlZipForm.version) {
+    provinceCityKmlZipForm.version = getNextFontVersion(provinceCityKmlZipConfig.version)
+  }
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearProvinceCityKmlZipSelection = () => {
+  provinceCityKmlZipSelected.value = null
+  provinceCityKmlZipForm.fileName = ''
+}
+
+const submitProvinceCityKmlZipForm = async () => {
+  if (!provinceCityKmlZipSelected.value) {
+    message.warning(t('settings.system.provinceCityKmlZip.messages.noFile'))
+    return
+  }
+  const version = (provinceCityKmlZipForm.version || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.provinceCityKmlZip.messages.noVersion'))
+    return
+  }
+  if (provinceCityKmlZipSaving.value) {
+    return
+  }
+  provinceCityKmlZipSaving.value = true
+  try {
+    await uploadProvinceCityKmlZipConfig(provinceCityKmlZipSelected.value, version)
+    message.success(t('settings.system.provinceCityKmlZip.messages.uploadSuccess'))
+    await loadProvinceCityKmlZipConfig()
+  } catch (error) {
+    console.error('Failed to upload province city kml zip package', error)
+    message.error(t('settings.system.provinceCityKmlZip.messages.uploadFailed'))
+  } finally {
+    provinceCityKmlZipSaving.value = false
+  }
+}
+
 const loadNewbieTaskStats = async () => {
   newbieTaskStatsLoading.value = true
   try {
@@ -3105,6 +3189,7 @@ onMounted(() => {
   loadFontFileConfig()
   loadPosterServiceVersion()
   loadEasterEggResourceConfig()
+  loadProvinceCityKmlZipConfig()
   loadLadderLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
@@ -4843,6 +4928,73 @@ onMounted(() => {
                     <a-button type="default" @click="loadEasterEggResourceConfig"
                       :disabled="easterEggResourceLoading || easterEggResourceSaving">
                       {{ t('settings.system.easterEggResource.actions.reload') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
+                  <h3>{{ t('settings.system.provinceCityKmlZip.title') }}</h3>
+                  <p>{{ t('settings.system.provinceCityKmlZip.subtitle') }}</p>
+                </div>
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.provinceCityKmlZip.currentVersionLabel') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ provinceCityKmlZipConfig.version || t('settings.system.provinceCityKmlZip.emptyVersion') }}
+                  </span>
+                </div>
+              </header>
+              <a-spin :spinning="provinceCityKmlZipLoading">
+                <div class="system-font-current">
+                  <span class="system-font-current__label">
+                    {{ t('settings.system.provinceCityKmlZip.currentFileLabel') }}
+                  </span>
+                  <a v-if="provinceCityKmlZipConfig.fileName" :href="provinceCityKmlZipDownloadUrl" target="_blank"
+                    rel="noreferrer">
+                    {{ provinceCityKmlZipConfig.fileName }}
+                  </a>
+                  <span v-else class="empty-hint">{{ t('settings.system.provinceCityKmlZip.emptyFile') }}</span>
+                </div>
+                <a-form layout="vertical" :model="provinceCityKmlZipForm" @finish="submitProvinceCityKmlZipForm">
+                  <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.file')">
+                    <div class="system-font-upload">
+                      <label class="system-font-upload__trigger">
+                        <input class="system-font-upload__input" type="file" accept=".zip"
+                          :disabled="provinceCityKmlZipSaving" @change="handleProvinceCityKmlZipSelect" />
+                        <a-button type="dashed" :loading="provinceCityKmlZipSaving">
+                          {{
+                            provinceCityKmlZipForm.fileName
+                              ? t('settings.system.provinceCityKmlZip.actions.replaceFile')
+                              : t('settings.system.provinceCityKmlZip.actions.selectFile')
+                          }}
+                        </a-button>
+                      </label>
+                      <span v-if="provinceCityKmlZipForm.fileName" class="system-font-upload__name">
+                        {{ provinceCityKmlZipForm.fileName }}
+                      </span>
+                      <a-button v-if="provinceCityKmlZipForm.fileName" type="link" danger size="small"
+                        @click="clearProvinceCityKmlZipSelection">
+                        {{ t('settings.system.provinceCityKmlZip.actions.removeFile') }}
+                      </a-button>
+                    </div>
+                    <div class="system-font-helper">{{ t('settings.system.provinceCityKmlZip.helper') }}</div>
+                  </a-form-item>
+                  <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.version')">
+                    <a-input v-model:value="provinceCityKmlZipForm.version"
+                      :placeholder="t('settings.system.provinceCityKmlZip.placeholders.version')" />
+                  </a-form-item>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="provinceCityKmlZipSaving">
+                      {{ t('settings.system.provinceCityKmlZip.actions.upload') }}
+                    </a-button>
+                    <a-button type="default" @click="loadProvinceCityKmlZipConfig"
+                      :disabled="provinceCityKmlZipLoading || provinceCityKmlZipSaving">
+                      {{ t('settings.system.provinceCityKmlZip.actions.reload') }}
                     </a-button>
                   </div>
                 </a-form>
