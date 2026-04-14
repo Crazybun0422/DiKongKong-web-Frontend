@@ -9,13 +9,17 @@ import {
   PlusOutlined,
 } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
+import OpenPlatformEditor from '../OpenPlatformEditor.vue'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
 import { wgs84ToGcj02 } from '../../utils/coords'
 import MapImageOverlayControl from './MapImageOverlayControl.vue'
 import {
   createNoFlyZone,
   deleteNoFlyZone,
+  fetchNoFlyZoneRichTextConfig,
+  getNoFlyZoneDetail,
   listNoFlyZones,
+  saveNoFlyZoneRichTextConfig,
   updateNoFlyZone,
 } from '../../services/noFlyZones'
 
@@ -53,6 +57,9 @@ const searchMarker = ref(null) // qq.maps.Marker
 const zonePolygonOverlays = ref([]) // qq.maps.Polygon[]
 const zoneCircleOverlays = ref([]) // qq.maps.Circle[]
 const zonePolylineOverlays = ref([]) // qq.maps.Polyline[]
+const formAreaPolygonOverlays = ref([]) // inactive form areas
+const formAreaCircleOverlays = ref([]) // inactive form areas
+const formAreaPolylineOverlays = ref([]) // inactive form areas
 const merchantMarkers = ref([]) // qq.maps.Marker[]
 // kept for backward compatibility (GL path, no longer used after 2D switch)
 const merchantMarkerLayer = ref(null)
@@ -198,16 +205,105 @@ const pagination = reactive({
 const formState = reactive({
   id: null,
   name: '',
-  type: 'POLYGON',
   wechatLink: '',
   timeRange: [],
   additionalTimeRanges: [],
+  areas: [],
+  activeAreaIndex: 0,
+  type: 'POLYGON',
   coordinates: [],
   circle: null,
   pathDistanceMeters: PATH_DEFAULT_DISTANCE,
 })
 
 const formSubmitting = ref(false)
+const syncingAreaDraft = ref(false)
+const richTextLoading = ref(false)
+const richTextSaving = ref(false)
+const richTextForm = reactive({
+  content: '',
+  updatedAt: null,
+})
+const richTextUpdatedAtDisplay = computed(() => {
+  if (!richTextForm.updatedAt) return '-'
+  const date = new Date(richTextForm.updatedAt)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString()
+})
+
+const createEmptyArea = (overrides = {}) => ({
+  type: 'POLYGON',
+  coordinates: [],
+  circle: null,
+  pathDistanceMeters: PATH_DEFAULT_DISTANCE,
+  ...overrides,
+})
+
+const cloneArea = (area = {}) => createEmptyArea({
+  type: normalizeZoneType(area.type) || 'POLYGON',
+  coordinates: Array.isArray(area.coordinates) ? area.coordinates.map((coord) => ({ ...coord })) : [],
+  circle: area.circle ? { ...area.circle } : null,
+  pathDistanceMeters: Number.isFinite(Number(area.pathDistanceMeters))
+    ? Number(area.pathDistanceMeters)
+    : PATH_DEFAULT_DISTANCE,
+})
+
+const ensureAreaList = () => {
+  if (!Array.isArray(formState.areas)) {
+    formState.areas = [createEmptyArea()]
+  }
+  if (!formState.areas.length) {
+    formState.areas.push(createEmptyArea())
+  }
+}
+
+const syncActiveAreaFromDraft = () => {
+  ensureAreaList()
+  const target = formState.areas[formState.activeAreaIndex] || createEmptyArea()
+  formState.areas[formState.activeAreaIndex] = {
+    ...target,
+    type: normalizeZoneType(formState.type) || 'POLYGON',
+    coordinates: Array.isArray(formState.coordinates)
+      ? formState.coordinates.map((coord) => ({ ...coord }))
+      : [],
+    circle: formState.circle ? { ...formState.circle } : null,
+    pathDistanceMeters: Number.isFinite(Number(formState.pathDistanceMeters))
+      ? Number(formState.pathDistanceMeters)
+      : PATH_DEFAULT_DISTANCE,
+  }
+}
+
+const syncDraftFromArea = (index = formState.activeAreaIndex) => {
+  ensureAreaList()
+  const area = formState.areas[index] || createEmptyArea()
+  syncingAreaDraft.value = true
+  formState.activeAreaIndex = index
+  formState.type = normalizeZoneType(area.type) || 'POLYGON'
+  formState.coordinates = Array.isArray(area.coordinates) ? area.coordinates.map((coord) => ({ ...coord })) : []
+  formState.circle = area.circle ? { ...area.circle } : null
+  formState.pathDistanceMeters = Number.isFinite(Number(area.pathDistanceMeters))
+    ? Number(area.pathDistanceMeters)
+    : PATH_DEFAULT_DISTANCE
+  drawingRadius.value =
+    formState.type === 'CIRCLE'
+      ? Math.max(Number(formState.circle?.radiusMeters) || CIRCLE_MIN_RADIUS, CIRCLE_MIN_RADIUS)
+      : CIRCLE_MIN_RADIUS
+  syncingAreaDraft.value = false
+}
+
+const areaTabs = computed(() =>
+  formState.areas.map((area, index) => ({
+    index,
+    key: String(index),
+    label: `${t('noFlyZone.form.areaLabel')} ${index + 1}`,
+    type: typeLabel(area.type),
+  })),
+)
+
+const canRemoveArea = computed(() => formState.areas.length > 1)
+
+ensureAreaList()
+syncActiveAreaFromDraft()
 
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
@@ -762,8 +858,81 @@ const syncCirclePreviewFromForm = () => {
   updateVertexMarkers([drawingCenter.value])
 }
 
+const clearOverlayGroup = (overlayRef) => {
+  if (!overlayRef?.value) return
+  overlayRef.value.forEach((overlay) => {
+    try {
+      if (overlay && typeof overlay.setMap === 'function') overlay.setMap(null)
+    } catch (_) { }
+  })
+  overlayRef.value = []
+}
+
+const renderInactiveAreasOnMap = () => {
+  clearOverlayGroup(formAreaPolygonOverlays)
+  clearOverlayGroup(formAreaCircleOverlays)
+  clearOverlayGroup(formAreaPolylineOverlays)
+  if (!mapReady.value || !window.qq?.maps) return
+
+  formState.areas
+    .filter((_, index) => index !== formState.activeAreaIndex)
+    .forEach((area) => {
+      const areaType = normalizeZoneType(area?.type)
+      if (areaType === 'CIRCLE' && area?.circle) {
+        const circle = new window.qq.maps.Circle({
+          map: mapInstance.value,
+          center: new window.qq.maps.LatLng(area.circle.latitude, area.circle.longitude),
+          radius: area.circle.radiusMeters,
+          strokeColor: inactiveAreaStyle.circle.strokeColor,
+          strokeWeight: inactiveAreaStyle.circle.strokeWidth,
+          fillColor: toQqColor(
+            inactiveAreaStyle.circle.fillColor,
+            inactiveAreaStyle.circle.fillOpacity ?? 1,
+          ),
+          clickable: false,
+        })
+        formAreaCircleOverlays.value.push(circle)
+        return
+      }
+
+      if (!Array.isArray(area?.coordinates) || !area.coordinates.length) return
+
+      if (areaType === PATH_TYPE) {
+        const bufferPolygon = computePathBufferPolygon(area.coordinates, area.pathDistanceMeters)
+        if (!bufferPolygon.length) return
+        const polygon = new window.qq.maps.Polygon({
+          map: mapInstance.value,
+          path: bufferPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+          strokeColor: inactiveAreaStyle.polygon.strokeColor,
+          strokeWeight: inactiveAreaStyle.polygon.strokeWidth,
+          fillColor: toQqColor(
+            inactiveAreaStyle.polygon.fillColor,
+            inactiveAreaStyle.polygon.fillOpacity ?? 1,
+          ),
+          clickable: false,
+        })
+        formAreaPolygonOverlays.value.push(polygon)
+        return
+      }
+
+      const polygon = new window.qq.maps.Polygon({
+        map: mapInstance.value,
+        path: area.coordinates.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+        strokeColor: inactiveAreaStyle.polygon.strokeColor,
+        strokeWeight: inactiveAreaStyle.polygon.strokeWidth,
+        fillColor: toQqColor(
+          inactiveAreaStyle.polygon.fillColor,
+          inactiveAreaStyle.polygon.fillOpacity ?? 1,
+        ),
+        clickable: false,
+      })
+      formAreaPolygonOverlays.value.push(polygon)
+    })
+}
+
 const renderFormGeometryOnMap = () => {
   if (!mapReady.value || isDrawing.value) return
+  renderInactiveAreasOnMap()
   if (formState.type === 'CIRCLE') {
     syncCirclePreviewFromForm()
     return
@@ -1248,9 +1417,58 @@ const stopDrawing = () => {
   hidePolygonCloseHint()
 }
 
-const resetFormGeometry = () => {
+const resetFormGeometry = ({ persist = true } = {}) => {
   formState.coordinates = []
   formState.circle = null
+  if (persist) {
+    syncActiveAreaFromDraft()
+  }
+}
+
+const inactiveAreaStyle = {
+  polygon: {
+    fillColor: 'rgba(255, 77, 79, 0.06)',
+    fillOpacity: 0.06,
+    strokeColor: '#ff7875',
+    strokeWidth: 1,
+  },
+  circle: {
+    fillColor: 'rgba(255, 77, 79, 0.06)',
+    fillOpacity: 0.06,
+    strokeColor: '#ff7875',
+    strokeWidth: 1,
+  },
+  dashed: {
+    color: '#ff7875',
+    width: 1,
+  },
+}
+
+const addArea = () => {
+  if (disableFormDuringDrawing.value) return
+  syncActiveAreaFromDraft()
+  clearDrawing()
+  formState.areas.push(createEmptyArea())
+  syncDraftFromArea(formState.areas.length - 1)
+}
+
+const selectArea = (index) => {
+  if (disableFormDuringDrawing.value) return
+  if (index < 0 || index >= formState.areas.length || index === formState.activeAreaIndex) return
+  syncActiveAreaFromDraft()
+  clearDrawing()
+  syncDraftFromArea(index)
+  renderFormGeometryOnMap()
+}
+
+const removeArea = (index) => {
+  if (disableFormDuringDrawing.value || formState.areas.length <= 1) return
+  syncActiveAreaFromDraft()
+  formState.areas.splice(index, 1)
+  const nextIndex = Math.min(formState.activeAreaIndex >= index ? formState.activeAreaIndex - 1 : formState.activeAreaIndex, formState.areas.length - 1)
+  clearDrawing()
+  syncDraftFromArea(Math.max(nextIndex, 0))
+  renderFormGeometryOnMap()
 }
 
 const detachMapListeners = () => {
@@ -1903,7 +2121,7 @@ const finishDrawingManually = () => {
 const clearDrawing = () => {
   detachMapListeners()
   clearDrawingOverlays()
-  resetFormGeometry()
+  resetFormGeometry({ persist: false })
   drawingRadius.value = CIRCLE_MIN_RADIUS
   drawingCenter.value = null
   isDrawing.value = false
@@ -2010,37 +2228,73 @@ const validateWechatLink = (link) => {
   }
 }
 
-const buildZonePayload = () => {
-  if (!formState.name.trim()) {
-    message.warning(t('noFlyZone.messages.nameRequired'))
-    return null
-  }
-
+const buildAreaPayload = (area, index) => {
+  const areaType = normalizeZoneType(area?.type) || 'POLYGON'
   let coordinatesPayload = []
   let circlePayload = null
 
-  if (formState.type === 'CIRCLE') {
-    if (!formState.circle) {
-      message.warning(t('noFlyZone.messages.circleMissing'))
+  if (areaType === 'CIRCLE') {
+    if (!area?.circle) {
+      message.warning(index === 0 ? t('noFlyZone.messages.circleMissing') : t('noFlyZone.messages.extraCircleMissing', { index: index + 1 }))
       return null
     }
-    circlePayload = { ...formState.circle }
+    circlePayload = { ...area.circle }
   } else {
-    if (!formState.coordinates?.length) {
-      message.warning(t('noFlyZone.messages.geometryMissing'))
+    if (!Array.isArray(area?.coordinates) || !area.coordinates.length) {
+      message.warning(index === 0 ? t('noFlyZone.messages.geometryMissing') : t('noFlyZone.messages.extraGeometryMissing', { index: index + 1 }))
       return null
     }
-    coordinatesPayload = formState.coordinates.map((coord) => ({
+    coordinatesPayload = area.coordinates.map((coord) => ({
       latitude: coord.latitude,
       longitude: coord.longitude,
     }))
   }
 
+  const payload = {
+    type: areaType,
+    circle: circlePayload,
+  }
+
+  if (areaType === PATH_TYPE) {
+    const distance = Number(area?.pathDistanceMeters)
+    if (!Number.isFinite(distance) || distance <= 0) {
+      message.warning(index === 0 ? t('noFlyZone.messages.pathDistanceInvalid') : t('noFlyZone.messages.extraPathDistanceInvalid', { index: index + 1 }))
+      return null
+    }
+    payload.coordinates = coordinatesPayload
+    payload.pathDistanceMeters = distance
+  } else if (coordinatesPayload.length) {
+    payload.coordinates = coordinatesPayload
+  } else {
+    payload.coordinates = []
+  }
+
+  return payload
+}
+
+const buildZonePayload = () => {
+  if (!formState.name.trim()) {
+    message.warning(t('noFlyZone.messages.nameRequired'))
+    return null
+  }
+  syncActiveAreaFromDraft()
+  ensureAreaList()
+
+  const areaPayloads = formState.areas.map((area, index) => buildAreaPayload(area, index))
+  if (areaPayloads.some((item) => !item)) {
+    return null
+  }
+
+  const [primaryArea, ...extraAreas] = areaPayloads
+
   const [effectiveFrom, effectiveTo] = convertTimeRangeToSeconds()
   const payload = {
     name: formState.name.trim(),
-    type: formState.type,
-    circle: circlePayload,
+    type: primaryArea.type,
+    circle: primaryArea.circle,
+    coordinates: primaryArea.coordinates,
+    pathDistanceMeters: primaryArea.pathDistanceMeters,
+    extra: extraAreas,
     effectiveFrom: effectiveFrom ?? undefined,
     effectiveTo: effectiveTo ?? undefined,
     effectivePeriods: buildEffectivePeriodsPayload(),
@@ -2053,20 +2307,6 @@ const buildZonePayload = () => {
       return null
     }
     payload.wechatLink = trimmedWechatLink
-  }
-
-  if (formState.type === PATH_TYPE) {
-    const distance = Number(formState.pathDistanceMeters)
-    if (!Number.isFinite(distance) || distance <= 0) {
-      message.warning(t('noFlyZone.messages.pathDistanceInvalid'))
-      return null
-    }
-    payload.coordinates = coordinatesPayload
-    payload.pathDistanceMeters = distance
-  } else if (coordinatesPayload.length) {
-    payload.coordinates = coordinatesPayload
-  } else {
-    payload.coordinates = []
   }
 
   return payload
@@ -2096,7 +2336,18 @@ const loadZoneList = async () => {
       page: pagination.current,
       size: pagination.pageSize,
     })
-    zoneList.value = content.map((item) => ({
+    const hydratedContent = await Promise.all(
+      content.map(async (item) => {
+        if (!item?.id) return item
+        try {
+          return await getNoFlyZoneDetail(item.id)
+        } catch (detailError) {
+          console.error('Failed to load no-fly zone detail', item.id, detailError)
+          return item
+        }
+      }),
+    )
+    zoneList.value = hydratedContent.map((item) => ({
       ...item,
       type: normalizeZoneType(item.type),
       pathDistanceMeters: resolvePathDistance(item),
@@ -2138,13 +2389,47 @@ const handleSubmit = async () => {
 const resetForm = () => {
   formState.id = null
   formState.name = ''
-  formState.type = 'POLYGON'
   formState.wechatLink = ''
   formState.timeRange = []
   formState.additionalTimeRanges = []
-  formState.pathDistanceMeters = PATH_DEFAULT_DISTANCE
-  resetFormGeometry()
+  formState.areas = [createEmptyArea()]
+  formState.activeAreaIndex = 0
+  clearOverlayGroup(formAreaPolygonOverlays)
+  clearOverlayGroup(formAreaCircleOverlays)
+  clearOverlayGroup(formAreaPolylineOverlays)
+  syncDraftFromArea(0)
   clearDrawing()
+}
+
+const loadRichTextConfig = async () => {
+  richTextLoading.value = true
+  try {
+    const payload = await fetchNoFlyZoneRichTextConfig()
+    richTextForm.content = payload?.content || ''
+    richTextForm.updatedAt = payload?.updatedAt || null
+  } catch (error) {
+    console.error('Failed to load no-fly-zone rich text config', error)
+    message.error(t('noFlyZone.richText.messages.loadFailed'))
+  } finally {
+    richTextLoading.value = false
+  }
+}
+
+const saveRichTextConfig = async () => {
+  richTextSaving.value = true
+  try {
+    const payload = await saveNoFlyZoneRichTextConfig({
+      content: richTextForm.content || '',
+    })
+    richTextForm.content = payload?.content || richTextForm.content || ''
+    richTextForm.updatedAt = payload?.updatedAt || richTextForm.updatedAt || null
+    message.success(t('noFlyZone.richText.messages.saveSuccess'))
+  } catch (error) {
+    console.error('Failed to save no-fly-zone rich text config', error)
+    message.error(t('noFlyZone.richText.messages.saveFailed'))
+  } finally {
+    richTextSaving.value = false
+  }
 }
 
 const editZone = (zone) => {
@@ -2152,39 +2437,73 @@ const editZone = (zone) => {
   resetForm()
   formState.id = zone.id
   formState.name = zone.name || ''
-  const zoneType = normalizeZoneType(zone.type) || 'POLYGON'
-  formState.type = zoneType
   formState.wechatLink = zone.wechatLink || ''
-  const pathDistance = resolvePathDistance(zone)
-  formState.pathDistanceMeters =
-    pathDistance != null ? pathDistance : PATH_DEFAULT_DISTANCE
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
   formState.additionalTimeRanges = formatAdditionalRangesFromZone(zone)
-  if (zoneType === 'CIRCLE' && zone.circle) {
-    formState.circle = { ...zone.circle }
-  } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
-    formState.coordinates = zone.coordinates.map((coord) => ({ ...coord }))
-  }
+  formState.areas = [
+    cloneArea({
+      type: zone.type,
+      coordinates: zone.coordinates,
+      circle: zone.circle,
+      pathDistanceMeters: resolvePathDistance(zone),
+    }),
+    ...(Array.isArray(zone.extra) ? zone.extra.map((item) => cloneArea({
+      type: item.type,
+      coordinates: item.coordinates,
+      circle: item.circle,
+      pathDistanceMeters: resolvePathDistance(item),
+    })) : []),
+  ]
+  syncDraftFromArea(0)
   renderFormGeometryOnMap()
   focusZoneOnMap(zone)
 }
 
+const expandZoneAreas = (zone) => {
+  if (!zone) return []
+  const base = cloneArea({
+    type: zone.type,
+    coordinates: zone.coordinates,
+    circle: zone.circle,
+    pathDistanceMeters: resolvePathDistance(zone),
+  })
+  const extras = Array.isArray(zone.extra) ? zone.extra.map((item) => cloneArea({
+    type: item.type,
+    coordinates: item.coordinates,
+    circle: item.circle,
+    pathDistanceMeters: resolvePathDistance(item),
+  })) : []
+  return [base, ...extras]
+}
+
 const focusZoneOnMap = (zone) => {
   if (!mapInstance.value || !zone) return
-  if (zone.type === 'CIRCLE' && zone.circle) {
+  const areas = expandZoneAreas(zone)
+  if (!areas.length) return
+  if (areas.length === 1 && areas[0].type === 'CIRCLE' && areas[0].circle) {
     const center = (window.qq && window.qq.maps)
-      ? new window.qq.maps.LatLng(zone.circle.latitude, zone.circle.longitude)
-      : new window.TMap.LatLng(zone.circle.latitude, zone.circle.longitude)
+      ? new window.qq.maps.LatLng(areas[0].circle.latitude, areas[0].circle.longitude)
+      : new window.TMap.LatLng(areas[0].circle.latitude, areas[0].circle.longitude)
     mapInstance.value.setCenter(center)
-    mapInstance.value.setZoom(Math.max(Math.min(Math.round(18 - Math.log2(zone.circle.radiusMeters / 100)), 17), 12))
-  } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
-    const zoneType = normalizeZoneType(zone.type)
-    const targetCoordinates =
-      zoneType === PATH_TYPE
-        ? computePathBufferPolygon(zone.coordinates, zone.pathDistanceMeters)
-        : zone.coordinates
-    if (!Array.isArray(targetCoordinates) || !targetCoordinates.length) return
+    mapInstance.value.setZoom(Math.max(Math.min(Math.round(18 - Math.log2(areas[0].circle.radiusMeters / 100)), 17), 12))
+  } else {
+    const targetCoordinates = areas.flatMap((area) => {
+      if (area.type === 'CIRCLE' && area.circle) {
+        const centerLat = area.circle.latitude
+        const centerLng = area.circle.longitude
+        const delta = area.circle.radiusMeters / 111320
+        return [
+          { latitude: centerLat - delta, longitude: centerLng - delta },
+          { latitude: centerLat + delta, longitude: centerLng + delta },
+        ]
+      }
+      if (area.type === PATH_TYPE) {
+        return computePathBufferPolygon(area.coordinates, area.pathDistanceMeters)
+      }
+      return area.coordinates
+    }).filter((coord) => Number.isFinite(coord?.latitude) && Number.isFinite(coord?.longitude))
+    if (!targetCoordinates.length) return
     if (window.qq && window.qq.maps) {
       const bounds = new window.qq.maps.LatLngBounds()
       targetCoordinates.forEach((coord) =>
@@ -2242,54 +2561,56 @@ const renderZonesOnMap = () => {
   zoneCircleOverlays.value = []
   zonePolylineOverlays.value = []
   zoneList.value.forEach((zone) => {
-    if (zone.type === 'CIRCLE' && zone.circle) {
-      if (window.qq && window.qq.maps) {
-        const circle = new window.qq.maps.Circle({
-          map: mapInstance.value,
-          center: new window.qq.maps.LatLng(zone.circle.latitude, zone.circle.longitude),
-          radius: zone.circle.radiusMeters,
-          strokeColor: '#ff4d4f',
-          strokeWeight: highlightStyle.circle.strokeWidth,
-          fillColor: toQqColor(
-            highlightStyle.circle.fillColor,
-            highlightStyle.circle.fillOpacity ?? 1,
-          ),
-          clickable: false,
-        })
-        zoneCircleOverlays.value.push(circle)
+    expandZoneAreas(zone).forEach((area) => {
+      if (area.type === 'CIRCLE' && area.circle) {
+        if (window.qq && window.qq.maps) {
+          const circle = new window.qq.maps.Circle({
+            map: mapInstance.value,
+            center: new window.qq.maps.LatLng(area.circle.latitude, area.circle.longitude),
+            radius: area.circle.radiusMeters,
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.circle.strokeWidth,
+            fillColor: toQqColor(
+              highlightStyle.circle.fillColor,
+              highlightStyle.circle.fillOpacity ?? 1,
+            ),
+            clickable: false,
+          })
+          zoneCircleOverlays.value.push(circle)
+        }
+      } else if (area.type === PATH_TYPE && Array.isArray(area.coordinates) && area.coordinates.length) {
+        const pathPolygon = computePathBufferPolygon(area.coordinates, area.pathDistanceMeters)
+        if (window.qq && window.qq.maps && pathPolygon.length) {
+          const polygon = new window.qq.maps.Polygon({
+            map: mapInstance.value,
+            path: pathPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.polygon.strokeWidth,
+            fillColor: toQqColor(
+              highlightStyle.polygon.fillColor,
+              highlightStyle.polygon.fillOpacity ?? 1,
+            ),
+            clickable: false,
+          })
+          zonePolygonOverlays.value.push(polygon)
+        }
+      } else if (Array.isArray(area.coordinates) && area.coordinates.length) {
+        if (window.qq && window.qq.maps) {
+          const polygon = new window.qq.maps.Polygon({
+            map: mapInstance.value,
+            path: area.coordinates.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
+            strokeColor: '#ff4d4f',
+            strokeWeight: highlightStyle.polygon.strokeWidth,
+            fillColor: toQqColor(
+              highlightStyle.polygon.fillColor,
+              highlightStyle.polygon.fillOpacity ?? 1,
+            ),
+            clickable: false,
+          })
+          zonePolygonOverlays.value.push(polygon)
+        }
       }
-    } else if (zone.type === PATH_TYPE && Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      const pathPolygon = computePathBufferPolygon(zone.coordinates, zone.pathDistanceMeters)
-      if (window.qq && window.qq.maps && pathPolygon.length) {
-        const polygon = new window.qq.maps.Polygon({
-          map: mapInstance.value,
-          path: pathPolygon.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
-          strokeColor: '#ff4d4f',
-          strokeWeight: highlightStyle.polygon.strokeWidth,
-          fillColor: toQqColor(
-            highlightStyle.polygon.fillColor,
-            highlightStyle.polygon.fillOpacity ?? 1,
-          ),
-          clickable: false,
-        })
-        zonePolygonOverlays.value.push(polygon)
-      }
-    } else if (Array.isArray(zone.coordinates) && zone.coordinates.length) {
-      if (window.qq && window.qq.maps) {
-        const polygon = new window.qq.maps.Polygon({
-          map: mapInstance.value,
-          path: zone.coordinates.map((coord) => new window.qq.maps.LatLng(coord.latitude, coord.longitude)),
-          strokeColor: '#ff4d4f',
-          strokeWeight: highlightStyle.polygon.strokeWidth,
-          fillColor: toQqColor(
-            highlightStyle.polygon.fillColor,
-            highlightStyle.polygon.fillOpacity ?? 1,
-          ),
-          clickable: false,
-        })
-        zonePolygonOverlays.value.push(polygon)
-      }
-    }
+    })
   })
 }
 
@@ -2493,6 +2814,7 @@ const resetToCreateMode = () => {
 watch(
   () => formState.type,
   () => {
+    if (syncingAreaDraft.value) return
     if (!isDrawing.value) {
       clearDrawingOverlays()
       resetFormGeometry()
@@ -2500,6 +2822,7 @@ watch(
         drawingRadius.value = CIRCLE_MIN_RADIUS
       }
     }
+    syncActiveAreaFromDraft()
     currentDrawingMode.value = formState.type
     if (formState.type === PATH_TYPE) {
       const distance = Number(formState.pathDistanceMeters)
@@ -2523,6 +2846,7 @@ watch(mapReady, (ready) => {
 })
 
 onMounted(() => {
+  loadRichTextConfig()
   initializeMap2D()
 })
 
@@ -2564,6 +2888,7 @@ watch(drawingRadius, (radius) => {
   if (!mapReady.value || formState.type !== 'CIRCLE') return
   if (!isDrawing.value && formState.circle) {
     formState.circle.radiusMeters = radius
+    syncActiveAreaFromDraft()
   }
   updateCirclePreview()
 })
@@ -2571,6 +2896,7 @@ watch(drawingRadius, (radius) => {
 watch(
   () => formState.pathDistanceMeters,
   () => {
+    syncActiveAreaFromDraft()
     if (!mapReady.value || formState.type !== PATH_TYPE) return
     updatePathPreview()
   },
@@ -2583,6 +2909,7 @@ watch(
     circle: formState.circle,
   }),
   () => {
+    syncActiveAreaFromDraft()
     if (!mapReady.value || isDrawing.value) return
     renderFormGeometryOnMap()
   },
@@ -2744,11 +3071,59 @@ const handleSearchClear = () => {
 
 <template>
   <div class="no-fly-zone-manager">
+    <a-card class="rich-text-card" :bordered="false">
+      <section class="rich-text-settings">
+        <header class="section-header">
+          <div>
+            <h3>{{ t('noFlyZone.richText.title') }}</h3>
+            <p>{{ t('noFlyZone.richText.subtitle') }}</p>
+          </div>
+          <div class="actions">
+            <a-button type="default" @click="loadRichTextConfig" :loading="richTextLoading"
+              :disabled="richTextSaving">
+              {{ t('noFlyZone.richText.actions.reload') }}
+            </a-button>
+            <a-button type="primary" @click="saveRichTextConfig" :loading="richTextSaving">
+              {{ t('noFlyZone.richText.actions.save') }}
+            </a-button>
+          </div>
+        </header>
+        <div class="rich-text-settings__meta">
+          <span>{{ t('noFlyZone.richText.updatedAt', { time: richTextUpdatedAtDisplay }) }}</span>
+        </div>
+        <a-spin :spinning="richTextLoading">
+          <OpenPlatformEditor v-model="richTextForm.content"
+            :placeholder="t('noFlyZone.richText.placeholder')"
+            :disabled="richTextLoading || richTextSaving" />
+        </a-spin>
+      </section>
+    </a-card>
     <div class="manager-content">
       <a-card class="control-panel" :bordered="false">
         <a-form layout="vertical" class="zone-form">
           <MapImageOverlayControl :map="mapInstance" :map-ready="mapReady" :map-container="mapContainer"
             :disabled="isDrawing" />
+          <a-form-item :label="t('noFlyZone.form.areaList')">
+            <div class="area-list">
+              <button v-for="area in areaTabs" :key="area.key" type="button"
+                class="area-chip" :class="{ 'area-chip--active': area.index === formState.activeAreaIndex }"
+                :disabled="disableFormDuringDrawing" @click="selectArea(area.index)">
+                <span class="area-chip__title">{{ area.label }}</span>
+                <span class="area-chip__type">{{ area.type }}</span>
+              </button>
+            </div>
+            <div class="area-actions">
+              <a-button type="dashed" size="small" :disabled="disableFormDuringDrawing" @click="addArea">
+                <PlusOutlined />
+                {{ t('noFlyZone.form.addArea') }}
+              </a-button>
+              <a-button danger size="small" :disabled="disableFormDuringDrawing || !canRemoveArea"
+                @click="removeArea(formState.activeAreaIndex)">
+                <MinusCircleOutlined />
+                {{ t('noFlyZone.form.removeArea') }}
+              </a-button>
+            </div>
+          </a-form-item>
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required">
@@ -3016,15 +3391,74 @@ const handleSearchClear = () => {
 
 .control-panel,
 .map-panel,
-.zone-table-card {
+.zone-table-card,
+.rich-text-card {
   border-radius: 18px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+.rich-text-card {
+  margin-bottom: 20px;
+}
+
+.rich-text-settings__meta {
+  margin-bottom: 12px;
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .zone-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.area-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.area-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 112px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.area-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.area-chip--active {
+  border-color: #1677ff;
+  background: #e6f4ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.area-chip__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.area-chip__type {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.area-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .form-item-label {

@@ -17,6 +17,29 @@ const normalizeCircle = (circle = {}) => {
   }
 }
 
+const normalizeArea = (area = {}) => {
+  const normalizedCoordinates = Array.isArray(area.coordinates)
+    ? area.coordinates.map((coord) => normalizeCoordinate(coord))
+    : []
+
+  const normalizedCircle = normalizeCircle(area.circle)
+  const normalizedPathDistance = (() => {
+    const explicit = Number(area.pathDistanceMeters ?? area.alongEdgeDistanceMeters)
+    if (Number.isFinite(explicit) && explicit > 0) {
+      return explicit
+    }
+    return extractPathDistance(normalizedCoordinates)
+  })()
+
+  return {
+    ...area,
+    type: normalizeZoneType(area.type),
+    coordinates: normalizedCoordinates,
+    circle: normalizedCircle,
+    pathDistanceMeters: normalizedPathDistance,
+  }
+}
+
 const normalizeEffectivePeriod = (period = {}) => ({
   effectiveFrom: period.effectiveFrom != null ? Number(period.effectiveFrom) : null,
   effectiveTo: period.effectiveTo != null ? Number(period.effectiveTo) : null,
@@ -41,31 +64,20 @@ const extractPathDistance = (coordinates = []) => {
 }
 
 export const normalizeNoFlyZone = (zone = {}) => {
-  const normalizedCoordinates = Array.isArray(zone.coordinates)
-    ? zone.coordinates.map((coord) => normalizeCoordinate(coord))
-    : []
-
-  const normalizedCircle = normalizeCircle(zone.circle)
-
-  const normalizedPathDistance = (() => {
-    const explicit = Number(zone.pathDistanceMeters ?? zone.alongEdgeDistanceMeters)
-    if (Number.isFinite(explicit) && explicit > 0) {
-      return explicit
-    }
-    return extractPathDistance(normalizedCoordinates)
-  })()
+  const normalizedArea = normalizeArea(zone)
 
   return {
     ...zone,
-    type: normalizeZoneType(zone.type),
-    coordinates: normalizedCoordinates,
-    circle: normalizedCircle,
+    type: normalizedArea.type,
+    coordinates: normalizedArea.coordinates,
+    circle: normalizedArea.circle,
     effectiveFrom: zone.effectiveFrom != null ? Number(zone.effectiveFrom) : null,
     effectiveTo: zone.effectiveTo != null ? Number(zone.effectiveTo) : null,
     effectivePeriods: Array.isArray(zone.effectivePeriods)
       ? zone.effectivePeriods.map((period) => normalizeEffectivePeriod(period))
       : [],
-    pathDistanceMeters: normalizedPathDistance,
+    pathDistanceMeters: normalizedArea.pathDistanceMeters,
+    extra: Array.isArray(zone.extra) ? zone.extra.map((item) => normalizeArea(item)) : [],
   }
 }
 
@@ -111,10 +123,22 @@ export const getNoFlyZoneDetail = async (id) => {
   return normalizeNoFlyZone(data?.data)
 }
 
+export const fetchNoFlyZoneRichTextConfig = async () => {
+  const { data } = await http.get('/no-fly-zones/rich-text-config')
+  return data?.data || { content: '', updatedAt: null }
+}
+
+export const saveNoFlyZoneRichTextConfig = async (payload) => {
+  const { data } = await http.put('/admin/no-fly-zones/rich-text-config', payload)
+  return data?.data || { content: payload?.content || '', updatedAt: null }
+}
+
 export default {
   listNoFlyZones,
   createNoFlyZone,
   updateNoFlyZone,
   deleteNoFlyZone,
   getNoFlyZoneDetail,
+  fetchNoFlyZoneRichTextConfig,
+  saveNoFlyZoneRichTextConfig,
 }

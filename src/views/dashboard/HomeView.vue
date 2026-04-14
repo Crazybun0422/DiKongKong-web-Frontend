@@ -1435,10 +1435,9 @@ const loadNearbyPins = async (center, radiusKm, token) => {
 
 const loadNoFlyZones = async (center, radiusKm, token) => {
   try {
-    const wgs = gcj02ToWgs84(center.longitude, center.latitude)
     const zones = await fetchNearbyNoFlyZones({
-      latitude: Number.isFinite(wgs?.lat) ? wgs.lat : center.latitude,
-      longitude: Number.isFinite(wgs?.lng) ? wgs.lng : center.longitude,
+      latitude: center.latitude,
+      longitude: center.longitude,
       radiusInKilometers: radiusKm,
     })
     if (isStaleToken(token)) return

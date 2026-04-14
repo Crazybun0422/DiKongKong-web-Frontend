@@ -1,4 +1,4 @@
-import { lonLatToMercator, mercatorToLonLat, wgs84ToGcj02 } from './coords'
+import { lonLatToMercator, mercatorToLonLat } from './coords'
 
 const DEFAULT_COLOR = '#DE4329'
 const FILL_OPACITY = 0.3
@@ -125,10 +125,7 @@ const toGcjPoint = (lng, lat) => {
   const latitude = Number(lat)
   const longitude = Number(lng)
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
-  const gcj = wgs84ToGcj02(longitude, latitude)
-  const gcjLng = Number.isFinite(gcj?.lng) ? gcj.lng : longitude
-  const gcjLat = Number.isFinite(gcj?.lat) ? gcj.lat : latitude
-  return { latitude: gcjLat, longitude: gcjLng }
+  return { latitude, longitude }
 }
 
 const toGcjRing = (ring) =>

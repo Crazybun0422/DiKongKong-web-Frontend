@@ -578,7 +578,11 @@
       "wechatPlaceholder": "仅支持 mp.weixin.qq.com 域名链接",
       "edgeDistance": "沿边距离",
       "edgeDistancePlaceholder": "请输入沿边距离",
-      "edgeDistanceHint": "将在中心线两侧各偏移该距离生成禁飞区域。"
+      "edgeDistanceHint": "将在中心线两侧各偏移该距离生成禁飞区域。",
+      "areaList": "区域列表",
+      "areaLabel": "区域",
+      "addArea": "新增区域",
+      "removeArea": "删除当前区域"
     },
     "imageOverlay": {
       "title": "图片叠加",
@@ -622,6 +626,21 @@
       "loading": "正在加载候选地点...",
       "inputHint": "请输入关键词搜索地点。"
     },
+    "richText": {
+      "title": "顶部富文本说明",
+      "subtitle": "配置临时禁飞区页面顶部展示的富文本内容，支持图片和排版。",
+      "placeholder": "请输入要展示的禁飞区说明内容，支持图片和富文本。",
+      "updatedAt": "最近更新时间：{time}",
+      "actions": {
+        "reload": "重新加载",
+        "save": "保存说明"
+      },
+      "messages": {
+        "loadFailed": "禁飞区富文本配置加载失败，请稍后重试。",
+        "saveFailed": "禁飞区富文本配置保存失败，请稍后重试。",
+        "saveSuccess": "禁飞区富文本配置已保存。"
+      }
+    },
     "table": {
       "columns": {
         "name": "名称",
@@ -650,6 +669,9 @@
       "pathTooShort": "请至少绘制两个点以生成沿边缓冲区。",
       "pathRightClickHint": "右键单击或双击即可结束沿边缓冲绘制。",
       "pathDistanceInvalid": "请设置大于 0 的沿边距离。",
+      "extraGeometryMissing": "请先完成区域 {index} 的绘制。",
+      "extraCircleMissing": "请先完成区域 {index} 的圆形绘制。",
+      "extraPathDistanceInvalid": "请为区域 {index} 设置大于 0 的沿边距离。",
       "deleteConfirmTitle": "确认删除禁飞区",
       "deleteConfirmContent": "确认删除“{name}”禁飞区域吗？",
       "deleteSuccess": "禁飞区已删除。",
