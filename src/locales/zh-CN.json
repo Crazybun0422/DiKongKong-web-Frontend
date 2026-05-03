@@ -626,6 +626,31 @@
       "loading": "正在加载候选地点...",
       "inputHint": "请输入关键词搜索地点。"
     },
+    "regionLibrary": {
+      "title": "县级区域库",
+      "subtitle": "按版本检查、缓存并解压县级 KML 压缩包，选择后自动绑定到当前区域。",
+      "searchPlaceholder": "搜索省 / 市 / 县 / KML 文件名",
+      "empty": "暂无可选区域，请先在系统设置上传县级压缩包。",
+      "selected": "当前已绑定：{name}",
+      "actions": {
+        "reload": "刷新区域库",
+        "clear": "清除绑定"
+      },
+      "status": {
+        "checking": "正在检查版本",
+        "downloading": "正在下载压缩包",
+        "unzipping": "正在解压区域库",
+        "ready": "区域库已就绪",
+        "idle": "区域库尚未加载"
+      },
+      "messages": {
+        "loadFailed": "县级区域库加载失败，请稍后重试。",
+        "selectFailed": "区域加载失败，请稍后重试。",
+        "invalidNode": "请选择 KML 文件节点。",
+        "emptyGeometry": "所选 KML 未解析出有效区域。",
+        "applied": "已将所选区域绑定到当前禁飞区。"
+      }
+    },
     "richText": {
       "title": "顶部富文本说明",
       "subtitle": "配置临时禁飞区页面顶部展示的富文本内容，支持图片和排版。",
@@ -818,6 +843,7 @@
       "table": {
         "province": "省份",
         "area": "报备地区",
+        "doubleReported": "双报备",
         "actions": "操作"
       },
       "area": {
@@ -829,6 +855,8 @@
       },
       "form": {
         "area": "报备地区",
+        "cityDescription": "城市说明",
+        "doubleReported": "是否双报备",
         "miniProgram": "跳转小程序",
         "appId": "小程序 AppID",
         "path": "小程序路径",
@@ -842,11 +870,16 @@
         "video": "跳转视频号-视频"
       },
       "placeholders": {
+        "cityDescription": "请输入城市说明",
         "appId": "请输入 appid",
         "path": "请输入路径",
         "publicAccountLink": "请输入公众号文章链接",
         "videoAccountId": "请输入视频号ID",
         "videoId": "请输入视频ID"
+      },
+      "values": {
+        "yes": "是",
+        "no": "否"
       },
       "search": {
         "placeholder": "搜索省/市/县"
@@ -895,6 +928,7 @@
       "tencentCos": "腾讯云配置",
       "adSettings": "广告设置",
       "copySettings": "文案设置",
+      "memberSettings": "会员设置",
       "payment": "支付设置",
       "weapp": "小程序设置",
       "newbieTasks": "新人任务设置",
@@ -1400,6 +1434,36 @@
           "loadFailed": "省区域信息压缩包配置加载失败"
         }
       },
+      "countyKmlZip": {
+        "title": "县级区域信息压缩包设置",
+        "subtitle": "上传并配置省市县区域信息使用的 ZIP 资源包。",
+        "currentFileLabel": "当前压缩包",
+        "currentVersionLabel": "当前版本",
+        "emptyFile": "暂无压缩包",
+        "emptyVersion": "未设置",
+        "fields": {
+          "file": "压缩包文件",
+          "version": "版本号"
+        },
+        "placeholders": {
+          "version": "例如 1.0.1"
+        },
+        "helper": "仅支持 ZIP，默认会在当前版本基础上小版本号 +1，可手动修改。",
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "upload": "上传并保存",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "noFile": "请先选择压缩包文件",
+          "noVersion": "请填写版本号",
+          "uploadSuccess": "县级区域信息压缩包已更新",
+          "uploadFailed": "县级区域信息压缩包上传失败",
+          "loadFailed": "县级区域信息压缩包配置加载失败"
+        }
+      },
       "ladderLeaderboard": {
         "title": "天梯排行榜",
         "subtitle": "展示菜单游戏天梯排名，含最高分与最近游戏时间。",
@@ -1563,8 +1627,21 @@
         "content": "文案内容",
         "placeholder": "请输入文案内容"
       },
+      "groups": {
+        "flightSafetyPreparation": "飞前安全准备",
+        "other": "其他文案"
+      },
       "options": {
         "openPlatform": "开放平台",
+        "flightQualificationAssessmentRichText": "飞行资质评估",
+        "insuranceCoverageRichText": "保险额度",
+        "caacLicenseRegistrationSubsidyRichText": "CAAC执照报名补贴",
+        "theoryCertificateRichText": "考取操控理论合格证",
+        "operationCertificateRichText": "办理运营合格证",
+        "m120FlightRichText": "120米飞行",
+        "noSpecialFlightScenarioRichText": "无特殊飞行场景",
+        "reportAndUnlockGuideRichText": "报备和解禁指南",
+        "airspaceDescriptionRichText": "空域说明",
         "planetMerchantAdvancedGuide": "星球商户进阶攻略",
         "planetCreationAdvancedGuide": "星球创作进阶攻略",
         "shareToPlatform": "共享到平台",
@@ -1618,6 +1695,174 @@
       }
     }
   },
+  "memberSettings": {
+    "title": "会员设置",
+    "subtitle": "维护会员价格配置，并上传会员背景包、头像包和语音包。",
+    "actions": {
+      "reload": "重新加载"
+    },
+    "tabs": {
+      "logs": "会员开通日志",
+      "settings": "会员设置"
+    },
+    "units": {
+      "yuan": "元",
+      "flp": "FLP"
+    },
+    "logs": {
+      "title": "会员开通日志",
+      "subtitle": "查看会员充值开通记录。",
+      "searchPlaceholder": "按低空号筛选",
+      "actions": {
+        "search": "查询",
+        "reload": "重新加载"
+      },
+      "columns": {
+        "featureCode": "低空号",
+        "username": "用户名",
+        "cycle": "周期",
+        "paymentMode": "支付方式",
+        "amount": "金额",
+        "memberExpireDate": "会员到期",
+        "activatedAt": "支付时间"
+      },
+      "cycle": {
+        "monthly": "月度",
+        "yearly": "年度"
+      },
+      "paymentMode": {
+        "wechat": "微信",
+        "flp": "FLP"
+      },
+      "pagination": {
+        "total": "共 {total} 条 · 当前 {start}-{end}"
+      },
+      "messages": {
+        "loadFailed": "会员开通日志加载失败"
+      }
+    },
+    "price": {
+      "title": "会员价格设置",
+      "subtitle": "配置年度、月度会员在微信支付与 FLP 支付下的实付价和划线价。",
+      "updatedAt": "更新时间：{time}",
+      "emptyUpdatedAt": "尚未同步",
+      "groups": {
+        "monthly": {
+          "title": "月度会员",
+          "subtitle": "按月开通"
+        },
+        "yearly": {
+          "title": "年度会员",
+          "subtitle": "按年开通"
+        }
+      },
+      "paymentTypes": {
+        "wechat": "微信支付",
+        "flp": "FLP 支付"
+      },
+      "valueTypes": {
+        "net": "实付价",
+        "list": "划线价"
+      },
+      "fields": {
+        "yearlyWechatNetPrice": "年度微信实付价",
+        "yearlyWechatListPrice": "年度微信划线价",
+        "yearlyFlpNetPrice": "年度 FLP 实付价",
+        "yearlyFlpListPrice": "年度 FLP 划线价",
+        "monthlyWechatNetPrice": "月度微信实付价",
+        "monthlyWechatListPrice": "月度微信划线价",
+        "monthlyFlpNetPrice": "月度 FLP 实付价",
+        "monthlyFlpListPrice": "月度 FLP 划线价"
+      },
+      "actions": {
+        "save": "保存价格"
+      },
+      "validation": {
+        "nonNegative": "请输入大于等于 0 的数值"
+      },
+      "messages": {
+        "loadFailed": "会员价格配置加载失败",
+        "saveSuccess": "会员价格配置已保存",
+        "saveFailed": "会员价格配置保存失败"
+      }
+    },
+    "inviteReward": {
+      "title": "会员邀请奖励",
+      "subtitle": "配置被邀请用户开通月度或年度会员后，邀请人获得的 FLP 奖励。",
+      "updatedAt": "更新时间：{time}",
+      "emptyUpdatedAt": "尚未同步",
+      "helper": "当用户存在邀请关系并完成会员充值时，系统会按充值周期给邀请人发放对应 FLP 奖励。",
+      "fields": {
+        "monthlyRewardFlp": "月度会员邀请奖励",
+        "yearlyRewardFlp": "年度会员邀请奖励"
+      },
+      "actions": {
+        "save": "保存奖励",
+        "reload": "重新加载"
+      },
+      "validation": {
+        "nonNegative": "请输入大于等于 0 的 FLP 奖励"
+      },
+      "messages": {
+        "loadFailed": "会员邀请奖励配置加载失败",
+        "saveSuccess": "会员邀请奖励配置已保存",
+        "saveFailed": "会员邀请奖励配置保存失败"
+      }
+    },
+    "upload": {
+      "resultTitle": "上传结果",
+      "currentVersion": "当前版本",
+      "currentFile": "当前文件",
+      "emptyVersion": "未配置",
+      "emptyFile": "暂无文件",
+      "versionLabel": "上传版本号",
+      "versionPlaceholder": "例如 1.0.1",
+      "actions": {
+        "select": "选择文件",
+        "replace": "更换文件",
+        "remove": "移除",
+        "upload": "上传",
+        "open": "打开文件",
+        "reloadVersion": "刷新版本"
+      },
+      "messages": {
+        "noVersion": "请填写上传版本号"
+      },
+      "background": {
+        "title": "背景包上传",
+        "subtitle": "上传会员背景图片资源包。",
+        "helper": "支持 ZIP、RAR、7Z 压缩包，上传时必须填写版本号。",
+        "messages": {
+          "noFile": "请先选择背景包文件",
+          "uploadSuccess": "背景包上传成功",
+          "uploadFailed": "背景包上传失败",
+          "loadVersionFailed": "背景包版本加载失败"
+        }
+      },
+      "avatar": {
+        "title": "头像包上传",
+        "subtitle": "上传会员头像资源包。",
+        "helper": "支持 ZIP、RAR、7Z 压缩包，上传时必须填写版本号。",
+        "messages": {
+          "noFile": "请先选择头像包文件",
+          "uploadSuccess": "头像包上传成功",
+          "uploadFailed": "头像包上传失败",
+          "loadVersionFailed": "头像包版本加载失败"
+        }
+      },
+      "voice": {
+        "title": "语音包上传",
+        "subtitle": "上传会员语音资源包。",
+        "helper": "支持 ZIP、RAR、7Z 压缩包，上传时必须填写版本号。",
+        "messages": {
+          "noFile": "请先选择语音包文件",
+          "uploadSuccess": "语音包上传成功",
+          "uploadFailed": "语音包上传失败",
+          "loadVersionFailed": "语音包版本加载失败"
+        }
+      }
+    }
+  },
   "messages": {
     "requestFailed": "请求失败，请稍后重试"
   },
@@ -1634,12 +1879,20 @@
     "subtitle": "查看用户注册与TOKEN明细。",
     "search": {
       "placeholder": "按名称或低空号搜索",
-      "submit": "搜索"
+      "submit": "搜索",
+      "memberFilter": {
+        "options": {
+          "all": "全部用户",
+          "member": "会员用户",
+          "nonMember": "非会员用户"
+        }
+      }
     },
     "columns": {
       "featureCode": "低空号",
       "username": "名称",
       "avatar": "头像",
+      "member": "会员到期",
       "token": "FLP",
       "createdAt": "注册时间",
       "actions": "操作"
@@ -1666,6 +1919,7 @@
       "fields": {
         "featureCode": "低空号",
         "token": "TOKEN",
+        "member": "会员到期",
         "createdAt": "注册时间"
       },
       "policy": {

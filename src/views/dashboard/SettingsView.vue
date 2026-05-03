@@ -12,6 +12,24 @@ import {
   saveMerchantIntroLongImageConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchFlightQualificationAssessmentRichText,
+  saveFlightQualificationAssessmentRichText,
+  fetchInsuranceCoverageRichText,
+  saveInsuranceCoverageRichText,
+  fetchCaacLicenseRegistrationSubsidyRichText,
+  saveCaacLicenseRegistrationSubsidyRichText,
+  fetchTheoryCertificateRichText,
+  saveTheoryCertificateRichText,
+  fetchOperationCertificateRichText,
+  saveOperationCertificateRichText,
+  fetch120mFlightRichText,
+  save120mFlightRichText,
+  fetchNoSpecialFlightScenarioRichText,
+  saveNoSpecialFlightScenarioRichText,
+  fetchReportAndUnlockGuideRichText,
+  saveReportAndUnlockGuideRichText,
+  fetchAirspaceDescriptionRichText,
+  saveAirspaceDescriptionRichText,
   fetchPlanetMerchantAdvancedGuideCopy,
   savePlanetMerchantAdvancedGuideCopy,
   fetchPlanetCreationAdvancedGuideCopy,
@@ -43,6 +61,8 @@ import {
   uploadEasterEggResourceConfig,
   fetchProvinceCityKmlZipConfig,
   uploadProvinceCityKmlZipConfig,
+  fetchCountyKmlZipConfig,
+  uploadCountyKmlZipConfig,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
@@ -53,6 +73,7 @@ import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
+import MemberSettingsView from './MemberSettingsView.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
 import { fetchAdminUserCheckins, fetchAdminUserNewbieTasks } from '../../services/adminUsers'
@@ -254,20 +275,92 @@ const copyHasContent = computed(() => {
 
   return /<img\s|<video\s|<iframe\s/i.test(rawContent)
 })
-const copyTypeOptions = computed(() => [
-  { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
-  { value: 'planetMerchantAdvancedGuide', label: t('settings.copySettings.options.planetMerchantAdvancedGuide') },
-  { value: 'planetCreationAdvancedGuide', label: t('settings.copySettings.options.planetCreationAdvancedGuide') },
-  { value: 'shareToPlatform', label: t('settings.copySettings.options.shareToPlatform') },
-  { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
-  { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
-  { value: 'coordinateLongPressGuide', label: t('settings.copySettings.options.coordinateLongPressGuide') },
-  { value: 'coordinateSystemDescription', label: t('settings.copySettings.options.coordinateSystemDescription') },
+const copyTypeGroups = computed(() => [
+  {
+    key: 'flightSafetyPreparation',
+    title: t('settings.copySettings.groups.flightSafetyPreparation'),
+    options: [
+      {
+        value: 'flightQualificationAssessmentRichText',
+        label: t('settings.copySettings.options.flightQualificationAssessmentRichText'),
+      },
+      { value: 'insuranceCoverageRichText', label: t('settings.copySettings.options.insuranceCoverageRichText') },
+      {
+        value: 'caacLicenseRegistrationSubsidyRichText',
+        label: t('settings.copySettings.options.caacLicenseRegistrationSubsidyRichText'),
+      },
+      { value: 'theoryCertificateRichText', label: t('settings.copySettings.options.theoryCertificateRichText') },
+      { value: 'operationCertificateRichText', label: t('settings.copySettings.options.operationCertificateRichText') },
+      { value: 'm120FlightRichText', label: t('settings.copySettings.options.m120FlightRichText') },
+      {
+        value: 'noSpecialFlightScenarioRichText',
+        label: t('settings.copySettings.options.noSpecialFlightScenarioRichText'),
+      },
+      {
+        value: 'reportAndUnlockGuideRichText',
+        label: t('settings.copySettings.options.reportAndUnlockGuideRichText'),
+      },
+      {
+        value: 'airspaceDescriptionRichText',
+        label: t('settings.copySettings.options.airspaceDescriptionRichText'),
+      },
+    ],
+  },
+  {
+    key: 'other',
+    title: t('settings.copySettings.groups.other'),
+    options: [
+      { value: 'openPlatform', label: t('settings.copySettings.options.openPlatform') },
+      { value: 'planetMerchantAdvancedGuide', label: t('settings.copySettings.options.planetMerchantAdvancedGuide') },
+      { value: 'planetCreationAdvancedGuide', label: t('settings.copySettings.options.planetCreationAdvancedGuide') },
+      { value: 'shareToPlatform', label: t('settings.copySettings.options.shareToPlatform') },
+      { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
+      { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
+      { value: 'coordinateLongPressGuide', label: t('settings.copySettings.options.coordinateLongPressGuide') },
+      { value: 'coordinateSystemDescription', label: t('settings.copySettings.options.coordinateSystemDescription') },
+    ],
+  },
 ])
 const copyHandlers = {
   openPlatform: {
     fetch: fetchOpenPlatformCopy,
     save: saveOpenPlatformCopy,
+  },
+  flightQualificationAssessmentRichText: {
+    fetch: fetchFlightQualificationAssessmentRichText,
+    save: saveFlightQualificationAssessmentRichText,
+  },
+  insuranceCoverageRichText: {
+    fetch: fetchInsuranceCoverageRichText,
+    save: saveInsuranceCoverageRichText,
+  },
+  caacLicenseRegistrationSubsidyRichText: {
+    fetch: fetchCaacLicenseRegistrationSubsidyRichText,
+    save: saveCaacLicenseRegistrationSubsidyRichText,
+  },
+  theoryCertificateRichText: {
+    fetch: fetchTheoryCertificateRichText,
+    save: saveTheoryCertificateRichText,
+  },
+  operationCertificateRichText: {
+    fetch: fetchOperationCertificateRichText,
+    save: saveOperationCertificateRichText,
+  },
+  m120FlightRichText: {
+    fetch: fetch120mFlightRichText,
+    save: save120mFlightRichText,
+  },
+  noSpecialFlightScenarioRichText: {
+    fetch: fetchNoSpecialFlightScenarioRichText,
+    save: saveNoSpecialFlightScenarioRichText,
+  },
+  reportAndUnlockGuideRichText: {
+    fetch: fetchReportAndUnlockGuideRichText,
+    save: saveReportAndUnlockGuideRichText,
+  },
+  airspaceDescriptionRichText: {
+    fetch: fetchAirspaceDescriptionRichText,
+    save: saveAirspaceDescriptionRichText,
   },
   planetMerchantAdvancedGuide: {
     fetch: fetchPlanetMerchantAdvancedGuideCopy,
@@ -501,13 +594,24 @@ const provinceCityKmlZipConfig = reactive({
   fileName: '',
   version: '',
 })
+const countyKmlZipConfig = reactive({
+  fileName: '',
+  version: '',
+})
 const provinceCityKmlZipForm = reactive({
+  fileName: '',
+  version: '',
+})
+const countyKmlZipForm = reactive({
   fileName: '',
   version: '',
 })
 const provinceCityKmlZipLoading = ref(false)
 const provinceCityKmlZipSaving = ref(false)
 const provinceCityKmlZipSelected = ref(null)
+const countyKmlZipLoading = ref(false)
+const countyKmlZipSaving = ref(false)
+const countyKmlZipSelected = ref(null)
 
 const userAgreementList = ref([])
 const userAgreementLoading = ref(false)
@@ -577,6 +681,8 @@ const reportEntryPagination = reactive({
 })
 const reportEntryForm = reactive({
   areaPath: [],
+  cityDescription: '',
+  doubleReported: false,
   miniProgramAppId: '',
   miniProgramPath: '',
   guideType: 'publicAccount',
@@ -916,6 +1022,14 @@ const resetProvinceCityKmlZipForm = (currentVersion = '') => {
 
 const provinceCityKmlZipDownloadUrl = computed(() => buildDownloadUrl(provinceCityKmlZipConfig.fileName || ''))
 
+const resetCountyKmlZipForm = (currentVersion = '') => {
+  countyKmlZipForm.fileName = ''
+  countyKmlZipForm.version = getNextFontVersion(currentVersion)
+  countyKmlZipSelected.value = null
+}
+
+const countyKmlZipDownloadUrl = computed(() => buildDownloadUrl(countyKmlZipConfig.fileName || ''))
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -1046,6 +1160,7 @@ const reportEntryTreeFilterResult = computed(() => {
 const reportEntryColumns = computed(() => [
   { title: t('settings.reportEntry.table.province'), dataIndex: 'province', key: 'province', width: 160 },
   { title: t('settings.reportEntry.table.area'), dataIndex: 'area', key: 'area' },
+  { title: t('settings.reportEntry.table.doubleReported'), dataIndex: 'doubleReported', key: 'doubleReported', width: 120 },
   { title: t('settings.reportEntry.table.actions'), key: 'actions', width: 120 },
 ])
 const reportEntryRules = computed(() => ({
@@ -2600,6 +2715,25 @@ const loadProvinceCityKmlZipConfig = async () => {
   }
 }
 
+const loadCountyKmlZipConfig = async () => {
+  countyKmlZipLoading.value = true
+  try {
+    const data = await fetchCountyKmlZipConfig()
+    countyKmlZipConfig.fileName = extractObjectName(data?.fileName || '')
+    countyKmlZipConfig.version = data?.version || ''
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load county kml zip config', error)
+      message.error(t('settings.system.countyKmlZip.messages.loadFailed'))
+    }
+    countyKmlZipConfig.fileName = ''
+    countyKmlZipConfig.version = ''
+  } finally {
+    countyKmlZipLoading.value = false
+    resetCountyKmlZipForm(countyKmlZipConfig.version)
+  }
+}
+
 const handleProvinceCityKmlZipSelect = (event) => {
   const file = event?.target?.files?.[0]
   if (!file) return
@@ -2616,6 +2750,24 @@ const handleProvinceCityKmlZipSelect = (event) => {
 const clearProvinceCityKmlZipSelection = () => {
   provinceCityKmlZipSelected.value = null
   provinceCityKmlZipForm.fileName = ''
+}
+
+const handleCountyKmlZipSelect = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  countyKmlZipSelected.value = file
+  countyKmlZipForm.fileName = file.name || ''
+  if (!countyKmlZipForm.version) {
+    countyKmlZipForm.version = getNextFontVersion(countyKmlZipConfig.version)
+  }
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearCountyKmlZipSelection = () => {
+  countyKmlZipSelected.value = null
+  countyKmlZipForm.fileName = ''
 }
 
 const submitProvinceCityKmlZipForm = async () => {
@@ -2641,6 +2793,32 @@ const submitProvinceCityKmlZipForm = async () => {
     message.error(t('settings.system.provinceCityKmlZip.messages.uploadFailed'))
   } finally {
     provinceCityKmlZipSaving.value = false
+  }
+}
+
+const submitCountyKmlZipForm = async () => {
+  if (!countyKmlZipSelected.value) {
+    message.warning(t('settings.system.countyKmlZip.messages.noFile'))
+    return
+  }
+  const version = (countyKmlZipForm.version || '').trim()
+  if (!version) {
+    message.warning(t('settings.system.countyKmlZip.messages.noVersion'))
+    return
+  }
+  if (countyKmlZipSaving.value) {
+    return
+  }
+  countyKmlZipSaving.value = true
+  try {
+    await uploadCountyKmlZipConfig(countyKmlZipSelected.value, version)
+    message.success(t('settings.system.countyKmlZip.messages.uploadSuccess'))
+    await loadCountyKmlZipConfig()
+  } catch (error) {
+    console.error('Failed to upload county kml zip package', error)
+    message.error(t('settings.system.countyKmlZip.messages.uploadFailed'))
+  } finally {
+    countyKmlZipSaving.value = false
   }
 }
 
@@ -2871,6 +3049,8 @@ const handleReportEntryTableChange = (pager) => {
 
 const resetReportEntryForm = () => {
   reportEntryForm.areaPath = []
+  reportEntryForm.cityDescription = ''
+  reportEntryForm.doubleReported = false
   reportEntryForm.miniProgramAppId = ''
   reportEntryForm.miniProgramPath = ''
   reportEntryForm.guideType = 'publicAccount'
@@ -2886,6 +3066,8 @@ const openReportEntryDrawer = (entry) => {
     reportEntryEditingId.value = entry.id
     reportEntryForm.areaPath = buildReportEntryAreaPath(entry)
     reportEntrySelectedKeys.value = [reportEntryForm.areaPath.join('/')]
+    reportEntryForm.cityDescription = entry?.cityDescription || ''
+    reportEntryForm.doubleReported = Boolean(entry?.doubleReported)
     reportEntryForm.miniProgramAppId = entry?.miniProgram?.appId || ''
     reportEntryForm.miniProgramPath = entry?.miniProgram?.path || ''
     reportEntryForm.publicAccountLink = entry?.guide?.publicAccountLink || ''
@@ -2931,7 +3113,9 @@ const submitReportEntryForm = async () => {
     const nextPayload = {
       province: region.province,
       city: region.city,
+      cityDescription: reportEntryForm.cityDescription.trim() || null,
       county: region.county,
+      doubleReported: Boolean(reportEntryForm.doubleReported),
       miniProgram: {
         appId: reportEntryForm.miniProgramAppId.trim(),
         path: reportEntryForm.miniProgramPath.trim(),
@@ -3190,6 +3374,7 @@ onMounted(() => {
   loadPosterServiceVersion()
   loadEasterEggResourceConfig()
   loadProvinceCityKmlZipConfig()
+  loadCountyKmlZipConfig()
   loadLadderLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
@@ -3710,14 +3895,15 @@ onMounted(() => {
               <a-form :model="copyForm" layout="vertical" @finish="submitCopyForm">
                 <a-form-item :label="t('settings.copySettings.form.type')">
                   <a-radio-group v-model:value="copyType" :disabled="copyLoading || copySaving">
-                    <a-radio v-for="option in copyTypeOptions" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </a-radio>
+                    <div v-for="group in copyTypeGroups" :key="group.key" class="copy-type-group">
+                      <div class="copy-type-group__title">{{ group.title }}</div>
+                      <div class="copy-type-group__options">
+                        <a-radio v-for="option in group.options" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </a-radio>
+                      </div>
+                    </div>
                   </a-radio-group>
-                </a-form-item>
-                <a-form-item name="content" :label="t('settings.copySettings.form.content')">
-                  <open-platform-editor v-model="copyForm.content"
-                    :placeholder="t('settings.copySettings.form.placeholder')" :disabled="copyLoading || copySaving" />
                 </a-form-item>
                 <div class="actions">
                   <a-button type="primary" html-type="submit" :loading="copySaving">
@@ -3730,6 +3916,10 @@ onMounted(() => {
                     {{ t('common.actions.reset') }}
                   </a-button>
                 </div>
+                <a-form-item name="content" :label="t('settings.copySettings.form.content')">
+                  <open-platform-editor v-model="copyForm.content"
+                    :placeholder="t('settings.copySettings.form.placeholder')" :disabled="copyLoading || copySaving" />
+                </a-form-item>
               </a-form>
             </a-spin>
             <a-modal :open="copyPreviewVisible" :title="t('settings.copySettings.preview.title')" width="440px"
@@ -3752,6 +3942,10 @@ onMounted(() => {
               </div>
             </a-modal>
           </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="member-settings" :tab="t('settings.tabs.memberSettings')">
+          <MemberSettingsView />
         </a-tab-pane>
 
         <a-tab-pane key="payment" :tab="t('settings.tabs.payment')">
@@ -4469,7 +4663,11 @@ onMounted(() => {
                   :row-class-name="reportEntryRowClassName" @change="handleReportEntryTableChange">
                   <template #bodyCell="{ column, record }">
                     <template v-if="column.key === 'area'">
-                      {{ formatReportEntryArea(record) }}
+                      <div>{{ formatReportEntryArea(record) }}</div>
+                      <div v-if="record.cityDescription" class="report-entry-table-subtext">{{ record.cityDescription }}</div>
+                    </template>
+                    <template v-else-if="column.key === 'doubleReported'">
+                      {{ record.doubleReported ? t('settings.reportEntry.values.yes') : t('settings.reportEntry.values.no') }}
                     </template>
                     <template v-else-if="column.key === 'actions'">
                       <a-dropdown trigger="click">
@@ -4519,6 +4717,13 @@ onMounted(() => {
                       checkable check-strictly block-node @check="handleReportEntryAreaCheck"
                       @expand="handleReportEntryTreeExpand" />
                   </div>
+                </a-form-item>
+                <a-form-item name="cityDescription" :label="t('settings.reportEntry.form.cityDescription')">
+                  <a-input v-model:value="reportEntryForm.cityDescription"
+                    :placeholder="t('settings.reportEntry.placeholders.cityDescription')" />
+                </a-form-item>
+                <a-form-item name="doubleReported" :label="t('settings.reportEntry.form.doubleReported')">
+                  <a-switch v-model:checked="reportEntryForm.doubleReported" />
                 </a-form-item>
               </div>
 
@@ -5004,6 +5209,73 @@ onMounted(() => {
             <section class="system-settings">
               <header class="section-header">
                 <div>
+                  <h3>{{ t('settings.system.countyKmlZip.title') }}</h3>
+                  <p>{{ t('settings.system.countyKmlZip.subtitle') }}</p>
+                </div>
+                <div class="system-settings__meta">
+                  <span class="system-settings__meta-label">
+                    {{ t('settings.system.countyKmlZip.currentVersionLabel') }}
+                  </span>
+                  <span class="system-settings__meta-value">
+                    {{ countyKmlZipConfig.version || t('settings.system.countyKmlZip.emptyVersion') }}
+                  </span>
+                </div>
+              </header>
+              <a-spin :spinning="countyKmlZipLoading">
+                <div class="system-font-current">
+                  <span class="system-font-current__label">
+                    {{ t('settings.system.countyKmlZip.currentFileLabel') }}
+                  </span>
+                  <a v-if="countyKmlZipConfig.fileName" :href="countyKmlZipDownloadUrl" target="_blank"
+                    rel="noreferrer">
+                    {{ countyKmlZipConfig.fileName }}
+                  </a>
+                  <span v-else class="empty-hint">{{ t('settings.system.countyKmlZip.emptyFile') }}</span>
+                </div>
+                <a-form layout="vertical" :model="countyKmlZipForm" @finish="submitCountyKmlZipForm">
+                  <a-form-item :label="t('settings.system.countyKmlZip.fields.file')">
+                    <div class="system-font-upload">
+                      <label class="system-font-upload__trigger">
+                        <input class="system-font-upload__input" type="file" accept=".zip"
+                          :disabled="countyKmlZipSaving" @change="handleCountyKmlZipSelect" />
+                        <a-button type="dashed" :loading="countyKmlZipSaving">
+                          {{
+                            countyKmlZipForm.fileName
+                              ? t('settings.system.countyKmlZip.actions.replaceFile')
+                              : t('settings.system.countyKmlZip.actions.selectFile')
+                          }}
+                        </a-button>
+                      </label>
+                      <span v-if="countyKmlZipForm.fileName" class="system-font-upload__name">
+                        {{ countyKmlZipForm.fileName }}
+                      </span>
+                      <a-button v-if="countyKmlZipForm.fileName" type="link" danger size="small"
+                        @click="clearCountyKmlZipSelection">
+                        {{ t('settings.system.countyKmlZip.actions.removeFile') }}
+                      </a-button>
+                    </div>
+                    <div class="system-font-helper">{{ t('settings.system.countyKmlZip.helper') }}</div>
+                  </a-form-item>
+                  <a-form-item :label="t('settings.system.countyKmlZip.fields.version')">
+                    <a-input v-model:value="countyKmlZipForm.version"
+                      :placeholder="t('settings.system.countyKmlZip.placeholders.version')" />
+                  </a-form-item>
+                  <div class="actions">
+                    <a-button type="primary" html-type="submit" :loading="countyKmlZipSaving">
+                      {{ t('settings.system.countyKmlZip.actions.upload') }}
+                    </a-button>
+                    <a-button type="default" @click="loadCountyKmlZipConfig"
+                      :disabled="countyKmlZipLoading || countyKmlZipSaving">
+                      {{ t('settings.system.countyKmlZip.actions.reload') }}
+                    </a-button>
+                  </div>
+                </a-form>
+              </a-spin>
+            </section>
+
+            <section class="system-settings">
+              <header class="section-header">
+                <div>
                   <h3>{{ t('settings.system.ladderLeaderboard.title') }}</h3>
                   <p>{{ t('settings.system.ladderLeaderboard.subtitle') }}</p>
                 </div>
@@ -5065,6 +5337,30 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+.copy-type-group {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.copy-type-group + .copy-type-group {
+  margin-top: 12px;
+}
+
+.copy-type-group__title {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.copy-type-group__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }
 
 .tab-description {
@@ -5372,6 +5668,13 @@ onMounted(() => {
   border-radius: 12px;
   padding: 12px;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.report-entry-table-subtext {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6b7280;
 }
 
 .report-entry-action-button {

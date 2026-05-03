@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
+import { DownOutlined, UpOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -26,6 +27,7 @@ const mapListeners = ref([])
 const placingListener = ref(null)
 const resizeListener = ref(null)
 const pasteListener = ref(null)
+const collapsed = ref(true)
 
 const canUseMap = computed(() => props.mapReady && !!props.map)
 const hasImage = computed(() => !!overlayUrl.value)
@@ -480,13 +482,21 @@ onMounted(() => {
 <template>
   <div class="image-overlay-panel">
     <div class="overlay-header">
-      <h4>{{ t('noFlyZone.imageOverlay.title') }}</h4>
+      <div class="overlay-title-row">
+        <h4>{{ t('noFlyZone.imageOverlay.title') }}</h4>
+        <a-button class="overlay-toggle" size="small" @click="collapsed = !collapsed">
+          <template #icon>
+            <UpOutlined v-if="!collapsed" />
+            <DownOutlined v-else />
+          </template>
+        </a-button>
+      </div>
+    </div>
+
+    <div v-if="!collapsed" class="overlay-controls">
       <span v-if="placingMode" class="placing-hint">
         {{ t('noFlyZone.imageOverlay.placingHint') }}
       </span>
-    </div>
-
-    <div class="overlay-controls">
       <div class="overlay-actions">
         <a-button type="dashed" size="small" :disabled="disabled" @click="triggerFilePicker">
           {{ hasImage ? t('noFlyZone.imageOverlay.replace') : t('noFlyZone.imageOverlay.upload') }}
@@ -549,9 +559,9 @@ onMounted(() => {
           {{ t('noFlyZone.imageOverlay.placeCenter') }}
         </a-button>
       </div>
-    </div>
 
-    <p class="overlay-hint">{{ t('noFlyZone.imageOverlay.uploadHint') }}</p>
+      <p class="overlay-hint">{{ t('noFlyZone.imageOverlay.uploadHint') }}</p>
+    </div>
   </div>
 </template>
 
@@ -569,7 +579,12 @@ onMounted(() => {
 .overlay-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+}
+
+.overlay-title-row {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -577,6 +592,25 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   color: #0f172a;
+}
+
+.overlay-toggle {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.overlay-toggle:hover,
+.overlay-toggle:focus {
+  color: #1677ff;
+  border-color: rgba(22, 119, 255, 0.35);
+  background: #f8fbff;
 }
 
 .placing-hint {

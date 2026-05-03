@@ -19,6 +19,7 @@ const pagination = reactive({
 
 const searchForm = reactive({
   keyword: '',
+  member: 'ALL',
 })
 
 const detailVisible = ref(false)
@@ -72,9 +73,16 @@ const columns = computed(() => [
   { title: t('users.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 160 },
   { title: t('users.columns.username'), dataIndex: 'username', key: 'username' },
   { title: t('users.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 120 },
+  { title: t('users.columns.member'), dataIndex: 'memberExpireDate', key: 'member', width: 220 },
   { title: t('users.columns.token'), dataIndex: 'flpBalance', key: 'token', width: 120 },
   { title: t('users.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 220 },
   { title: t('users.columns.actions'), key: 'actions', width: 160 },
+])
+
+const memberFilterOptions = computed(() => [
+  { value: 'ALL', label: t('users.search.memberFilter.options.all') },
+  { value: 'MEMBER', label: t('users.search.memberFilter.options.member') },
+  { value: 'NON_MEMBER', label: t('users.search.memberFilter.options.nonMember') },
 ])
 
 const detailColumns = computed(() => [
@@ -121,6 +129,25 @@ const formatAgreementType = (value) => {
   return value
 }
 
+const resolveMemberExpireDate = (user) =>
+  user?.memberExpireDate || user?.memberExpireAt || user?.membershipExpireDate || user?.expireDate || ''
+
+const isMemberUser = (user) => {
+  if (typeof user?.member === 'boolean') return user.member
+  return Boolean(resolveMemberExpireDate(user))
+}
+
+const formatMemberCell = (user) => {
+  if (!isMemberUser(user)) return '-'
+  return formatDateTime(resolveMemberExpireDate(user))
+}
+
+const resolveMemberFilterValue = () => {
+  if (searchForm.member === 'MEMBER') return true
+  if (searchForm.member === 'NON_MEMBER') return false
+  return undefined
+}
+
 const loadUsers = async ({ sortField, sortOrder, pageOverride } = {}) => {
   if (typeof pageOverride === 'number') {
     pagination.current = pageOverride
@@ -141,6 +168,7 @@ const loadUsers = async ({ sortField, sortOrder, pageOverride } = {}) => {
       keyword: searchForm.keyword,
       sortOrder: sortState.field === 'createdAt' ? sortState.order : undefined,
       flp: sortState.field === 'flp' ? sortState.order : undefined,
+      member: resolveMemberFilterValue(),
     })
     tableData.value = (content || []).map((item) => ({
       ...item,
@@ -233,6 +261,11 @@ onMounted(() => {
           <p class="card-subtitle">{{ t('users.subtitle') }}</p>
         </div>
         <div class="search-bar">
+          <a-select
+            v-model:value="searchForm.member"
+            :options="memberFilterOptions"
+            class="search-member-filter"
+          />
           <a-input
             v-model:value="searchForm.keyword"
             :placeholder="t('users.search.placeholder')"
@@ -283,6 +316,9 @@ onMounted(() => {
           <template v-else-if="column.key === 'token'">
             <span class="token">{{ record.flpBalance ?? t('users.table.noToken') }}</span>
           </template>
+          <template v-else-if="column.key === 'member'">
+            <span class="member-value">{{ formatMemberCell(record) }}</span>
+          </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
           </template>
@@ -316,6 +352,10 @@ onMounted(() => {
         <div class="detail-row">
           <span class="label">{{ t('users.detail.fields.token') }}</span>
           <span class="value">{{ detailUser.flpBalance ?? t('users.table.noToken') }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">{{ t('users.detail.fields.member') }}</span>
+          <span class="value">{{ formatMemberCell(detailUser) }}</span>
         </div>
         <div class="detail-row">
           <span class="label">{{ t('users.detail.fields.createdAt') }}</span>
@@ -437,6 +477,10 @@ onMounted(() => {
   width: 240px;
 }
 
+.search-member-filter {
+  width: 152px;
+}
+
 .users-table :deep(.ant-table-tbody > tr > td) {
   vertical-align: middle;
 }
@@ -497,6 +541,11 @@ onMounted(() => {
 .token {
   font-weight: 600;
   color: #2563eb;
+}
+
+.member-value {
+  color: #111827;
+  font-weight: 500;
 }
 
 .amount {
@@ -580,6 +629,10 @@ onMounted(() => {
 
   .search-input {
     flex: 1;
+  }
+
+  .search-member-filter {
+    width: 100%;
   }
 }
 </style>

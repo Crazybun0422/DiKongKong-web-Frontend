@@ -1,17 +1,23 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import {
   DeleteOutlined,
+  DownOutlined,
   EditOutlined,
   EnvironmentOutlined,
   MinusCircleOutlined,
   PlusOutlined,
+  UpOutlined,
 } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import OpenPlatformEditor from '../OpenPlatformEditor.vue'
 import { MARKER_REVIEW_STATUS, fetchMarkers } from '../../services/markers'
+import { downloadCountyKmlZipLatest, fetchCountyKmlZipConfig } from '../../services/config'
 import { wgs84ToGcj02 } from '../../utils/coords'
+import { loadCountyKmlZipIndex } from '../../utils/countyKmlZipCache'
+import { parseKmlRegion } from '../../utils/kmlRegion'
 import MapImageOverlayControl from './MapImageOverlayControl.vue'
 import {
   createNoFlyZone,
@@ -83,6 +89,18 @@ const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchResults = ref([])
 let searchDebounceTimer = null
+const countyRegionLoading = ref(false)
+const countyRegionStatus = ref('idle')
+const countyRegionStatusMessage = ref('')
+const countyRegionProgress = ref(0)
+const countyRegionTreeData = ref([])
+const countyRegionFileMap = ref(new Map())
+const countyRegionExpandedKeys = ref([])
+const countyRegionAutoExpandParent = ref(false)
+const countyRegionSearch = ref('')
+const countyRegionSelectedKeys = ref([])
+const countyRegionSelectedTitle = ref('')
+const countyRegionVersion = ref('')
 
 const isPathType = (type) =>
   type === PATH_TYPE || type === LEGACY_CORRIDOR_TYPE || type === LEGACY_POLYLINE_TYPE
@@ -220,6 +238,14 @@ const formSubmitting = ref(false)
 const syncingAreaDraft = ref(false)
 const richTextLoading = ref(false)
 const richTextSaving = ref(false)
+const richTextCollapsed = ref(true)
+const coordinateSectionCollapsed = ref(true)
+const countyRegionCollapsed = ref(true)
+const countyRegionInitialized = ref(false)
+const dateTimePickerOptions = {
+  format: 'HH:mm',
+  defaultValue: [dayjs('00:00', 'HH:mm'), dayjs('00:00', 'HH:mm')],
+}
 const richTextForm = reactive({
   content: '',
   updatedAt: null,
@@ -369,6 +395,40 @@ const mapTypeOptions = computed(() => [
   { value: 'STANDARD', label: t('noFlyZone.mapType.standard') },
   { value: 'SATELLITE', label: t('noFlyZone.mapType.satellite') },
 ])
+
+const countyRegionTreeFilterResult = computed(() => {
+  const keyword = countyRegionSearch.value.trim().toLowerCase()
+  if (!keyword) {
+    return {
+      tree: countyRegionTreeData.value,
+      expandedKeys: countyRegionExpandedKeys.value,
+    }
+  }
+
+  const expandedKeys = new Set()
+  const filterNodes = (nodes) =>
+    (nodes || []).reduce((acc, node) => {
+      const title = String(node?.title || '')
+      const matched = title.toLowerCase().includes(keyword)
+      const children = Array.isArray(node?.children) ? node.children : []
+      const filteredChildren = filterNodes(children)
+      if (filteredChildren.length && node?.key) {
+        expandedKeys.add(node.key)
+      }
+      if (matched || filteredChildren.length) {
+        acc.push({
+          ...node,
+          children: filteredChildren.length ? filteredChildren : undefined,
+        })
+      }
+      return acc
+    }, [])
+
+  return {
+    tree: filterNodes(countyRegionTreeData.value),
+    expandedKeys: Array.from(expandedKeys),
+  }
+})
 
 const mapTypeIdForKey = (key) => {
   if (!window.qq?.maps?.MapTypeId) return null
@@ -2170,8 +2230,8 @@ const formatTimeFromSeconds = (seconds, includeSeconds = true) => {
 }
 
 const formatRangeFromTimestamps = (effectiveFrom, effectiveTo) => [
-  formatTimeFromSeconds(effectiveFrom),
-  formatTimeFromSeconds(effectiveTo),
+  formatTimeFromSeconds(effectiveFrom, false),
+  formatTimeFromSeconds(effectiveTo, false),
 ]
 
 const formatAdditionalRangesFromZone = (zone) =>
@@ -2226,6 +2286,171 @@ const validateWechatLink = (link) => {
   } catch (error) {
     return false
   }
+}
+
+const focusAreasOnMap = (areas = []) => {
+  if (!mapInstance.value || !Array.isArray(areas) || !areas.length) return
+  const pseudoZone = {
+    type: areas[0]?.type || 'POLYGON',
+    coordinates: areas[0]?.coordinates || [],
+    circle: areas[0]?.circle || null,
+    pathDistanceMeters: areas[0]?.pathDistanceMeters,
+    extra: areas.slice(1),
+  }
+  focusZoneOnMap(pseudoZone)
+}
+
+const estimatePolygonArea = (coordinates = []) => {
+  if (!Array.isArray(coordinates) || coordinates.length < 3) return 0
+  let area = 0
+  for (let index = 0; index < coordinates.length; index += 1) {
+    const current = coordinates[index]
+    const next = coordinates[(index + 1) % coordinates.length]
+    const x1 = Number(current?.longitude)
+    const y1 = Number(current?.latitude)
+    const x2 = Number(next?.longitude)
+    const y2 = Number(next?.latitude)
+    if (![x1, y1, x2, y2].every(Number.isFinite)) continue
+    area += (x1 * y2) - (x2 * y1)
+  }
+  return Math.abs(area / 2)
+}
+
+const pickPrimaryPolygon = (polygons = []) => {
+  if (!Array.isArray(polygons) || !polygons.length) return []
+  return [...polygons]
+    .sort((left, right) => estimatePolygonArea(right) - estimatePolygonArea(left))[0]
+}
+
+const updateCountyRegionProgress = (payload = {}) => {
+  countyRegionStatus.value = payload.phase || 'idle'
+  countyRegionProgress.value = Number(payload.progressPercent || 0)
+  countyRegionStatusMessage.value = payload.message || ''
+}
+
+const ensureCountyRegionLibrary = async (options = {}) => {
+  if (countyRegionLoading.value) {
+    return {
+      treeData: countyRegionTreeData.value,
+      fileMap: countyRegionFileMap.value,
+    }
+  }
+
+  countyRegionLoading.value = true
+  try {
+    const result = await loadCountyKmlZipIndex({
+      fetchConfig: fetchCountyKmlZipConfig,
+      downloadLatest: (config, remoteMeta) => downloadCountyKmlZipLatest(remoteMeta, config),
+      forceDownload: Boolean(options.forceDownload),
+      onProgress: updateCountyRegionProgress,
+    })
+    countyRegionTreeData.value = result.treeData
+    countyRegionFileMap.value = result.fileMap
+    countyRegionExpandedKeys.value = result.expandedKeys
+    countyRegionAutoExpandParent.value = false
+    countyRegionVersion.value = result.version || ''
+    countyRegionInitialized.value = true
+    return result
+  } catch (error) {
+    countyRegionStatus.value = 'idle'
+    countyRegionStatusMessage.value = ''
+    countyRegionProgress.value = 0
+    throw error
+  } finally {
+    countyRegionLoading.value = false
+  }
+}
+
+const applyCountyRegionToForm = (nodeTitle, polygons = []) => {
+  const primaryPolygon = pickPrimaryPolygon(polygons)
+  if (!primaryPolygon.length) {
+    throw new Error('Selected KML has no polygon geometry')
+  }
+
+  ensureAreaList()
+  const targetIndex = Number(formState.activeAreaIndex) || 0
+  formState.areas[targetIndex] = createEmptyArea({
+    type: 'POLYGON',
+    coordinates: primaryPolygon.map((coord) => ({ ...coord })),
+  })
+  formState.type = 'POLYGON'
+  formState.coordinates = primaryPolygon.map((coord) => ({ ...coord }))
+  formState.circle = null
+  currentDrawingMode.value = 'POLYGON'
+  countyRegionSelectedTitle.value = String(nodeTitle || '')
+  syncActiveAreaFromDraft()
+  syncDraftFromArea(targetIndex)
+  clearDrawingOverlays()
+  renderFormGeometryOnMap()
+  focusAreasOnMap([
+    createEmptyArea({
+      type: 'POLYGON',
+      coordinates: primaryPolygon.map((coord) => ({ ...coord })),
+    }),
+  ])
+}
+
+const handleCountyRegionSelect = async (selectedKeys, event) => {
+  const selectedKey = Array.isArray(selectedKeys) ? selectedKeys[0] : selectedKeys
+  const node = event?.node
+  if (!selectedKey) {
+    return
+  }
+  if (!node?.rawPath) {
+    message.warning(t('noFlyZone.regionLibrary.messages.invalidNode'))
+    return
+  }
+
+  countyRegionSelectedKeys.value = [selectedKey]
+
+  try {
+    const rawText = countyRegionFileMap.value.get(node.rawPath)
+    if (!rawText) {
+      throw new Error(`County region KML not found: ${node.rawPath}`)
+    }
+    const parsed = parseKmlRegion(rawText)
+    if (!Array.isArray(parsed.polygons) || !parsed.polygons.length) {
+      message.warning(t('noFlyZone.regionLibrary.messages.emptyGeometry'))
+      return
+    }
+    applyCountyRegionToForm(node.title, parsed.polygons)
+    message.success(t('noFlyZone.regionLibrary.messages.applied'))
+  } catch (error) {
+    console.error('Failed to select county region', error)
+    message.error(t('noFlyZone.regionLibrary.messages.selectFailed'))
+  }
+}
+
+const handleCountyRegionReload = async () => {
+  try {
+    await ensureCountyRegionLibrary({ forceDownload: true })
+  } catch (error) {
+    console.error('Failed to reload county region library', error)
+    message.error(t('noFlyZone.regionLibrary.messages.loadFailed'))
+  }
+}
+
+const clearCountyRegionSelection = () => {
+  countyRegionSelectedKeys.value = []
+  countyRegionSelectedTitle.value = ''
+}
+
+const toggleCountyRegionLibrary = async () => {
+  const nextCollapsed = !countyRegionCollapsed.value
+  countyRegionCollapsed.value = nextCollapsed
+  if (!nextCollapsed && !countyRegionInitialized.value) {
+    try {
+      await ensureCountyRegionLibrary()
+    } catch (error) {
+      console.error('Failed to initialize county region library', error)
+      message.error(t('noFlyZone.regionLibrary.messages.loadFailed'))
+    }
+  }
+}
+
+const handleCountyRegionExpand = (expandedKeys) => {
+  countyRegionExpandedKeys.value = expandedKeys
+  countyRegionAutoExpandParent.value = false
 }
 
 const buildAreaPayload = (area, index) => {
@@ -2397,6 +2622,7 @@ const resetForm = () => {
   clearOverlayGroup(formAreaPolygonOverlays)
   clearOverlayGroup(formAreaCircleOverlays)
   clearOverlayGroup(formAreaPolylineOverlays)
+  clearCountyRegionSelection()
   syncDraftFromArea(0)
   clearDrawing()
 }
@@ -2841,6 +3067,15 @@ watch(mapType, () => {
   applyMapTypeToMap()
 })
 
+watch(countyRegionTreeFilterResult, (result) => {
+  if (!countyRegionSearch.value.trim()) {
+    countyRegionAutoExpandParent.value = false
+    return
+  }
+  countyRegionExpandedKeys.value = result.expandedKeys
+  countyRegionAutoExpandParent.value = true
+})
+
 watch(mapReady, (ready) => {
   if (ready) applyMapTypeToMap()
 })
@@ -3074,11 +3309,22 @@ const handleSearchClear = () => {
     <a-card class="rich-text-card" :bordered="false">
       <section class="rich-text-settings">
         <header class="section-header">
-          <div>
+          <div class="rich-text-settings__header">
             <h3>{{ t('noFlyZone.richText.title') }}</h3>
-            <p>{{ t('noFlyZone.richText.subtitle') }}</p>
+            <a-button class="rich-text-toggle" size="small" @click="richTextCollapsed = !richTextCollapsed">
+              <template #icon>
+                <UpOutlined v-if="!richTextCollapsed" />
+                <DownOutlined v-else />
+              </template>
+            </a-button>
           </div>
-          <div class="actions">
+        </header>
+        <div v-if="!richTextCollapsed" class="rich-text-settings__content">
+          <p class="rich-text-settings__subtitle">{{ t('noFlyZone.richText.subtitle') }}</p>
+          <div class="rich-text-settings__meta">
+            <span>{{ t('noFlyZone.richText.updatedAt', { time: richTextUpdatedAtDisplay }) }}</span>
+          </div>
+          <div class="rich-text-settings__toolbar">
             <a-button type="default" @click="loadRichTextConfig" :loading="richTextLoading"
               :disabled="richTextSaving">
               {{ t('noFlyZone.richText.actions.reload') }}
@@ -3087,15 +3333,12 @@ const handleSearchClear = () => {
               {{ t('noFlyZone.richText.actions.save') }}
             </a-button>
           </div>
-        </header>
-        <div class="rich-text-settings__meta">
-          <span>{{ t('noFlyZone.richText.updatedAt', { time: richTextUpdatedAtDisplay }) }}</span>
+          <a-spin :spinning="richTextLoading">
+            <OpenPlatformEditor v-model="richTextForm.content"
+              :placeholder="t('noFlyZone.richText.placeholder')"
+              :disabled="richTextLoading || richTextSaving" />
+          </a-spin>
         </div>
-        <a-spin :spinning="richTextLoading">
-          <OpenPlatformEditor v-model="richTextForm.content"
-            :placeholder="t('noFlyZone.richText.placeholder')"
-            :disabled="richTextLoading || richTextSaving" />
-        </a-spin>
       </section>
     </a-card>
     <div class="manager-content">
@@ -3103,6 +3346,68 @@ const handleSearchClear = () => {
         <a-form layout="vertical" class="zone-form">
           <MapImageOverlayControl :map="mapInstance" :map-ready="mapReady" :map-container="mapContainer"
             :disabled="isDrawing" />
+          <a-form-item :label="t('noFlyZone.regionLibrary.title')">
+            <div class="county-region-library">
+              <div class="county-region-library__header county-region-library__header--compact">
+                <div class="county-region-library__title-row">
+                  <span>{{ t('noFlyZone.regionLibrary.title') }}</span>
+                  <a-button class="rich-text-toggle" size="small" @click="toggleCountyRegionLibrary">
+                    <template #icon>
+                      <UpOutlined v-if="!countyRegionCollapsed" />
+                      <DownOutlined v-else />
+                    </template>
+                  </a-button>
+                </div>
+              </div>
+              <div v-if="!countyRegionCollapsed">
+                <div class="county-region-library__subtitle">{{ t('noFlyZone.regionLibrary.subtitle') }}</div>
+                <div class="county-region-library__status">
+                  {{ t(`noFlyZone.regionLibrary.status.${countyRegionStatus || 'idle'}`) }}
+                  <span v-if="countyRegionVersion">v{{ countyRegionVersion }}</span>
+                </div>
+                <div class="county-region-library__actions">
+                  <a-button size="small" :loading="countyRegionLoading" @click="handleCountyRegionReload">
+                    {{ t('noFlyZone.regionLibrary.actions.reload') }}
+                  </a-button>
+                  <a-button size="small" danger :disabled="!countyRegionSelectedKeys.length" @click="clearCountyRegionSelection">
+                    {{ t('noFlyZone.regionLibrary.actions.clear') }}
+                  </a-button>
+                </div>
+                <div v-if="countyRegionStatusMessage" class="county-region-library__message">
+                  {{ countyRegionStatusMessage }}
+                </div>
+                <a-progress
+                  v-if="countyRegionLoading || countyRegionProgress > 0"
+                  size="small"
+                  :percent="countyRegionProgress"
+                  :show-info="true"
+                />
+                <a-input
+                  v-model:value="countyRegionSearch"
+                  allow-clear
+                  :placeholder="t('noFlyZone.regionLibrary.searchPlaceholder')"
+                  class="county-region-library__search"
+                />
+                <div v-if="countyRegionSelectedTitle" class="county-region-library__selected">
+                  {{ t('noFlyZone.regionLibrary.selected', { name: countyRegionSelectedTitle.replace(/\.kml$/i, '') }) }}
+                </div>
+                <div class="county-region-library__tree">
+                  <a-tree
+                    :tree-data="countyRegionTreeFilterResult.tree"
+                    :selected-keys="countyRegionSelectedKeys"
+                    :expanded-keys="countyRegionExpandedKeys"
+                    :auto-expand-parent="countyRegionAutoExpandParent"
+                    block-node
+                    @select="handleCountyRegionSelect"
+                    @expand="handleCountyRegionExpand"
+                  />
+                  <div v-if="!countyRegionTreeFilterResult.tree.length" class="county-region-library__empty">
+                    {{ t('noFlyZone.regionLibrary.empty') }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </a-form-item>
           <a-form-item :label="t('noFlyZone.form.areaList')">
             <div class="area-list">
               <button v-for="area in areaTabs" :key="area.key" type="button"
@@ -3195,74 +3500,87 @@ const handleSearchClear = () => {
           </div>
           <a-form-item>
             <template #label>
-              <span class="form-item-label form-item-label--required">
-                <span class="form-item-label__asterisk">*</span>
-                {{ t('noFlyZone.form.coordinatesLabel') }}
+              <span class="form-item-label form-item-label--required coordinate-section__label">
+                <span>
+                  <span class="form-item-label__asterisk">*</span>
+                  {{ t('noFlyZone.form.coordinatesLabel') }}
+                </span>
+                <a-button class="rich-text-toggle" size="small"
+                  @click="coordinateSectionCollapsed = !coordinateSectionCollapsed">
+                  <template #icon>
+                    <UpOutlined v-if="!coordinateSectionCollapsed" />
+                    <DownOutlined v-else />
+                  </template>
+                </a-button>
               </span>
             </template>
-            <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
-            <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
-              :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
-              :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }">
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'values'">
-                  <div class="coordinate-value">
-                    <span class="coordinate-value__label">{{ t('noFlyZone.form.latitude') }}</span>
-                    <div class="coordinate-value__control">
-                      <template v-if="record.editable">
-                        <a-input-number :value="record.latitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX" :precision="6"
-                          :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
-                          @update:value="(value) => handleManualCoordinateChange(record.index, 'latitude', value)" />
-                      </template>
-                      <template v-else>
-                        {{ formatCoordinateValue(record.latitude) }}
-                      </template>
+            <div v-if="!coordinateSectionCollapsed">
+              <a-alert :message="t('noFlyZone.form.coordinatesHint')" type="info" show-icon class="coordinate-alert" />
+              <a-table class="coordinate-table" size="small" :columns="coordinateColumns"
+                :data-source="displayedCoordinates" :pagination="false" :row-key="(record) => record.key"
+                :locale="{ emptyText: t('noFlyZone.form.coordinatesEmpty') }">
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'values'">
+                    <div class="coordinate-value">
+                      <span class="coordinate-value__label">{{ t('noFlyZone.form.latitude') }}</span>
+                      <div class="coordinate-value__control">
+                        <template v-if="record.editable">
+                          <a-input-number :value="record.latitude" :min="LATITUDE_MIN" :max="LATITUDE_MAX" :precision="6"
+                            :step="0.000001" class="coordinate-input" :disabled="!manualCoordinateEditingEnabled"
+                            @update:value="(value) => handleManualCoordinateChange(record.index, 'latitude', value)" />
+                        </template>
+                        <template v-else>
+                          {{ formatCoordinateValue(record.latitude) }}
+                        </template>
+                      </div>
                     </div>
-                  </div>
-                  <div class="coordinate-value">
-                    <span class="coordinate-value__label">{{ t('noFlyZone.form.longitude') }}</span>
-                    <div class="coordinate-value__control">
-                      <template v-if="record.editable">
-                        <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX"
-                          :precision="6" :step="0.000001" class="coordinate-input"
-                          :disabled="!manualCoordinateEditingEnabled"
-                          @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
-                      </template>
-                      <template v-else>
-                        {{ formatCoordinateValue(record.longitude) }}
-                      </template>
+                    <div class="coordinate-value">
+                      <span class="coordinate-value__label">{{ t('noFlyZone.form.longitude') }}</span>
+                      <div class="coordinate-value__control">
+                        <template v-if="record.editable">
+                          <a-input-number :value="record.longitude" :min="LONGITUDE_MIN" :max="LONGITUDE_MAX"
+                            :precision="6" :step="0.000001" class="coordinate-input"
+                            :disabled="!manualCoordinateEditingEnabled"
+                            @update:value="(value) => handleManualCoordinateChange(record.index, 'longitude', value)" />
+                        </template>
+                        <template v-else>
+                          {{ formatCoordinateValue(record.longitude) }}
+                        </template>
+                      </div>
                     </div>
-                  </div>
+                  </template>
+                  <template v-else-if="column.key === 'actions'">
+                    <a-button v-if="record.editable" type="text" danger size="small"
+                      :disabled="!manualCoordinateEditingEnabled" @click="removeManualCoordinate(record.index)">
+                      {{ t('noFlyZone.form.removeCoordinate') }}
+                    </a-button>
+                  </template>
                 </template>
-                <template v-else-if="column.key === 'actions'">
-                  <a-button v-if="record.editable" type="text" danger size="small"
-                    :disabled="!manualCoordinateEditingEnabled" @click="removeManualCoordinate(record.index)">
-                    {{ t('noFlyZone.form.removeCoordinate') }}
-                  </a-button>
-                </template>
-              </template>
-            </a-table>
-            <div v-if="!isCircleMode" class="coordinate-actions">
-              <a-button size="small" type="dashed" :disabled="!manualCoordinateEditingEnabled"
-                @click="addManualCoordinate">
-                {{ t('noFlyZone.form.addCoordinate') }}
-              </a-button>
-            </div>
-            <p v-if="!isCircleMode" class="form-hint coordinate-hint">{{ coordinateManualHintText }}</p>
-            <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
-              {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
+              </a-table>
+              <div v-if="!isCircleMode" class="coordinate-actions">
+                <a-button size="small" type="dashed" :disabled="!manualCoordinateEditingEnabled"
+                  @click="addManualCoordinate">
+                  {{ t('noFlyZone.form.addCoordinate') }}
+                </a-button>
+              </div>
+              <p v-if="!isCircleMode" class="form-hint coordinate-hint">{{ coordinateManualHintText }}</p>
+              <div v-if="isCircleMode && displayedCircleRadius !== null" class="radius-display">
+                {{ t('noFlyZone.form.radiusDisplay', { radius: displayedCircleRadius }) }}
+              </div>
             </div>
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.timeRange')">
-            <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
+            <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm"
+              value-format="YYYY-MM-DD HH:mm" :show-time="dateTimePickerOptions" allow-clear
+              :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.additionalTimeRanges')">
             <div class="additional-time-ranges">
               <div v-for="(range, index) in formState.additionalTimeRanges" :key="`time-range-${index}`"
                 class="additional-time-range-row">
-                <a-range-picker v-model:value="formState.additionalTimeRanges[index]" format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DD HH:mm:ss" show-time allow-clear :disabled="disableFormDuringDrawing" />
+                <a-range-picker v-model:value="formState.additionalTimeRanges[index]" format="YYYY-MM-DD HH:mm"
+                  value-format="YYYY-MM-DD HH:mm" :show-time="dateTimePickerOptions" allow-clear
+                  :disabled="disableFormDuringDrawing" />
                 <a-button danger type="text" :disabled="disableFormDuringDrawing" @click="removeAdditionalTimeRange(index)">
                   <MinusCircleOutlined />
                 </a-button>
@@ -3382,6 +3700,73 @@ const handleSearchClear = () => {
   gap: 16px;
 }
 
+.county-region-library {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.county-region-library__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.county-region-library__header--compact {
+  justify-content: flex-start;
+}
+
+.county-region-library__title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.county-region-library__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.county-region-library__subtitle {
+  color: #666;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.county-region-library__status,
+.county-region-library__message,
+.county-region-library__selected,
+.county-region-library__empty {
+  color: #666;
+  font-size: 12px;
+}
+
+.county-region-library__status {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.county-region-library__search {
+  width: 100%;
+}
+
+.county-region-library__tree {
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .manager-content {
   display: grid;
   grid-template-columns: minmax(300px, 360px) 1fr;
@@ -3401,10 +3786,60 @@ const handleSearchClear = () => {
   margin-bottom: 20px;
 }
 
+.rich-text-settings__header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rich-text-toggle {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.rich-text-toggle:hover,
+.rich-text-toggle:focus {
+  color: #1677ff;
+  border-color: rgba(22, 119, 255, 0.35);
+  background: #f8fbff;
+}
+
 .rich-text-settings__meta {
   margin-bottom: 12px;
   color: #6b7280;
   font-size: 12px;
+}
+
+.rich-text-settings__content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rich-text-settings__subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rich-text-settings__toolbar {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.coordinate-section__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .zone-form {

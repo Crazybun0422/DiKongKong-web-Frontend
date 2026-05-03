@@ -14,6 +14,7 @@ export const fetchAdminUsers = async ({
   keyword = '',
   sortOrder,
   flp,
+  member,
 } = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
@@ -31,6 +32,9 @@ export const fetchAdminUsers = async ({
 
   if (hasKeyword) {
     params.keyword = keyword.trim()
+  }
+  if (typeof member === 'boolean') {
+    params.member = member
   }
 
   const response = await http.get(url, { params })

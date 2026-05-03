@@ -617,6 +617,31 @@
       "loading": "Loading suggestions...",
       "inputHint": "Type to search for a location."
     },
+    "regionLibrary": {
+      "title": "County region library",
+      "subtitle": "Check the latest version, cache the county KML ZIP, and bind the selected region to the current area.",
+      "searchPlaceholder": "Search province / city / county / KML file",
+      "empty": "No region is available yet. Upload the county package in system settings first.",
+      "selected": "Bound region: {name}",
+      "actions": {
+        "reload": "Reload library",
+        "clear": "Clear binding"
+      },
+      "status": {
+        "checking": "Checking package version",
+        "downloading": "Downloading package",
+        "unzipping": "Unzipping region library",
+        "ready": "Region library ready",
+        "idle": "Region library not loaded"
+      },
+      "messages": {
+        "loadFailed": "Failed to load the county region library. Please try again later.",
+        "selectFailed": "Failed to load the selected region. Please try again later.",
+        "invalidNode": "Please select a KML file node.",
+        "emptyGeometry": "The selected KML does not contain a usable region.",
+        "applied": "The selected region has been bound to the current no-fly zone."
+      }
+    },
     "table": {
       "columns": {
         "name": "Name",
@@ -788,6 +813,7 @@
       "table": {
         "province": "Province",
         "area": "Report area",
+        "doubleReported": "Double report",
         "actions": "Actions"
       },
       "area": {
@@ -799,6 +825,8 @@
       },
       "form": {
         "area": "Report region",
+        "cityDescription": "City description",
+        "doubleReported": "Double reported",
         "miniProgram": "Mini program jump",
         "appId": "Mini program AppID",
         "path": "Mini program path",
@@ -812,11 +840,16 @@
         "video": "Video account video"
       },
       "placeholders": {
+        "cityDescription": "Enter city description",
         "appId": "Enter appid",
         "path": "Enter path",
         "publicAccountLink": "Enter article link",
         "videoAccountId": "Enter video account ID",
         "videoId": "Enter video ID"
+      },
+      "values": {
+        "yes": "Yes",
+        "no": "No"
       },
       "search": {
         "placeholder": "Search province/city/county"
@@ -865,6 +898,7 @@
       "tencentCos": "Tencent COS",
       "adSettings": "Ad settings",
       "copySettings": "Copy settings",
+      "memberSettings": "Member settings",
       "payment": "Payment settings",
       "weapp": "Mini program",
       "newbieTasks": "Newbie task settings",
@@ -1370,6 +1404,36 @@
           "loadFailed": "Failed to load province area package config"
         }
       },
+      "countyKmlZip": {
+        "title": "County area package",
+        "subtitle": "Upload and configure the ZIP package used for province, city, and county area data.",
+        "currentFileLabel": "Current package",
+        "currentVersionLabel": "Current version",
+        "emptyFile": "No package uploaded",
+        "emptyVersion": "Not set",
+        "fields": {
+          "file": "Package file",
+          "version": "Version"
+        },
+        "placeholders": {
+          "version": "e.g. 1.0.1"
+        },
+        "helper": "ZIP only. The patch version defaults to +1; you can edit it manually.",
+        "actions": {
+          "selectFile": "Choose file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "upload": "Upload & save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "noFile": "Please choose a package file first",
+          "noVersion": "Please enter a version",
+          "uploadSuccess": "County area package updated",
+          "uploadFailed": "Failed to upload county area package",
+          "loadFailed": "Failed to load county area package config"
+        }
+      },
       "ladderLeaderboard": {
         "title": "Ladder leaderboard",
         "subtitle": "Display ranking data for the mini-game ladder, including highest score and latest play time.",
@@ -1533,8 +1597,21 @@
         "content": "Copy content",
         "placeholder": "Enter the rich text copy"
       },
+      "groups": {
+        "flightSafetyPreparation": "Pre-flight safety preparation",
+        "other": "Other copy"
+      },
       "options": {
         "openPlatform": "Open platform",
+        "flightQualificationAssessmentRichText": "Flight qualification assessment",
+        "insuranceCoverageRichText": "Insurance coverage",
+        "caacLicenseRegistrationSubsidyRichText": "CAAC license registration subsidy",
+        "theoryCertificateRichText": "Theory certificate",
+        "operationCertificateRichText": "Operation certificate",
+        "m120FlightRichText": "120m flight",
+        "noSpecialFlightScenarioRichText": "No special flight scenario",
+        "reportAndUnlockGuideRichText": "Report and unlock guide",
+        "airspaceDescriptionRichText": "Airspace description",
         "planetMerchantAdvancedGuide": "Planet merchant advanced guide",
         "planetCreationAdvancedGuide": "Planet creation advanced guide",
         "shareToPlatform": "Share to platform",
@@ -1588,6 +1665,174 @@
       }
     }
   },
+  "memberSettings": {
+    "title": "Member settings",
+    "subtitle": "Manage member pricing, background package uploads, avatar package uploads, and voice package uploads.",
+    "actions": {
+      "reload": "Reload"
+    },
+    "tabs": {
+      "logs": "Membership Logs",
+      "settings": "Membership Settings"
+    },
+    "units": {
+      "yuan": "CNY",
+      "flp": "FLP"
+    },
+    "logs": {
+      "title": "Membership Activation Logs",
+      "subtitle": "Review membership recharge and activation records.",
+      "searchPlaceholder": "Filter by feature code",
+      "actions": {
+        "search": "Search",
+        "reload": "Reload"
+      },
+      "columns": {
+        "featureCode": "Feature code",
+        "username": "Username",
+        "cycle": "Cycle",
+        "paymentMode": "Payment mode",
+        "amount": "Amount",
+        "memberExpireDate": "Membership expires",
+        "activatedAt": "Payment time"
+      },
+      "cycle": {
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "paymentMode": {
+        "wechat": "WeChat",
+        "flp": "FLP"
+      },
+      "pagination": {
+        "total": "Total {total} records · Showing {start}-{end}"
+      },
+      "messages": {
+        "loadFailed": "Failed to load membership activation logs"
+      }
+    },
+    "price": {
+      "title": "Member pricing",
+      "subtitle": "Configure monthly and yearly list/net prices for WeChat Pay and FLP payment.",
+      "updatedAt": "Updated at {time}",
+      "emptyUpdatedAt": "Not synced yet",
+      "groups": {
+        "monthly": {
+          "title": "Monthly membership",
+          "subtitle": "Billed monthly"
+        },
+        "yearly": {
+          "title": "Yearly membership",
+          "subtitle": "Billed yearly"
+        }
+      },
+      "paymentTypes": {
+        "wechat": "WeChat Pay",
+        "flp": "FLP payment"
+      },
+      "valueTypes": {
+        "net": "Net price",
+        "list": "List price"
+      },
+      "fields": {
+        "yearlyWechatNetPrice": "Yearly WeChat net price",
+        "yearlyWechatListPrice": "Yearly WeChat list price",
+        "yearlyFlpNetPrice": "Yearly FLP net price",
+        "yearlyFlpListPrice": "Yearly FLP list price",
+        "monthlyWechatNetPrice": "Monthly WeChat net price",
+        "monthlyWechatListPrice": "Monthly WeChat list price",
+        "monthlyFlpNetPrice": "Monthly FLP net price",
+        "monthlyFlpListPrice": "Monthly FLP list price"
+      },
+      "actions": {
+        "save": "Save prices"
+      },
+      "validation": {
+        "nonNegative": "Enter a value greater than or equal to 0"
+      },
+      "messages": {
+        "loadFailed": "Failed to load member pricing",
+        "saveSuccess": "Member pricing saved",
+        "saveFailed": "Failed to save member pricing"
+      }
+    },
+    "inviteReward": {
+      "title": "Member referral rewards",
+      "subtitle": "Configure the FLP reward paid to an inviter after an invited user buys monthly or yearly membership.",
+      "updatedAt": "Updated at {time}",
+      "emptyUpdatedAt": "Not synced yet",
+      "helper": "When a user has an inviter and completes a membership recharge, the inviter receives the matching FLP reward for that membership cycle.",
+      "fields": {
+        "monthlyRewardFlp": "Monthly membership reward",
+        "yearlyRewardFlp": "Yearly membership reward"
+      },
+      "actions": {
+        "save": "Save rewards",
+        "reload": "Reload"
+      },
+      "validation": {
+        "nonNegative": "Enter an FLP reward greater than or equal to 0"
+      },
+      "messages": {
+        "loadFailed": "Failed to load member referral rewards",
+        "saveSuccess": "Member referral rewards saved",
+        "saveFailed": "Failed to save member referral rewards"
+      }
+    },
+    "upload": {
+      "resultTitle": "Upload result",
+      "currentVersion": "Current version",
+      "currentFile": "Current file",
+      "emptyVersion": "Not configured",
+      "emptyFile": "No file",
+      "versionLabel": "Upload version",
+      "versionPlaceholder": "e.g. 1.0.1",
+      "actions": {
+        "select": "Choose file",
+        "replace": "Replace file",
+        "remove": "Remove",
+        "upload": "Upload",
+        "open": "Open file",
+        "reloadVersion": "Reload version"
+      },
+      "messages": {
+        "noVersion": "Enter the upload version"
+      },
+      "background": {
+        "title": "Background package upload",
+        "subtitle": "Upload the member background image package.",
+        "helper": "ZIP, RAR, and 7Z packages are supported. A version is required.",
+        "messages": {
+          "noFile": "Choose a background package first",
+          "uploadSuccess": "Background package uploaded",
+          "uploadFailed": "Failed to upload background package",
+          "loadVersionFailed": "Failed to load background package version"
+        }
+      },
+      "avatar": {
+        "title": "Avatar package upload",
+        "subtitle": "Upload the member avatar asset package.",
+        "helper": "ZIP, RAR, and 7Z packages are supported. A version is required.",
+        "messages": {
+          "noFile": "Choose an avatar package first",
+          "uploadSuccess": "Avatar package uploaded",
+          "uploadFailed": "Failed to upload avatar package",
+          "loadVersionFailed": "Failed to load avatar package version"
+        }
+      },
+      "voice": {
+        "title": "Voice package upload",
+        "subtitle": "Upload the member voice asset package.",
+        "helper": "ZIP, RAR, and 7Z packages are supported. A version is required.",
+        "messages": {
+          "noFile": "Choose a voice package first",
+          "uploadSuccess": "Voice package uploaded",
+          "uploadFailed": "Failed to upload voice package",
+          "loadVersionFailed": "Failed to load voice package version"
+        }
+      }
+    }
+  },
   "messages": {
     "requestFailed": "Request failed, please retry"
   },
@@ -1604,12 +1849,20 @@
     "subtitle": "Review user registrations and token activity.",
     "search": {
       "placeholder": "Search by username or feature code",
-      "submit": "Search"
+      "submit": "Search",
+      "memberFilter": {
+        "options": {
+          "all": "All users",
+          "member": "Members",
+          "nonMember": "Non-members"
+        }
+      }
     },
     "columns": {
       "featureCode": "Feature code",
       "username": "Username",
       "avatar": "Avatar",
+      "member": "Membership expires",
       "token": "FLP",
       "createdAt": "Registered at",
       "actions": "Actions"
@@ -1636,6 +1889,7 @@
       "fields": {
         "featureCode": "Feature code",
         "token": "TOKEN",
+        "member": "Membership expires",
         "createdAt": "Registered at"
       },
       "policy": {

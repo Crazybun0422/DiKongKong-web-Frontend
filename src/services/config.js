@@ -1,4 +1,5 @@
 import http from './http'
+import { extractObjectName } from './files'
 
 const normalizePagePayload = (response, fallback = {}) => {
   const data = response?.data?.data ?? response?.data ?? fallback
@@ -42,6 +43,96 @@ export const fetchOpenPlatformCopy = async () => {
 
 export const saveOpenPlatformCopy = async (payload) => {
   const response = await http.put('/config/open-platform-copy', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchFlightQualificationAssessmentRichText = async () => {
+  const response = await http.get('/config/flight-qualification-assessment-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveFlightQualificationAssessmentRichText = async (payload) => {
+  const response = await http.put('/config/flight-qualification-assessment-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchInsuranceCoverageRichText = async () => {
+  const response = await http.get('/config/insurance-coverage-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveInsuranceCoverageRichText = async (payload) => {
+  const response = await http.put('/config/insurance-coverage-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchCaacLicenseRegistrationSubsidyRichText = async () => {
+  const response = await http.get('/config/caac-license-registration-subsidy-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveCaacLicenseRegistrationSubsidyRichText = async (payload) => {
+  const response = await http.put('/config/caac-license-registration-subsidy-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchTheoryCertificateRichText = async () => {
+  const response = await http.get('/config/theory-certificate-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveTheoryCertificateRichText = async (payload) => {
+  const response = await http.put('/config/theory-certificate-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchOperationCertificateRichText = async () => {
+  const response = await http.get('/config/operation-certificate-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveOperationCertificateRichText = async (payload) => {
+  const response = await http.put('/config/operation-certificate-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetch120mFlightRichText = async () => {
+  const response = await http.get('/config/120m-flight-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const save120mFlightRichText = async (payload) => {
+  const response = await http.put('/config/120m-flight-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchNoSpecialFlightScenarioRichText = async () => {
+  const response = await http.get('/config/no-special-flight-scenario-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveNoSpecialFlightScenarioRichText = async (payload) => {
+  const response = await http.put('/config/no-special-flight-scenario-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchReportAndUnlockGuideRichText = async () => {
+  const response = await http.get('/config/report-and-unlock-guide-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveReportAndUnlockGuideRichText = async (payload) => {
+  const response = await http.put('/config/report-and-unlock-guide-rich-text', payload)
+  return normalizePagePayload(response, {})
+}
+
+export const fetchAirspaceDescriptionRichText = async () => {
+  const response = await http.get('/config/airspace-description-rich-text')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveAirspaceDescriptionRichText = async (payload) => {
+  const response = await http.put('/config/airspace-description-rich-text', payload)
   return normalizePagePayload(response, {})
 }
 
@@ -226,6 +317,77 @@ export const uploadProvinceCityKmlZipConfig = async (file, version) => {
   return normalizePagePayload(response, {})
 }
 
+const COUNTY_KML_ZIP_ENDPOINTS = [
+  '/config/county-kml-zip',
+  '/config/counties-kml-zip',
+  '/config/province-city-county-kml-zip',
+]
+
+const requestCountyKmlZipWithFallback = async (executor) => {
+  let lastError = null
+  for (const endpoint of COUNTY_KML_ZIP_ENDPOINTS) {
+    try {
+      return await executor(endpoint)
+    } catch (error) {
+      lastError = error
+      if (error?.response?.status === 404) {
+        continue
+      }
+      throw error
+    }
+  }
+  throw lastError || new Error('County KML zip endpoint is unavailable')
+}
+
+export const fetchCountyKmlZipConfig = async () =>
+  requestCountyKmlZipWithFallback(async (endpoint) => {
+    const response = await http.get(endpoint)
+    return normalizePagePayload(response, {})
+  })
+
+export const uploadCountyKmlZipConfig = async (file, version) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('version', version)
+
+  return requestCountyKmlZipWithFallback(async (endpoint) => {
+    const response = await http.post(endpoint, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return normalizePagePayload(response, {})
+  })
+}
+
+const resolveDownloadObjectName = (input) => {
+  if (!input) return ''
+  if (typeof input === 'string') {
+    return extractObjectName(input.trim())
+  }
+  if (typeof input === 'object') {
+    const candidate = input.objectName || input.fileName || input.name || input.url || input.data?.fileName || ''
+    return extractObjectName(String(candidate).trim())
+  }
+  return extractObjectName(String(input).trim())
+}
+
+export const downloadCountyKmlZipLatest = async (objectNameOrFileName, config = {}) => {
+  const objectName = resolveDownloadObjectName(objectNameOrFileName)
+  if (!objectName) {
+    throw new Error('County KML zip objectName is required')
+  }
+
+  const response = await http.get(`/files/download/${encodeURIComponent(objectName)}`, {
+    responseType: 'blob',
+    ...config,
+  })
+
+  return {
+    blob: response?.data,
+    fileName: response?.headers?.['content-disposition'] || objectName,
+    contentLength: Number(response?.headers?.['content-length'] || 0),
+  }
+}
+
 export const fetchPosterServiceVersion = async () => {
   const response = await http.get('/config/poster-service-version')
   return normalizePagePayload(response, {})
@@ -299,6 +461,24 @@ export default {
   saveMerchantIntroLongImageConfig,
   fetchOpenPlatformCopy,
   saveOpenPlatformCopy,
+  fetchFlightQualificationAssessmentRichText,
+  saveFlightQualificationAssessmentRichText,
+  fetchInsuranceCoverageRichText,
+  saveInsuranceCoverageRichText,
+  fetchCaacLicenseRegistrationSubsidyRichText,
+  saveCaacLicenseRegistrationSubsidyRichText,
+  fetchTheoryCertificateRichText,
+  saveTheoryCertificateRichText,
+  fetchOperationCertificateRichText,
+  saveOperationCertificateRichText,
+  fetch120mFlightRichText,
+  save120mFlightRichText,
+  fetchNoSpecialFlightScenarioRichText,
+  saveNoSpecialFlightScenarioRichText,
+  fetchReportAndUnlockGuideRichText,
+  saveReportAndUnlockGuideRichText,
+  fetchAirspaceDescriptionRichText,
+  saveAirspaceDescriptionRichText,
   fetchPlanetMerchantAdvancedGuideCopy,
   savePlanetMerchantAdvancedGuideCopy,
   fetchPlanetCreationAdvancedGuideCopy,
