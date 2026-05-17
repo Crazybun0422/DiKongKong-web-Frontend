@@ -17,18 +17,8 @@ export const deleteNewbieTaskTemplate = async () => {
   return normalizeData(response, {})
 }
 
-export const fetchNetdiskGiftConfig = async () => {
-  const response = await http.get('/admin/newbie-tasks/netdisk-gift')
-  return normalizeData(response, { links: [], updatedAt: null })
-}
-
-export const saveNetdiskGiftConfig = async (payload) => {
-  const response = await http.put('/admin/newbie-tasks/netdisk-gift', payload)
-  return normalizeData(response, {})
-}
-
-export const deleteNetdiskGiftConfig = async () => {
-  const response = await http.delete('/admin/newbie-tasks/netdisk-gift')
+export const resetNewbieTaskUserFlags = async () => {
+  const response = await http.post('/admin/newbie-tasks/reset-user-task-flags')
   return normalizeData(response, {})
 }
 
@@ -36,7 +26,5 @@ export default {
   fetchNewbieTaskTemplate,
   saveNewbieTaskTemplate,
   deleteNewbieTaskTemplate,
-  fetchNetdiskGiftConfig,
-  saveNetdiskGiftConfig,
-  deleteNetdiskGiftConfig,
+  resetNewbieTaskUserFlags,
 }

@@ -186,23 +186,23 @@ export const saveInviteGuideCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
-export const fetchFlpNoAdsThresholdConfig = async () => {
-  const response = await http.get('/config/flp-no-ads-threshold')
+export const fetchMemberNoAdsConfig = async () => {
+  const response = await http.get('/config/member-no-ads')
   return normalizePagePayload(response, { threshold: 0 })
 }
 
-export const saveFlpNoAdsThresholdConfig = async (payload) => {
-  const response = await http.put('/config/flp-no-ads-threshold', payload)
+export const saveMemberNoAdsConfig = async (payload) => {
+  const response = await http.put('/config/member-no-ads', payload)
   return normalizePagePayload(response, {})
 }
 
-export const syncFlpNoAdsCrowdNow = async () => {
-  const response = await http.post('/config/flp-no-ads-threshold/sync-now')
+export const syncMemberNoAdsCrowdNow = async () => {
+  const response = await http.post('/config/member-no-ads/sync-now')
   return normalizePagePayload(response, {})
 }
 
-export const fetchFlpNoAdsLastCrowd = async () => {
-  const response = await http.get('/config/flp-no-ads-threshold/last-crowd')
+export const fetchMemberNoAdsLastCrowd = async () => {
+  const response = await http.get('/config/member-no-ads/last-crowd')
   return normalizePagePayload(response, {})
 }
 
@@ -358,6 +358,16 @@ export const uploadCountyKmlZipConfig = async (file, version) => {
   })
 }
 
+export const fetchKmlDecryptAesKeyConfig = async () => {
+  const response = await http.get('/config/kml-decrypt-aes-key')
+  return normalizePagePayload(response, { aesKey: '' })
+}
+
+export const saveKmlDecryptAesKeyConfig = async (payload) => {
+  const response = await http.put('/config/kml-decrypt-aes-key', payload)
+  return normalizePagePayload(response, {})
+}
+
 const resolveDownloadObjectName = (input) => {
   if (!input) return ''
   if (typeof input === 'string') {
@@ -489,10 +499,10 @@ export default {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
-  fetchFlpNoAdsThresholdConfig,
-  saveFlpNoAdsThresholdConfig,
-  syncFlpNoAdsCrowdNow,
-  fetchFlpNoAdsLastCrowd,
+  fetchMemberNoAdsConfig,
+  saveMemberNoAdsConfig,
+  syncMemberNoAdsCrowdNow,
+  fetchMemberNoAdsLastCrowd,
   fetchCoordinateLongPressGuideCopy,
   saveCoordinateLongPressGuideCopy,
   fetchCoordinateSystemDescriptionCopy,
@@ -508,6 +518,10 @@ export default {
   uploadEasterEggResourceConfig,
   fetchProvinceCityKmlZipConfig,
   uploadProvinceCityKmlZipConfig,
+  fetchCountyKmlZipConfig,
+  uploadCountyKmlZipConfig,
+  fetchKmlDecryptAesKeyConfig,
+  saveKmlDecryptAesKeyConfig,
   fetchPosterServiceVersion,
   refreshPosterServiceVersion,
   fetchPinReviewRewardConfig,

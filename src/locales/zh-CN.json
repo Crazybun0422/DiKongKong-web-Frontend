@@ -935,7 +935,74 @@
       "lottery": "抽奖设置",
       "reportEntry": "报备设置",
       "guideSettings": "引导设置",
+      "areaSettings": "区域设置",
       "system": "系统设置"
+    },
+    "areaSettings": {
+      "tabs": {
+        "kmlDecryptAes": "KML 解密 AES",
+        "suitableFlyZone": "适飞区配置"
+      },
+      "kmlDecryptAes": {
+        "title": "KML 解密 AES 密钥",
+        "subtitle": "配置用于 KML 解密的 AES 密钥，供区域相关流程读取。",
+        "fields": {
+          "aesKey": "AES 密钥"
+        },
+        "placeholders": {
+          "aesKey": "请输入 AES 密钥"
+        },
+        "actions": {
+          "save": "保存配置",
+          "reload": "重新加载",
+          "reset": "重置"
+        },
+        "helper": "保存后会立即覆盖当前 KML 解密 AES 密钥。",
+        "messages": {
+          "loadFailed": "KML 解密 AES 密钥加载失败",
+          "saveSuccess": "KML 解密 AES 密钥已保存",
+          "saveFailed": "KML 解密 AES 密钥保存失败",
+          "noAesKey": "请填写 AES 密钥"
+        }
+      },
+      "suitableFlyZone": {
+        "fields": {
+          "name": "名称",
+          "version": "版本",
+          "file": "KMZ 文件",
+          "description": "说明"
+        },
+        "placeholders": {
+          "name": "请输入名称",
+          "version": "请输入版本",
+          "description": "请输入说明"
+        },
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除文件",
+          "save": "新增配置",
+          "reload": "重新加载"
+        },
+        "table": {
+          "columns": {
+            "name": "名称",
+            "version": "版本",
+            "attachment": "附件",
+            "description": "说明",
+            "createdAt": "创建时间"
+          }
+        },
+        "messages": {
+          "loadFailed": "适飞区配置加载失败",
+          "saveSuccess": "适飞区配置已新增",
+          "saveFailed": "适飞区配置新增失败",
+          "noName": "请填写名称",
+          "noVersion": "请填写版本",
+          "noFile": "请先选择 KMZ 文件",
+          "noDescription": "请填写说明"
+        }
+      }
     },
     "newbieTasks": {
       "meta": {
@@ -973,8 +1040,26 @@
         },
         "actions": {
           "add": "新增任务",
-          "remove": "移除"
+          "remove": "移除",
+          "resetFlags": "刷新全部状态"
         },
+        "resetProgress": {
+          "title": "刷新任务进度",
+          "updatedAt": "最近更新：{time}",
+          "emptyUpdatedAt": "暂无",
+          "count": "已处理 {processed} / {total}",
+          "socketConnected": "进度通道已连接",
+          "socketConnecting": "进度通道连接中",
+          "status": {
+            "idle": "未开始",
+            "pending": "等待执行",
+            "running": "执行中",
+            "completed": "已完成",
+            "failed": "执行失败",
+            "cancelled": "已取消"
+          }
+        },
+        "confirmResetFlags": "确认刷新所有用户的弹框状态和领取状态？此操作会批量重置用户记录。",
         "confirmDelete": "确认删除新人任务模板？",
         "messages": {
           "loadFailed": "新人任务模板加载失败",
@@ -982,6 +1067,10 @@
           "saveFailed": "新人任务模板保存失败",
           "deleteSuccess": "新人任务模板已删除",
           "deleteFailed": "新人任务模板删除失败",
+          "resetStarted": "已开始刷新全部状态，请等待后台任务完成",
+          "resetInProgress": "已有刷新任务正在执行，已继续监听进度",
+          "resetSuccess": "已刷新 {count} 个用户的弹框状态和领取状态",
+          "resetFailed": "刷新所有用户状态失败",
           "empty": "请至少填写一条任务（序号和名称必填）"
         }
       },
@@ -1007,28 +1096,6 @@
         },
         "messages": {
           "loadFailed": "任务完成统计加载失败"
-        }
-      },
-      "netdisk": {
-        "title": "网盘链接礼包",
-        "subtitle": "维护新人礼包的网盘链接，仅需保存一套配置。",
-        "listTitle": "网盘链接列表",
-        "fields": {
-          "name": "网盘名称",
-          "url": "网盘链接"
-        },
-        "actions": {
-          "add": "新增网盘",
-          "remove": "移除"
-        },
-        "confirmDelete": "确认删除网盘礼包配置？",
-        "messages": {
-          "loadFailed": "网盘礼包加载失败",
-          "saveSuccess": "网盘礼包已保存",
-          "saveFailed": "网盘礼包保存失败",
-          "deleteSuccess": "网盘礼包已删除",
-          "deleteFailed": "网盘礼包删除失败",
-          "empty": "请至少填写一条网盘链接（名称和链接必填）"
         }
       }
     },
@@ -1564,20 +1631,21 @@
     },
     "adSettings": {
       "title": "免广告设置",
-      "subtitle": "配置免广告 FLP 阈值，并手动触发 WeData 人群同步。",
+      "subtitle": "配置进入免广告人群所需的最低会员状态，并手动触发 WeData 同步。",
       "actions": {
         "reload": "重新加载",
         "syncNow": "立即同步人群"
       },
       "form": {
-        "threshold": "免广告 FLP 阈值",
-        "placeholder": "请输入阈值（>= 0）"
+        "threshold": "最低会员状态值",
+        "placeholder": "请输入状态值",
+        "helper": "同步时会筛选会员状态值大于等于该值的用户进入免广告人群。具体状态值含义以服务端会员状态定义为准。"
       },
       "validation": {
-        "threshold": "请输入大于等于 0 的阈值"
+        "threshold": "请输入大于等于 0 的会员状态值"
       },
       "stats": {
-        "currentThreshold": "当前阈值",
+        "currentThreshold": "当前最低会员状态",
         "lastSyncTime": "最近同步时间",
         "lastSyncMembers": "最近同步人数",
         "lastSyncStatus": "最近同步状态"
@@ -1585,7 +1653,7 @@
       "record": {
         "title": "最近一次同步记录",
         "executedAt": "执行时间",
-        "threshold": "执行阈值",
+        "threshold": "执行会员状态",
         "crowdName": "人群名称",
         "crowdId": "人群ID",
         "mediaId": "媒体ID",
@@ -1598,7 +1666,6 @@
           "featureCode": "低空号",
           "username": "用户名",
           "openid": "OpenID",
-          "flpBalance": "FLP余额",
           "status": "用户状态",
           "userCreatedAt": "注册时间"
         }
@@ -1610,13 +1677,14 @@
         "unknown": "未知"
       },
       "meta": {
-        "noData": "暂无数据"
+        "noData": "暂无数据",
+        "statusValue": "状态值 {value}"
       },
       "messages": {
-        "loadThresholdFailed": "免广告阈值加载失败",
+        "loadThresholdFailed": "免广告会员状态配置加载失败",
         "loadRecordFailed": "免广告同步记录加载失败",
-        "saveThresholdSuccess": "免广告阈值已保存",
-        "saveThresholdFailed": "免广告阈值保存失败",
+        "saveThresholdSuccess": "免广告会员状态配置已保存",
+        "saveThresholdFailed": "免广告会员状态配置保存失败",
         "syncSuccess": "免广告人群同步已触发",
         "syncFailed": "免广告人群同步失败"
       }
@@ -1697,7 +1765,7 @@
   },
   "memberSettings": {
     "title": "会员设置",
-    "subtitle": "维护会员价格配置，并上传会员背景包、头像包和语音包。",
+    "subtitle": "维护会员价格配置，并上传会员群二维码、背景包、头像包和语音包。",
     "actions": {
       "reload": "重新加载"
     },
@@ -1732,7 +1800,8 @@
       },
       "paymentMode": {
         "wechat": "微信",
-        "flp": "FLP"
+        "flp": "FLP",
+        "cash": "现金"
       },
       "pagination": {
         "total": "共 {total} 条 · 当前 {start}-{end}"
@@ -1786,6 +1855,22 @@
         "saveFailed": "会员价格配置保存失败"
       }
     },
+    "cashPayment": {
+      "title": "现金支付开关",
+      "subtitle": "独立控制会员充值是否允许现金支付。",
+      "updatedAt": "更新时间：{time}",
+      "emptyUpdatedAt": "尚未同步",
+      "field": "现金支付",
+      "helper": "直接切换即可自动保存，且不会提交当前未保存的价格修改。",
+      "switch": {
+        "checked": "已开启",
+        "unchecked": "已关闭"
+      },
+      "messages": {
+        "saveSuccess": "现金支付开关已保存",
+        "saveFailed": "现金支付开关保存失败"
+      }
+    },
     "inviteReward": {
       "title": "会员邀请奖励",
       "subtitle": "配置被邀请用户开通月度或年度会员后，邀请人获得的 FLP 奖励。",
@@ -1807,6 +1892,22 @@
         "loadFailed": "会员邀请奖励配置加载失败",
         "saveSuccess": "会员邀请奖励配置已保存",
         "saveFailed": "会员邀请奖励配置保存失败"
+      }
+    },
+    "qrCode": {
+      "title": "会员群二维码",
+      "subtitle": "上传会员群二维码图片，供会员端展示和入群使用。",
+      "updatedAt": "更新时间：{time}",
+      "emptyUpdatedAt": "尚未上传",
+      "helper": "支持常见图片格式，上传后会直接覆盖当前会员群二维码。",
+      "actions": {
+        "upload": "上传二维码",
+        "uploadReplace": "更换二维码"
+      },
+      "messages": {
+        "loadFailed": "会员群二维码加载失败",
+        "uploadSuccess": "会员群二维码上传成功",
+        "uploadFailed": "会员群二维码上传失败"
       }
     },
     "upload": {
@@ -1877,6 +1978,9 @@
   "users": {
     "title": "用户管理",
     "subtitle": "查看用户注册与TOKEN明细。",
+    "actions": {
+      "refreshDefaultAvatar": "刷新默认头像"
+    },
     "search": {
       "placeholder": "按名称或低空号搜索",
       "submit": "搜索",
@@ -1912,7 +2016,27 @@
     },
     "messages": {
       "loadFailed": "用户数据加载失败",
-      "logLoadFailed": "TOKEN日志加载失败"
+      "logLoadFailed": "TOKEN日志加载失败",
+      "avatarRefreshStarted": "已开始刷新空头像用户，请等待后台任务完成",
+      "avatarRefreshSuccess": "已更新 {count} 个用户的默认头像",
+      "avatarRefreshFailed": "刷新默认头像失败"
+    },
+    "avatarRefresh": {
+      "title": "默认头像刷新进度",
+      "updatedAt": "最近更新：{time}",
+      "emptyUpdatedAt": "暂无",
+      "progress": "已处理 {processed} / {total}",
+      "updatedCount": "已更新 {count} 个头像",
+      "socketConnected": "进度通道已连接",
+      "socketConnecting": "进度通道连接中",
+      "status": {
+        "idle": "未开始",
+        "started": "等待执行",
+        "running": "执行中",
+        "completed": "已完成",
+        "failed": "执行失败",
+        "cancelled": "已取消"
+      }
     },
     "detail": {
       "title": "用户详情",

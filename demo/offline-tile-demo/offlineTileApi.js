@@ -109,9 +109,14 @@
     return ctx.getImageData(0, 0, canvas.width, canvas.height)
   }
 
+  function normalizePath(path) {
+    return String(path || '').replace(/\\/g, '/').replace(/^\/+/, '')
+  }
+
   function parseTilePath(path) {
     if (typeof path !== 'string') return null
-    var match = path.match(/\/z(\d+)\/x(\d+)\/y(\d+)\.(png|webp)$/i)
+    var normalized = normalizePath(path)
+    var match = normalized.match(/(?:^|\/)(?:z)?(\d+)\/(?:x)?(\d+)\/(?:y)?(\d+)\.(png|webp)$/i)
     if (!match) return null
     return {
       z: Number(match[1]),
@@ -127,6 +132,90 @@
       container.set(zoom, new Map())
     }
     return container.get(zoom)
+  }
+
+  function buildDirectoryFileIndex(files) {
+    var fileIndex = new Map()
+    Array.from(files || []).forEach(function (file) {
+      if (!file) return
+      var relativePath = normalizePath(file.webkitRelativePath || file.relativePath || file.name)
+      if (!relativePath) return
+      fileIndex.set(relativePath, file)
+    })
+    return fileIndex
+  }
+
+  function findDirectoryManifestPath(fileIndex) {
+    var candidates = Array.from(fileIndex.keys()).filter(function (path) {
+      return /(?:^|\/)(?:metadata|.+_tiles_manifest)\.json$/i.test(path)
+    })
+    candidates.sort(function (a, b) {
+      var aScore = /_tiles_manifest\.json$/i.test(a) ? 0 : 1
+      var bScore = /_tiles_manifest\.json$/i.test(b) ? 0 : 1
+      if (aScore !== bScore) return aScore - bScore
+      return a.length - b.length
+    })
+    return candidates[0] || ''
+  }
+
+  function extractRootDirFromTemplate(template) {
+    var normalized = normalizePath(template)
+    var markerIndex = normalized.indexOf('/{z}/')
+    if (markerIndex > -1) {
+      return normalized.slice(0, markerIndex)
+    }
+    return ''
+  }
+
+  function inferRootDirFromTilePaths(tilePaths) {
+    if (!tilePaths.length) {
+      return ''
+    }
+    var firstPath = normalizePath(tilePaths[0])
+    var match = firstPath.match(/^(.*?)(?:\/)?(?:z)?\d+\/(?:x)?\d+\/(?:y)?\d+\.(png|webp)$/i)
+    if (!match) {
+      return ''
+    }
+    return String(match[1] || '').replace(/\/+$/, '')
+  }
+
+  function buildDirectoryMetadata(sourceEntries, manifestPath, manifestPayload) {
+    var metadata = manifestPayload && typeof manifestPayload === 'object' ? manifestPayload : {}
+    var paths = Array.isArray(sourceEntries)
+      ? sourceEntries.map(normalizePath)
+      : Array.from((sourceEntries || new Map()).keys()).map(normalizePath)
+    var tilePaths = paths.filter(function (path) {
+      return Boolean(parseTilePath(path))
+    })
+    var rootDir = extractRootDirFromTemplate(metadata.template)
+    if (!rootDir) {
+      rootDir = extractRootDirFromTemplate(metadata.filePattern)
+    }
+    if (!rootDir && typeof metadata.tiles_root === 'string') {
+      rootDir = normalizePath(metadata.tiles_root).split('/').slice(-1)[0] || ''
+    }
+    if (!rootDir) {
+      rootDir = inferRootDirFromTilePaths(tilePaths)
+    }
+
+    var tileSummary = metadata.tileSummary || {}
+    if (!Number.isFinite(Number(tileSummary.downloaded))) {
+      tileSummary.downloaded = tilePaths.length
+    }
+
+    return {
+      rootDir: rootDir,
+      bounds: metadata.bounds || null,
+      zoom: Number.isFinite(Number(metadata.zoom)) ? Number(metadata.zoom) : undefined,
+      zoomRange: metadata.zoomRange || {
+        start: Number.isFinite(Number(metadata.min_zoom)) ? Number(metadata.min_zoom) : undefined,
+        end: Number.isFinite(Number(metadata.max_zoom)) ? Number(metadata.max_zoom) : undefined,
+      },
+      filePattern: metadata.filePattern || metadata.template || '',
+      tileSummary: tileSummary,
+      manifestPath: manifestPath || '',
+      sourceType: 'directory',
+    }
   }
 
   function eachMapEntry(map, visitor) {
@@ -324,7 +413,8 @@
 
   function OfflineTilePackage(config) {
     this.zip = config.zip
-    this.metadata = config.metadata
+    this.fileIndex = config.fileIndex || null
+    this.metadata = config.metadata || {}
     this.imageDataCache = new Map()
     this.rootDir = (config.metadata && config.metadata.rootDir) || ''
     this.tileNameIndex = new Map()
@@ -340,15 +430,70 @@
     var zip = await global.JSZip.loadAsync(file)
     var files = Object.values(zip.files)
     var metadataEntry = files.find(function (entry) {
-      return /metadata\.json$/i.test(entry.name)
+      return /(?:^|\/)(?:metadata|.+_tiles_manifest)\.json$/i.test(entry.name)
     })
+    var metadata = null
+    if (metadataEntry) {
+      metadata = JSON.parse(await metadataEntry.async('string'))
+    }
+    var sourcePaths = files
+      .filter(function (entry) { return entry && !entry.dir })
+      .map(function (entry) { return entry.name })
+    return new OfflineTilePackage({
+      zip: zip,
+      metadata: buildDirectoryMetadata(sourcePaths, metadataEntry ? metadataEntry.name : '', metadata),
+    })
+  }
 
-    if (!metadataEntry) {
-      throw new Error('metadata.json not found in zip')
+  OfflineTilePackage.fromDirectoryFiles = async function (files) {
+    var fileIndex = buildDirectoryFileIndex(files)
+    if (!fileIndex.size) {
+      throw new Error('目录中没有可读取的文件')
     }
 
-    var metadata = JSON.parse(await metadataEntry.async('string'))
-    return new OfflineTilePackage({ zip: zip, metadata: metadata })
+    var manifestPath = findDirectoryManifestPath(fileIndex)
+    var manifestPayload = null
+    if (manifestPath) {
+      manifestPayload = JSON.parse(await fileIndex.get(manifestPath).text())
+    }
+
+    var metadata = buildDirectoryMetadata(fileIndex, manifestPath, manifestPayload)
+    var pack = new OfflineTilePackage({
+      fileIndex: fileIndex,
+      metadata: metadata,
+    })
+
+    if (!pack.getAvailableZooms().length) {
+      throw new Error('目录中未找到可用瓦片，请选择包含 z/x/y.png 的目录')
+    }
+    return pack
+  }
+
+  OfflineTilePackage.prototype._listSourcePaths = function () {
+    if (this.fileIndex) {
+      return Array.from(this.fileIndex.keys())
+    }
+    if (this.zip) {
+      return Object.values(this.zip.files).map(function (entry) { return entry && entry.name }).filter(Boolean)
+    }
+    return []
+  }
+
+  OfflineTilePackage.prototype._getBlobByPath = async function (path) {
+    var normalized = normalizePath(path)
+    if (this.fileIndex) {
+      return this.fileIndex.get(normalized) || null
+    }
+
+    if (!this.zip) {
+      return null
+    }
+
+    var entry = this.zip.file(normalized)
+    if (!entry) {
+      return null
+    }
+    return await entry.async('blob')
   }
 
   OfflineTilePackage.prototype._buildTileNameIndex = function () {
@@ -362,10 +507,9 @@
         }
       })
     } else {
-      Object.values(_this.zip.files).forEach(function (entry) {
-        if (!entry || entry.dir) return
-        if (/\/z\d+\/x\d+\/y\d+\.(png|webp)$/i.test(entry.name)) {
-          paths.push(entry.name)
+      _this._listSourcePaths().forEach(function (path) {
+        if (parseTilePath(path)) {
+          paths.push(path)
         }
       })
     }
@@ -436,14 +580,13 @@
         continue
       }
 
-      var zipEntry = this.zip.file(path)
-      if (!zipEntry) {
+      var blob = await this._getBlobByPath(path)
+      if (!blob) {
         done += 1
         if (onProgress) onProgress({ zoom: z, done: done, total: total })
         continue
       }
 
-      var blob = await zipEntry.async('blob')
       var objectUrl = URL.createObjectURL(blob)
       urlMap.set(key, objectUrl)
       loadedNow += 1
@@ -547,12 +690,11 @@
       return null
     }
 
-    var entry = this.zip.file(path)
-    if (!entry) {
+    var blob = await this._getBlobByPath(path)
+    if (!blob) {
       return null
     }
 
-    var blob = await entry.async('blob')
     var imageData = await decodeBlobToImageData(blob)
     this.imageDataCache.set(key, imageData)
     return imageData

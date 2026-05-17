@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import COS from 'cos-js-sdk-v5'
@@ -40,10 +40,10 @@ import {
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
   saveInviteGuideCopy,
-  fetchFlpNoAdsThresholdConfig,
-  saveFlpNoAdsThresholdConfig,
-  syncFlpNoAdsCrowdNow,
-  fetchFlpNoAdsLastCrowd,
+  fetchMemberNoAdsConfig,
+  saveMemberNoAdsConfig,
+  syncMemberNoAdsCrowdNow,
+  fetchMemberNoAdsLastCrowd,
   fetchCoordinateLongPressGuideCopy,
   saveCoordinateLongPressGuideCopy,
   fetchCoordinateSystemDescriptionCopy,
@@ -63,11 +63,17 @@ import {
   uploadProvinceCityKmlZipConfig,
   fetchCountyKmlZipConfig,
   uploadCountyKmlZipConfig,
+  fetchKmlDecryptAesKeyConfig,
+  saveKmlDecryptAesKeyConfig,
   fetchTemplateSettings,
   saveTemplateSettingsBatch,
   updateTemplateSetting,
   deleteTemplateSetting,
 } from '../../services/config'
+import {
+  fetchAdminSuitableFlyZoneKmzInfos,
+  createSuitableFlyZoneKmzInfo,
+} from '../../services/suitableFlyZoneKmz'
 import { fetchWechatPayConfig, saveWechatPayConfig } from '../../services/wechatPayConfig'
 import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
@@ -81,10 +87,9 @@ import {
   fetchNewbieTaskTemplate,
   saveNewbieTaskTemplate,
   deleteNewbieTaskTemplate,
-  fetchNetdiskGiftConfig,
-  saveNetdiskGiftConfig,
-  deleteNetdiskGiftConfig,
+  resetNewbieTaskUserFlags,
 } from '../../services/newbieTasks'
+import { API_BASE_URL, AUTH_TOKEN_KEY } from '../../services/http'
 import { buildDownloadUrl, extractObjectName, uploadPublicFile } from '../../services/files'
 import {
   fetchReportEntries,
@@ -110,9 +115,81 @@ import { fetchLadderGameAdminLeaderboard } from '../../services/ladderGame'
 import reportEntryRegions from '../../data/reportEntryRegions'
 import detailIcon from '../../assets/img/detail.png'
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
+
+const newbieTaskResetTextFallbacks = {
+  'zh-CN': {
+    resetProgress: {
+      title: '刷新任务进度',
+      updatedAt: '最近更新：{time}',
+      emptyUpdatedAt: '暂无',
+      count: '已处理 {processed} / {total}',
+      socketConnected: '进度通道已连接',
+      socketConnecting: '进度通道连接中',
+      status: {
+        idle: '未开始',
+        pending: '等待执行',
+        running: '执行中',
+        completed: '已完成',
+        failed: '执行失败',
+        cancelled: '已取消',
+      },
+    },
+    messages: {
+      resetStarted: '已开始刷新全部状态，请等待后台任务完成',
+      resetInProgress: '已有刷新任务正在执行，已继续监听进度',
+      resetSuccess: '已刷新 {count} 个用户的弹框状态和领取状态',
+      resetFailed: '刷新所有用户状态失败',
+    },
+  },
+  en: {
+    resetProgress: {
+      title: 'Reset task progress',
+      updatedAt: 'Last update: {time}',
+      emptyUpdatedAt: 'N/A',
+      count: 'Processed {processed} / {total}',
+      socketConnected: 'Progress channel connected',
+      socketConnecting: 'Connecting progress channel',
+      status: {
+        idle: 'Not started',
+        pending: 'Pending',
+        running: 'Running',
+        completed: 'Completed',
+        failed: 'Failed',
+        cancelled: 'Cancelled',
+      },
+    },
+    messages: {
+      resetStarted: 'Reset task started. Wait for the background job to finish.',
+      resetInProgress: 'A reset task is already running. Continuing to listen for progress.',
+      resetSuccess: 'Reset popup and claim flags for {count} user(s)',
+      resetFailed: 'Failed to reset popup and claim flags for all users',
+    },
+  },
+}
+
+const interpolateText = (template, params = {}) =>
+  String(template || '').replace(/\{(\w+)\}/g, (_match, key) => params[key] ?? '')
+
+const getNewbieTaskResetFallbackLocale = () => (String(locale.value || '').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en')
+
+const translateNewbieTaskReset = (path, params = {}) => {
+  const key = `settings.newbieTasks.template.${path}`
+  if (te(key)) {
+    return t(key, params)
+  }
+
+  const fallbackLocale = getNewbieTaskResetFallbackLocale()
+  const fallbackRoot = newbieTaskResetTextFallbacks[fallbackLocale] || newbieTaskResetTextFallbacks.en
+  const value = path.split('.').reduce((current, segment) => current?.[segment], fallbackRoot)
+  if (typeof value === 'string') {
+    return interpolateText(value, params)
+  }
+  return key
+}
 
 const activeTab = ref('invite')
+const areaSettingsTab = ref('suitable-fly-zone')
 const guideSettingsTab = ref('gif')
 
 const parseBulkTemplateInput = (input) => {
@@ -233,10 +310,10 @@ const tencentCosTestResult = reactive({
   downloadedAt: '',
 })
 
-const adThresholdForm = reactive({
+const memberNoAdsForm = reactive({
   threshold: 0,
 })
-const adThresholdRules = computed(() => ({
+const memberNoAdsRules = computed(() => ({
   threshold: [
     {
       validator: (_, value) => {
@@ -249,8 +326,8 @@ const adThresholdRules = computed(() => ({
     },
   ],
 }))
-const adThresholdLoading = ref(false)
-const adThresholdSaving = ref(false)
+const memberNoAdsLoading = ref(false)
+const memberNoAdsSaving = ref(false)
 const adSyncing = ref(false)
 const adLastCrowdLoading = ref(false)
 const adLastCrowdRecord = ref(null)
@@ -525,6 +602,7 @@ const autoTaskForm = reactive({
 
 const newbieTaskTemplateLoading = ref(false)
 const newbieTaskTemplateSaving = ref(false)
+const newbieTaskResetting = ref(false)
 const newbieTaskTemplateUpdatedAt = ref(null)
 const newbieTaskTemplateForm = ref([])
 const newbieTaskActiveTab = ref('template')
@@ -538,11 +616,17 @@ const newbieTaskStatsPagination = reactive({
 const newbieTaskQrCodeUrl = ref('')
 const newbieTaskQrCodeUploadedAt = ref(null)
 const newbieTaskQrUploadLoading = ref(false)
-
-const netdiskGiftLoading = ref(false)
-const netdiskGiftSaving = ref(false)
-const netdiskGiftUpdatedAt = ref(null)
-const netdiskGiftForm = ref([])
+const newbieTaskResetSocket = ref(null)
+const newbieTaskResetSocketConnected = ref(false)
+const newbieTaskResetProgress = reactive({
+  status: '',
+  total: 0,
+  processed: 0,
+  message: '',
+  updatedAt: null,
+  visible: false,
+})
+const newbieTaskResetTerminalSignature = ref('')
 
 const guideUrls = ref([])
 const guideLoading = ref(false)
@@ -557,13 +641,7 @@ const createNewbieTaskRow = () => ({
   buttonText: '',
 })
 
-const createNetdiskLinkRow = () => ({
-  name: '',
-  url: '',
-})
-
 newbieTaskTemplateForm.value = [createNewbieTaskRow()]
-netdiskGiftForm.value = [createNetdiskLinkRow()]
 
 const fontFileConfig = reactive({
   fileName: '',
@@ -612,6 +690,21 @@ const provinceCityKmlZipSelected = ref(null)
 const countyKmlZipLoading = ref(false)
 const countyKmlZipSaving = ref(false)
 const countyKmlZipSelected = ref(null)
+const suitableFlyZoneKmzForm = reactive({
+  name: '',
+  version: '',
+  description: '',
+  fileName: '',
+})
+const suitableFlyZoneKmzLoading = ref(false)
+const suitableFlyZoneKmzSaving = ref(false)
+const suitableFlyZoneKmzSelected = ref(null)
+const suitableFlyZoneKmzList = ref([])
+const kmlDecryptAesKeyForm = reactive({
+  aesKey: '',
+})
+const kmlDecryptAesKeyLoading = ref(false)
+const kmlDecryptAesKeySaving = ref(false)
 
 const userAgreementList = ref([])
 const userAgreementLoading = ref(false)
@@ -741,18 +834,91 @@ const newbieTaskTemplateUpdatedAtDisplay = computed(() =>
     ? new Date(newbieTaskTemplateUpdatedAt.value).toLocaleString()
     : t('settings.newbieTasks.meta.emptyUpdatedAt'),
 )
-
-const netdiskGiftUpdatedAtDisplay = computed(() =>
-  netdiskGiftUpdatedAt.value
-    ? new Date(netdiskGiftUpdatedAt.value).toLocaleString()
-    : t('settings.newbieTasks.meta.emptyUpdatedAt'),
+const newbieTaskResetProgressVisible = computed(() => newbieTaskResetProgress.visible || newbieTaskResetting.value)
+const newbieTaskResetProgressPercent = computed(() => {
+  const status = String(newbieTaskResetProgress.status || '').toUpperCase()
+  if (status === 'COMPLETED') return 100
+  const total = Number(newbieTaskResetProgress.total) || 0
+  const processed = Number(newbieTaskResetProgress.processed) || 0
+  if (total <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round((processed / total) * 100)))
+})
+const newbieTaskResetProgressStatus = computed(() => {
+  const status = String(newbieTaskResetProgress.status || '').toUpperCase()
+  if (status === 'FAILED') return 'exception'
+  if (status === 'COMPLETED') return 'success'
+  return 'active'
+})
+const newbieTaskResetProgressStatusLabel = computed(() => {
+  const key = String(newbieTaskResetProgress.status || '').toLowerCase()
+  if (!key) return translateNewbieTaskReset('resetProgress.status.idle')
+  return translateNewbieTaskReset(`resetProgress.status.${key}`) || newbieTaskResetProgress.status
+})
+const newbieTaskResetProgressUpdatedAtDisplay = computed(() =>
+  newbieTaskResetProgress.updatedAt
+    ? new Date(newbieTaskResetProgress.updatedAt).toLocaleString()
+    : translateNewbieTaskReset('resetProgress.emptyUpdatedAt'),
 )
+const newbieTaskResetProgressCountDisplay = computed(() => {
+  const processed = Number(newbieTaskResetProgress.processed) || 0
+  const total = Number(newbieTaskResetProgress.total) || 0
+  return translateNewbieTaskReset('resetProgress.count', {
+    processed,
+    total: total > 0 ? total : '-',
+  })
+})
 
 const guideUpdatedAtDisplay = computed(() =>
   guideUpdatedAt.value
     ? new Date(guideUpdatedAt.value).toLocaleString()
     : t('settings.system.guide.meta.emptyUpdatedAt'),
 )
+
+const extractErrorMessage = (error, fallback = t('messages.requestFailed')) => {
+  const data = error?.response?.data
+  if (!data) {
+    return error?.message || fallback
+  }
+  if (typeof data === 'string') {
+    return data
+  }
+  if (data.msg) {
+    return data.msg
+  }
+  if (typeof data.message === 'string') {
+    return data.message
+  }
+  if (data.message && typeof data.message === 'object') {
+    return Object.values(data.message).join(' / ')
+  }
+  return fallback
+}
+
+const buildAdminWsUrl = (path) => {
+  if (typeof window === 'undefined') return ''
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  try {
+    const apiUrl = new URL(API_BASE_URL, window.location.origin)
+    const wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    const url = new URL(`${wsProtocol}//${apiUrl.host}${path}`)
+    if (token) {
+      url.searchParams.set('token', token)
+    }
+    return url.toString()
+  } catch (error) {
+    const origin = window.location.origin.replace(/^http/, 'ws')
+    const url = new URL(`${origin}${path}`)
+    if (token) {
+      url.searchParams.set('token', token)
+    }
+    return url.toString()
+  }
+}
+
+const isNewbieTaskResetTerminalStatus = (status) => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(status)
+
+let newbieTaskResetSocketReconnectTimer = null
+let newbieTaskResetSocketShouldReconnect = true
 
 const getLotteryImageUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
 const resolveStorageUrl = (value) => {
@@ -887,6 +1053,13 @@ const adLastCrowdCount = computed(() => {
   if (Number.isFinite(count)) return count
   return adCrowdMembers.value.length
 })
+
+const formatMemberNoAdsStatus = (value) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric)
+    ? t('settings.adSettings.meta.statusValue', { value: numeric.toFixed(0) })
+    : t('settings.adSettings.meta.noData')
+}
 
 const buildReportEntryTree = (nodes = [], parentPath = []) =>
   nodes.map((node) => {
@@ -1030,6 +1203,20 @@ const resetCountyKmlZipForm = (currentVersion = '') => {
 
 const countyKmlZipDownloadUrl = computed(() => buildDownloadUrl(countyKmlZipConfig.fileName || ''))
 
+const resetSuitableFlyZoneKmzForm = () => {
+  suitableFlyZoneKmzForm.name = ''
+  suitableFlyZoneKmzForm.version = ''
+  suitableFlyZoneKmzForm.description = ''
+  suitableFlyZoneKmzForm.fileName = ''
+  suitableFlyZoneKmzSelected.value = null
+}
+
+const resetKmlDecryptAesKeyForm = (aesKey = '') => {
+  kmlDecryptAesKeyForm.aesKey = String(aesKey || '')
+}
+
+const resolveSuitableFlyZoneKmzDownloadUrl = (value) => buildDownloadUrl(extractObjectName(value || '') || value || '')
+
 const inviteColumns = computed(() => [
   { title: t('settings.invite.logs.columns.featureCode'), dataIndex: ['user', 'featureCode'], key: 'featureCode' },
   { title: t('settings.invite.logs.columns.username'), dataIndex: ['user', 'username'], key: 'username' },
@@ -1044,7 +1231,6 @@ const adMemberColumns = computed(() => [
   { title: t('settings.adSettings.table.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 140 },
   { title: t('settings.adSettings.table.columns.username'), dataIndex: 'username', key: 'username', width: 140 },
   { title: t('settings.adSettings.table.columns.openid'), dataIndex: 'openid', key: 'openid', ellipsis: true },
-  { title: t('settings.adSettings.table.columns.flpBalance'), dataIndex: 'flpBalance', key: 'flpBalance', width: 130 },
   { title: t('settings.adSettings.table.columns.status'), dataIndex: 'status', key: 'status', width: 120 },
   { title: t('settings.adSettings.table.columns.userCreatedAt'), dataIndex: 'userCreatedAt', key: 'userCreatedAt', width: 180 },
 ])
@@ -1162,6 +1348,13 @@ const reportEntryColumns = computed(() => [
   { title: t('settings.reportEntry.table.area'), dataIndex: 'area', key: 'area' },
   { title: t('settings.reportEntry.table.doubleReported'), dataIndex: 'doubleReported', key: 'doubleReported', width: 120 },
   { title: t('settings.reportEntry.table.actions'), key: 'actions', width: 120 },
+])
+const suitableFlyZoneKmzColumns = computed(() => [
+  { title: t('settings.areaSettings.suitableFlyZone.table.columns.name'), dataIndex: 'name', key: 'name', width: 180 },
+  { title: t('settings.areaSettings.suitableFlyZone.table.columns.version'), dataIndex: 'version', key: 'version', width: 140 },
+  { title: t('settings.areaSettings.suitableFlyZone.table.columns.attachment'), dataIndex: 'attachmentName', key: 'attachmentName', width: 220 },
+  { title: t('settings.areaSettings.suitableFlyZone.table.columns.description'), dataIndex: 'description', key: 'description' },
+  { title: t('settings.areaSettings.suitableFlyZone.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
 ])
 const reportEntryRules = computed(() => ({
   areaPath: [
@@ -1623,28 +1816,28 @@ const clearMapLongImage = () => {
   mapForm.longImageUrl = ''
 }
 
-const loadAdThresholdConfig = async () => {
-  adThresholdLoading.value = true
+const loadMemberNoAdsConfig = async () => {
+  memberNoAdsLoading.value = true
   try {
-    const data = await fetchFlpNoAdsThresholdConfig()
+    const data = await fetchMemberNoAdsConfig()
     const threshold = Number(data?.threshold)
-    adThresholdForm.threshold = Number.isFinite(threshold) ? threshold : 0
+    memberNoAdsForm.threshold = Number.isFinite(threshold) ? threshold : 0
   } catch (error) {
     if (error?.response?.status === 404) {
-      adThresholdForm.threshold = 0
+      memberNoAdsForm.threshold = 0
       return
     }
-    console.error('Failed to load no-ads threshold config', error)
+    console.error('Failed to load member no-ads config', error)
     message.error(t('settings.adSettings.messages.loadThresholdFailed'))
   } finally {
-    adThresholdLoading.value = false
+    memberNoAdsLoading.value = false
   }
 }
 
 const loadAdLastCrowdRecord = async () => {
   adLastCrowdLoading.value = true
   try {
-    const data = await fetchFlpNoAdsLastCrowd()
+    const data = await fetchMemberNoAdsLastCrowd()
     adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
   } catch (error) {
     if (error?.response?.status === 404) {
@@ -1659,23 +1852,23 @@ const loadAdLastCrowdRecord = async () => {
 }
 
 const reloadAdSettings = () => {
-  loadAdThresholdConfig()
+  loadMemberNoAdsConfig()
   loadAdLastCrowdRecord()
 }
 
-const submitAdThresholdForm = async () => {
-  adThresholdSaving.value = true
+const submitMemberNoAdsForm = async () => {
+  memberNoAdsSaving.value = true
   try {
-    await saveFlpNoAdsThresholdConfig({
-      threshold: Math.max(0, Number(adThresholdForm.threshold) || 0),
+    await saveMemberNoAdsConfig({
+      threshold: Math.max(0, Number(memberNoAdsForm.threshold) || 0),
     })
     message.success(t('settings.adSettings.messages.saveThresholdSuccess'))
-    await loadAdThresholdConfig()
+    await loadMemberNoAdsConfig()
   } catch (error) {
-    console.error('Failed to save no-ads threshold config', error)
+    console.error('Failed to save member no-ads config', error)
     message.error(t('settings.adSettings.messages.saveThresholdFailed'))
   } finally {
-    adThresholdSaving.value = false
+    memberNoAdsSaving.value = false
   }
 }
 
@@ -1683,7 +1876,7 @@ const handleAdSyncNow = async () => {
   if (adSyncing.value) return
   adSyncing.value = true
   try {
-    const data = await syncFlpNoAdsCrowdNow()
+    const data = await syncMemberNoAdsCrowdNow()
     adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
     message.success(t('settings.adSettings.messages.syncSuccess'))
   } catch (error) {
@@ -2041,14 +2234,6 @@ const normalizeNewbieTasks = (tasks = []) => {
   return rows.length ? rows : [createNewbieTaskRow()]
 }
 
-const normalizeNetdiskLinks = (links = []) => {
-  const rows = (links || []).map((item) => ({
-    name: item?.name ?? '',
-    url: item?.url ?? '',
-  }))
-  return rows.length ? rows : [createNetdiskLinkRow()]
-}
-
 const loadNewbieTaskTemplate = async () => {
   newbieTaskTemplateLoading.value = true
   try {
@@ -2124,6 +2309,167 @@ const handleDeleteNewbieTaskTemplate = async () => {
   }
 }
 
+const applyNewbieTaskResetProgress = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return
+  }
+
+  const nextStatus = String(payload.status || newbieTaskResetProgress.status || '').toUpperCase()
+  const nextTotal = Number(payload.total)
+  const nextProcessed = Number(payload.processed)
+  const nextUpdatedAt = payload.updatedAt || newbieTaskResetProgress.updatedAt || new Date().toISOString()
+  const nextMessage = typeof payload.message === 'string' ? payload.message : newbieTaskResetProgress.message
+
+  newbieTaskResetProgress.visible = true
+  newbieTaskResetProgress.status = nextStatus
+  newbieTaskResetProgress.total = Number.isFinite(nextTotal) ? nextTotal : Number(newbieTaskResetProgress.total) || 0
+  newbieTaskResetProgress.processed = Number.isFinite(nextProcessed)
+    ? nextProcessed
+    : Number(newbieTaskResetProgress.processed) || 0
+  newbieTaskResetProgress.updatedAt = nextUpdatedAt
+  newbieTaskResetProgress.message = nextMessage
+  newbieTaskResetting.value = !isNewbieTaskResetTerminalStatus(nextStatus)
+
+  if (!isNewbieTaskResetTerminalStatus(nextStatus)) {
+    return
+  }
+
+  const terminalSignature = [
+    nextStatus,
+    newbieTaskResetProgress.total,
+    newbieTaskResetProgress.processed,
+    nextUpdatedAt,
+    nextMessage,
+  ].join('|')
+
+  if (newbieTaskResetTerminalSignature.value === terminalSignature) {
+    return
+  }
+  newbieTaskResetTerminalSignature.value = terminalSignature
+
+  if (nextStatus === 'COMPLETED') {
+    const count = Number(newbieTaskResetProgress.processed) || Number(newbieTaskResetProgress.total) || 0
+    message.success(translateNewbieTaskReset('messages.resetSuccess', { count }))
+    loadNewbieTaskStats(newbieTaskStatsPagination.current)
+  } else {
+    message.error(nextMessage || translateNewbieTaskReset('messages.resetFailed'))
+  }
+}
+
+const clearNewbieTaskResetReconnectTimer = () => {
+  if (newbieTaskResetSocketReconnectTimer) {
+    clearTimeout(newbieTaskResetSocketReconnectTimer)
+    newbieTaskResetSocketReconnectTimer = null
+  }
+}
+
+const scheduleNewbieTaskResetSocketReconnect = () => {
+  if (!newbieTaskResetSocketShouldReconnect || newbieTaskResetSocketReconnectTimer) {
+    return
+  }
+  newbieTaskResetSocketReconnectTimer = setTimeout(() => {
+    newbieTaskResetSocketReconnectTimer = null
+    openNewbieTaskResetSocket()
+  }, 1500)
+}
+
+const closeNewbieTaskResetSocket = () => {
+  newbieTaskResetSocketShouldReconnect = false
+  clearNewbieTaskResetReconnectTimer()
+  newbieTaskResetSocketConnected.value = false
+  if (newbieTaskResetSocket.value) {
+    newbieTaskResetSocket.value.close()
+    newbieTaskResetSocket.value = null
+  }
+}
+
+const openNewbieTaskResetSocket = () => {
+  const url = buildAdminWsUrl('/ws/newbie-task-reset-progress')
+  if (!url) {
+    return
+  }
+
+  newbieTaskResetSocketShouldReconnect = true
+  clearNewbieTaskResetReconnectTimer()
+
+  if (newbieTaskResetSocket.value) {
+    newbieTaskResetSocket.value.close()
+  }
+
+  const socket = new WebSocket(url)
+  newbieTaskResetSocket.value = socket
+
+  socket.addEventListener('open', () => {
+    if (newbieTaskResetSocket.value !== socket) {
+      return
+    }
+    newbieTaskResetSocketConnected.value = true
+  })
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const payload = JSON.parse(event.data)
+      applyNewbieTaskResetProgress(payload)
+    } catch (error) {
+      console.error('Failed to parse newbie task reset progress update', error)
+    }
+  })
+
+  socket.addEventListener('error', (error) => {
+    console.error('Newbie task reset websocket error', error)
+    if (newbieTaskResetSocket.value === socket) {
+      socket.close()
+    }
+  })
+
+  socket.addEventListener('close', () => {
+    if (newbieTaskResetSocket.value !== socket) {
+      return
+    }
+    newbieTaskResetSocket.value = null
+    newbieTaskResetSocketConnected.value = false
+    scheduleNewbieTaskResetSocketReconnect()
+  })
+}
+
+const handleResetNewbieTaskUserFlags = async () => {
+  if (newbieTaskResetting.value) {
+    return
+  }
+  try {
+    newbieTaskResetTerminalSignature.value = ''
+    newbieTaskResetting.value = true
+    newbieTaskResetProgress.visible = true
+    newbieTaskResetProgress.status = 'PENDING'
+    newbieTaskResetProgress.total = 0
+    newbieTaskResetProgress.processed = 0
+    newbieTaskResetProgress.message = translateNewbieTaskReset('messages.resetStarted')
+    newbieTaskResetProgress.updatedAt = new Date().toISOString()
+    await resetNewbieTaskUserFlags()
+    message.info(translateNewbieTaskReset('messages.resetStarted'))
+  } catch (error) {
+    console.error('Failed to reset newbie task user flags', error)
+    if (error?.response?.status === 409) {
+      newbieTaskResetting.value = true
+      newbieTaskResetProgress.visible = true
+      newbieTaskResetProgress.status = 'RUNNING'
+      newbieTaskResetProgress.updatedAt = new Date().toISOString()
+      newbieTaskResetProgress.message = translateNewbieTaskReset('messages.resetInProgress')
+      message.info(translateNewbieTaskReset('messages.resetInProgress'))
+      return
+    }
+    newbieTaskResetting.value = false
+    newbieTaskResetProgress.status = 'FAILED'
+    newbieTaskResetProgress.updatedAt = new Date().toISOString()
+    newbieTaskResetProgress.message = extractErrorMessage(error, translateNewbieTaskReset('messages.resetFailed'))
+    message.error(newbieTaskResetProgress.message)
+  } finally {
+    if (!newbieTaskResetSocket.value && newbieTaskResetSocketShouldReconnect) {
+      openNewbieTaskResetSocket()
+    }
+  }
+}
+
 const getNewbieTaskQrCodeUrl = (value) => buildDownloadUrl(extractObjectName(value || ''))
 
 const formatNewbieTaskQrUploadedAt = (value) =>
@@ -2154,70 +2500,6 @@ const handleNewbieTaskQrUpload = async (event) => {
 const removeNewbieTaskQrCode = () => {
   newbieTaskQrCodeUrl.value = ''
   newbieTaskQrCodeUploadedAt.value = null
-}
-
-const loadNetdiskGiftConfig = async () => {
-  netdiskGiftLoading.value = true
-  try {
-    const data = await fetchNetdiskGiftConfig()
-    netdiskGiftForm.value = normalizeNetdiskLinks(data?.links)
-    netdiskGiftUpdatedAt.value = data?.updatedAt || null
-  } catch (error) {
-    if (error?.response?.status === 404) {
-      netdiskGiftForm.value = [createNetdiskLinkRow()]
-      netdiskGiftUpdatedAt.value = null
-      return
-    }
-    console.error('Failed to load netdisk gift config', error)
-    message.error(t('settings.newbieTasks.netdisk.messages.loadFailed'))
-  } finally {
-    netdiskGiftLoading.value = false
-  }
-}
-
-const submitNetdiskGiftConfig = async () => {
-  if (netdiskGiftSaving.value) {
-    return
-  }
-  const links = (netdiskGiftForm.value || [])
-    .map((item) => ({
-      name: (item?.name || '').trim(),
-      url: (item?.url || '').trim(),
-    }))
-    .filter((item) => item.name && item.url)
-  if (!links.length) {
-    message.warning(t('settings.newbieTasks.netdisk.messages.empty'))
-    return
-  }
-  netdiskGiftSaving.value = true
-  try {
-    await saveNetdiskGiftConfig({ links })
-    message.success(t('settings.newbieTasks.netdisk.messages.saveSuccess'))
-    await loadNetdiskGiftConfig()
-  } catch (error) {
-    console.error('Failed to save netdisk gift config', error)
-    message.error(t('settings.newbieTasks.netdisk.messages.saveFailed'))
-  } finally {
-    netdiskGiftSaving.value = false
-  }
-}
-
-const handleDeleteNetdiskGiftConfig = async () => {
-  if (netdiskGiftSaving.value) {
-    return
-  }
-  netdiskGiftSaving.value = true
-  try {
-    await deleteNetdiskGiftConfig()
-    netdiskGiftForm.value = [createNetdiskLinkRow()]
-    netdiskGiftUpdatedAt.value = null
-    message.success(t('settings.newbieTasks.netdisk.messages.deleteSuccess'))
-  } catch (error) {
-    console.error('Failed to delete netdisk gift config', error)
-    message.error(t('settings.newbieTasks.netdisk.messages.deleteFailed'))
-  } finally {
-    netdiskGiftSaving.value = false
-  }
 }
 
 const normalizeGuideTitle = (value) => String(value || '').trim()
@@ -2822,6 +3104,124 @@ const submitCountyKmlZipForm = async () => {
   }
 }
 
+const loadSuitableFlyZoneKmzInfos = async () => {
+  suitableFlyZoneKmzLoading.value = true
+  try {
+    const data = await fetchAdminSuitableFlyZoneKmzInfos()
+    suitableFlyZoneKmzList.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('Failed to load suitable fly zone kmz infos', error)
+    message.error(t('settings.areaSettings.suitableFlyZone.messages.loadFailed'))
+  } finally {
+    suitableFlyZoneKmzLoading.value = false
+  }
+}
+
+const loadKmlDecryptAesKeyConfig = async () => {
+  kmlDecryptAesKeyLoading.value = true
+  try {
+    const data = await fetchKmlDecryptAesKeyConfig()
+    resetKmlDecryptAesKeyForm(data?.aesKey || '')
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load KML decrypt AES key config', error)
+      message.error(t('settings.areaSettings.kmlDecryptAes.messages.loadFailed'))
+    }
+    resetKmlDecryptAesKeyForm('')
+  } finally {
+    kmlDecryptAesKeyLoading.value = false
+  }
+}
+
+const handleSuitableFlyZoneKmzSelect = (event) => {
+  const file = event?.target?.files?.[0]
+  if (!file) return
+  suitableFlyZoneKmzSelected.value = file
+  suitableFlyZoneKmzForm.fileName = file.name || ''
+  if (event?.target) {
+    event.target.value = ''
+  }
+}
+
+const clearSuitableFlyZoneKmzSelection = () => {
+  suitableFlyZoneKmzSelected.value = null
+  suitableFlyZoneKmzForm.fileName = ''
+}
+
+const submitKmlDecryptAesKeyForm = async () => {
+  const aesKey = String(kmlDecryptAesKeyForm.aesKey || '').trim()
+  if (!aesKey) {
+    message.warning(t('settings.areaSettings.kmlDecryptAes.messages.noAesKey'))
+    return
+  }
+  if (kmlDecryptAesKeySaving.value) {
+    return
+  }
+
+  kmlDecryptAesKeySaving.value = true
+  try {
+    await saveKmlDecryptAesKeyConfig({ aesKey })
+    resetKmlDecryptAesKeyForm(aesKey)
+    message.success(t('settings.areaSettings.kmlDecryptAes.messages.saveSuccess'))
+  } catch (error) {
+    console.error('Failed to save KML decrypt AES key config', error)
+    message.error(t('settings.areaSettings.kmlDecryptAes.messages.saveFailed'))
+  } finally {
+    kmlDecryptAesKeySaving.value = false
+  }
+}
+
+const submitSuitableFlyZoneKmzForm = async () => {
+  const name = suitableFlyZoneKmzForm.name.trim()
+  const version = suitableFlyZoneKmzForm.version.trim()
+  const description = suitableFlyZoneKmzForm.description.trim()
+
+  if (!name) {
+    message.warning(t('settings.areaSettings.suitableFlyZone.messages.noName'))
+    return
+  }
+  if (!version) {
+    message.warning(t('settings.areaSettings.suitableFlyZone.messages.noVersion'))
+    return
+  }
+  if (!suitableFlyZoneKmzSelected.value) {
+    message.warning(t('settings.areaSettings.suitableFlyZone.messages.noFile'))
+    return
+  }
+  if (!description) {
+    message.warning(t('settings.areaSettings.suitableFlyZone.messages.noDescription'))
+    return
+  }
+  if (suitableFlyZoneKmzSaving.value) {
+    return
+  }
+
+  suitableFlyZoneKmzSaving.value = true
+  try {
+    const uploadResult = await uploadPublicFile(suitableFlyZoneKmzSelected.value)
+    const attachmentName = uploadResult?.objectName || extractObjectName(uploadResult?.url || '') || ''
+    if (!attachmentName) {
+      throw new Error('Suitable fly zone KMZ upload returned empty objectName')
+    }
+
+    await createSuitableFlyZoneKmzInfo({
+      name,
+      version,
+      attachmentName,
+      description,
+    })
+
+    message.success(t('settings.areaSettings.suitableFlyZone.messages.saveSuccess'))
+    resetSuitableFlyZoneKmzForm()
+    await loadSuitableFlyZoneKmzInfos()
+  } catch (error) {
+    console.error('Failed to create suitable fly zone kmz info', error)
+    message.error(t('settings.areaSettings.suitableFlyZone.messages.saveFailed'))
+  } finally {
+    suitableFlyZoneKmzSaving.value = false
+  }
+}
+
 const loadNewbieTaskStats = async () => {
   newbieTaskStatsLoading.value = true
   try {
@@ -3358,7 +3758,7 @@ onMounted(() => {
   loadInviteLogs()
   loadMapConfig()
   loadTencentCosConfig()
-  loadAdThresholdConfig()
+  loadMemberNoAdsConfig()
   loadAdLastCrowdRecord()
   loadCopyContent()
   loadPaymentConfig()
@@ -3366,7 +3766,6 @@ onMounted(() => {
   loadTemplateSettings()
   loadNewbieTaskTemplate()
   loadNewbieTaskStats()
-  loadNetdiskGiftConfig()
   loadGuideUrls()
   loadUserAgreements()
   loadPrivacyPolicies()
@@ -3375,12 +3774,19 @@ onMounted(() => {
   loadEasterEggResourceConfig()
   loadProvinceCityKmlZipConfig()
   loadCountyKmlZipConfig()
+  loadSuitableFlyZoneKmzInfos()
+  loadKmlDecryptAesKeyConfig()
   loadLadderLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
   loadCheckinLogs()
   loadReportEntries()
   loadReportEntryDialogText()
+  openNewbieTaskResetSocket()
+})
+
+onBeforeUnmount(() => {
+  closeNewbieTaskResetSocket()
 })
 </script>
 
@@ -3782,43 +4188,49 @@ onMounted(() => {
                   <p>{{ t('settings.adSettings.subtitle') }}</p>
                 </div>
                 <div class="actions">
-                  <a-button type="default" :loading="adThresholdLoading || adLastCrowdLoading"
-                    :disabled="adThresholdSaving || adSyncing" @click="reloadAdSettings">
+                  <a-button type="default" :loading="memberNoAdsLoading || adLastCrowdLoading"
+                    :disabled="memberNoAdsSaving || adSyncing" @click="reloadAdSettings">
                     {{ t('settings.adSettings.actions.reload') }}
                   </a-button>
-                  <a-button type="primary" :loading="adSyncing" :disabled="adThresholdLoading || adThresholdSaving"
+                  <a-button type="primary" :loading="adSyncing" :disabled="memberNoAdsLoading || memberNoAdsSaving"
                     @click="handleAdSyncNow">
                     {{ t('settings.adSettings.actions.syncNow') }}
                   </a-button>
                 </div>
               </header>
 
-              <a-spin :spinning="adThresholdLoading || adLastCrowdLoading">
-                <a-form :model="adThresholdForm" :rules="adThresholdRules" layout="vertical"
-                  @finish="submitAdThresholdForm">
-                  <a-row :gutter="[24, 12]">
-                    <a-col :xs="24" :md="12">
-                      <a-form-item name="threshold" :label="t('settings.adSettings.form.threshold')">
-                        <a-input-number v-model:value="adThresholdForm.threshold" :min="0" :step="0.1" :precision="2"
-                          :placeholder="t('settings.adSettings.form.placeholder')" style="width: 100%" />
-                      </a-form-item>
-                    </a-col>
-                  </a-row>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="adThresholdSaving">
-                      {{ t('common.actions.save') }}
-                    </a-button>
-                    <a-button type="default" @click="loadAdThresholdConfig"
-                      :disabled="adThresholdLoading || adThresholdSaving">
-                      {{ t('common.actions.reset') }}
-                    </a-button>
+              <a-spin :spinning="memberNoAdsLoading || adLastCrowdLoading">
+                <a-form :model="memberNoAdsForm" :rules="memberNoAdsRules" layout="vertical"
+                  class="ad-settings__config" @finish="submitMemberNoAdsForm">
+                  <div class="ad-settings__config-main">
+                    <a-form-item name="threshold" :label="t('settings.adSettings.form.threshold')"
+                      class="ad-settings__form-item">
+                      <a-input-number v-model:value="memberNoAdsForm.threshold" :min="0" :step="1" :precision="0"
+                        :placeholder="t('settings.adSettings.form.placeholder')" class="ad-settings__status-input" />
+                    </a-form-item>
+                    <p class="ad-settings__helper">{{ t('settings.adSettings.form.helper') }}</p>
+                  </div>
+                  <div class="ad-settings__config-side">
+                    <span class="ad-settings__side-label">{{ t('settings.adSettings.stats.currentThreshold') }}</span>
+                    <strong>{{ formatMemberNoAdsStatus(memberNoAdsForm.threshold) }}</strong>
+                    <div class="actions actions--inline ad-settings__form-actions">
+                      <a-button type="primary" html-type="submit" :loading="memberNoAdsSaving">
+                        {{ t('common.actions.save') }}
+                      </a-button>
+                      <a-button type="default" @click="loadMemberNoAdsConfig"
+                        :disabled="memberNoAdsLoading || memberNoAdsSaving">
+                        {{ t('common.actions.reset') }}
+                      </a-button>
+                    </div>
                   </div>
                 </a-form>
 
                 <div class="ad-settings__stats">
                   <div class="ad-stat-card">
                     <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.currentThreshold') }}</span>
-                    <span class="ad-stat-card__value">{{ Number(adThresholdForm.threshold || 0).toFixed(2) }}</span>
+                    <span class="ad-stat-card__value ad-stat-card__value--small">
+                      {{ formatMemberNoAdsStatus(memberNoAdsForm.threshold) }}
+                    </span>
                   </div>
                   <div class="ad-stat-card">
                     <span class="ad-stat-card__label">{{ t('settings.adSettings.stats.lastSyncTime') }}</span>
@@ -3844,7 +4256,7 @@ onMounted(() => {
                       {{ adLastExecutedAtDisplay }}
                     </a-descriptions-item>
                     <a-descriptions-item :label="t('settings.adSettings.record.threshold')">
-                      {{ Number(adLastCrowdRecord?.threshold || 0).toFixed(2) }}
+                      {{ formatMemberNoAdsStatus(adLastCrowdRecord?.threshold) }}
                     </a-descriptions-item>
                     <a-descriptions-item :label="t('settings.adSettings.record.crowdName')">
                       {{ adLastCrowdRecord?.crowdName || '-' }}
@@ -3872,10 +4284,7 @@ onMounted(() => {
                       <template v-if="column.key === 'avatar'">
                         <a-avatar :src="record?.avatarUrl" :alt="record?.username" />
                       </template>
-                      <template v-else-if="column.key === 'flpBalance'">
-                        {{ Number(record?.flpBalance ?? 0).toFixed(2) }}
-                      </template>
-                      <template v-else-if="column.key === 'userCreatedAt'">
+                      <template v-if="column.key === 'userCreatedAt'">
                         {{ record?.userCreatedAt ? new Date(record.userCreatedAt).toLocaleString() : '-' }}
                       </template>
                       <template v-else-if="column.key === 'status'">
@@ -4271,7 +4680,20 @@ onMounted(() => {
                   <section class="newbie-task-config">
                     <header class="section-header">
                       <div>
-                        <h3>{{ t('settings.newbieTasks.template.title') }}</h3>
+                        <div class="newbie-task-title-row">
+                          <h3>{{ t('settings.newbieTasks.template.title') }}</h3>
+                          <a-popconfirm :title="t('settings.newbieTasks.template.confirmResetFlags')"
+                            overlay-class-name="newbie-task-reset-popconfirm"
+                            :ok-text="t('common.actions.confirm')" :cancel-text="t('common.actions.cancel')"
+                            :ok-button-props="{ size: 'small', class: 'newbie-task-reset-popconfirm__ok' }"
+                            :cancel-button-props="{ size: 'middle', class: 'newbie-task-reset-popconfirm__cancel' }"
+                            @confirm="handleResetNewbieTaskUserFlags">
+                            <a-button danger size="small" :loading="newbieTaskResetting"
+                              :disabled="newbieTaskTemplateSaving || newbieTaskTemplateLoading || newbieTaskResetting">
+                              {{ t('settings.newbieTasks.template.actions.resetFlags') }}
+                            </a-button>
+                          </a-popconfirm>
+                        </div>
                         <p>{{ t('settings.newbieTasks.template.subtitle') }}</p>
                       </div>
                       <div class="actions">
@@ -4292,6 +4714,37 @@ onMounted(() => {
                     </header>
                     <div class="newbie-task-meta">
                       <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: newbieTaskTemplateUpdatedAtDisplay }) }}</span>
+                    </div>
+                    <div v-if="newbieTaskResetProgressVisible" class="newbie-task-reset-progress">
+                      <div class="newbie-task-reset-progress__header">
+                        <div class="newbie-task-reset-progress__title">
+                          <strong>{{ translateNewbieTaskReset('resetProgress.title') }}</strong>
+                          <a-tag :color="newbieTaskResetProgressStatus === 'success'
+                            ? 'success'
+                            : newbieTaskResetProgressStatus === 'exception'
+                              ? 'error'
+                              : 'processing'">
+                            {{ newbieTaskResetProgressStatusLabel }}
+                          </a-tag>
+                        </div>
+                        <span class="newbie-task-reset-progress__time">
+                          {{ translateNewbieTaskReset('resetProgress.updatedAt', { time: newbieTaskResetProgressUpdatedAtDisplay }) }}
+                        </span>
+                      </div>
+                      <a-progress :percent="newbieTaskResetProgressPercent" :status="newbieTaskResetProgressStatus" />
+                      <div class="newbie-task-reset-progress__meta">
+                        <span>{{ newbieTaskResetProgressCountDisplay }}</span>
+                        <span>
+                          {{
+                            newbieTaskResetSocketConnected
+                              ? translateNewbieTaskReset('resetProgress.socketConnected')
+                              : translateNewbieTaskReset('resetProgress.socketConnecting')
+                          }}
+                        </span>
+                      </div>
+                      <div v-if="newbieTaskResetProgress.message" class="newbie-task-reset-progress__message">
+                        {{ newbieTaskResetProgress.message }}
+                      </div>
                     </div>
                     <a-spin :spinning="newbieTaskTemplateLoading">
                       <div class="detail-editor">
@@ -4358,54 +4811,6 @@ onMounted(() => {
                     </a-spin>
                   </section>
 
-                  <section class="newbie-task-config">
-                    <header class="section-header">
-                      <div>
-                        <h3>{{ t('settings.newbieTasks.netdisk.title') }}</h3>
-                        <p>{{ t('settings.newbieTasks.netdisk.subtitle') }}</p>
-                      </div>
-                      <div class="actions">
-                        <a-button type="default" @click="loadNetdiskGiftConfig" :loading="netdiskGiftLoading"
-                          :disabled="netdiskGiftSaving">
-                          {{ t('settings.newbieTasks.actions.reload') }}
-                        </a-button>
-                        <a-button type="primary" @click="submitNetdiskGiftConfig" :loading="netdiskGiftSaving">
-                          {{ t('settings.newbieTasks.actions.save') }}
-                        </a-button>
-                        <a-popconfirm :title="t('settings.newbieTasks.netdisk.confirmDelete')"
-                          @confirm="handleDeleteNetdiskGiftConfig">
-                          <a-button danger :disabled="netdiskGiftSaving">
-                            {{ t('settings.newbieTasks.actions.delete') }}
-                          </a-button>
-                        </a-popconfirm>
-                      </div>
-                    </header>
-                    <div class="newbie-task-meta">
-                      <span>{{ t('settings.newbieTasks.meta.updatedAt', { time: netdiskGiftUpdatedAtDisplay }) }}</span>
-                    </div>
-                    <a-spin :spinning="netdiskGiftLoading">
-                      <div class="detail-editor">
-                        <div class="detail-editor__header">
-                          <span>{{ t('settings.newbieTasks.netdisk.listTitle') }}</span>
-                          <a-button size="small" type="dashed" @click="netdiskGiftForm.push(createNetdiskLinkRow())">
-                            {{ t('settings.newbieTasks.netdisk.actions.add') }}
-                          </a-button>
-                        </div>
-                        <div class="detail-editor__rows">
-                          <div v-for="(item, index) in netdiskGiftForm" :key="index"
-                            class="newbie-task-row newbie-task-row--link">
-                            <a-input v-model:value="item.name" :placeholder="t('settings.newbieTasks.netdisk.fields.name')"
-                              allow-clear />
-                            <a-input v-model:value="item.url" :placeholder="t('settings.newbieTasks.netdisk.fields.url')"
-                              allow-clear />
-                            <a-button type="link" danger size="small" @click="netdiskGiftForm.splice(index, 1)">
-                              {{ t('settings.newbieTasks.netdisk.actions.remove') }}
-                            </a-button>
-                          </div>
-                        </div>
-                      </div>
-                    </a-spin>
-                  </section>
                 </div>
               </a-tab-pane>
 
@@ -4975,6 +5380,160 @@ onMounted(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="area-settings" :tab="t('settings.tabs.areaSettings')">
+          <div class="tab-section">
+            <a-tabs v-model:activeKey="areaSettingsTab" class="guide-settings-tabs">
+              <a-tab-pane key="kml-decrypt-aes" :tab="t('settings.areaSettings.tabs.kmlDecryptAes')">
+                <section class="invite-form">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.areaSettings.kmlDecryptAes.title') }}</h3>
+                      <p>{{ t('settings.areaSettings.kmlDecryptAes.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button
+                        type="default"
+                        @click="loadKmlDecryptAesKeyConfig"
+                        :loading="kmlDecryptAesKeyLoading"
+                        :disabled="kmlDecryptAesKeySaving"
+                      >
+                        {{ t('settings.areaSettings.kmlDecryptAes.actions.reload') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <a-spin :spinning="kmlDecryptAesKeyLoading">
+                    <a-form layout="vertical" :model="kmlDecryptAesKeyForm" @finish="submitKmlDecryptAesKeyForm">
+                      <a-form-item :label="t('settings.areaSettings.kmlDecryptAes.fields.aesKey')">
+                        <a-input-password
+                          v-model:value="kmlDecryptAesKeyForm.aesKey"
+                          :placeholder="t('settings.areaSettings.kmlDecryptAes.placeholders.aesKey')"
+                          allow-clear
+                        />
+                      </a-form-item>
+                      <p class="system-font-helper">{{ t('settings.areaSettings.kmlDecryptAes.helper') }}</p>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="kmlDecryptAesKeySaving">
+                          {{ t('settings.areaSettings.kmlDecryptAes.actions.save') }}
+                        </a-button>
+                        <a-button
+                          type="default"
+                          @click="loadKmlDecryptAesKeyConfig"
+                          :disabled="kmlDecryptAesKeyLoading || kmlDecryptAesKeySaving"
+                        >
+                          {{ t('settings.areaSettings.kmlDecryptAes.actions.reset') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="suitable-fly-zone" :tab="t('settings.areaSettings.tabs.suitableFlyZone')">
+                <section class="invite-form">
+                  <a-form layout="vertical" :model="suitableFlyZoneKmzForm" @finish="submitSuitableFlyZoneKmzForm">
+                    <a-form-item :label="t('settings.areaSettings.suitableFlyZone.fields.name')">
+                      <a-input
+                        v-model:value="suitableFlyZoneKmzForm.name"
+                        :placeholder="t('settings.areaSettings.suitableFlyZone.placeholders.name')"
+                      />
+                    </a-form-item>
+                    <a-form-item :label="t('settings.areaSettings.suitableFlyZone.fields.version')">
+                      <a-input
+                        v-model:value="suitableFlyZoneKmzForm.version"
+                        :placeholder="t('settings.areaSettings.suitableFlyZone.placeholders.version')"
+                      />
+                    </a-form-item>
+                    <a-form-item :label="t('settings.areaSettings.suitableFlyZone.fields.file')">
+                      <div class="system-font-upload">
+                        <label class="system-font-upload__trigger">
+                          <input
+                            class="system-font-upload__input"
+                            type="file"
+                            accept=".kmz,application/vnd.google-earth.kmz,application/zip"
+                            :disabled="suitableFlyZoneKmzSaving"
+                            @change="handleSuitableFlyZoneKmzSelect"
+                          />
+                          <a-button type="dashed" :loading="suitableFlyZoneKmzSaving">
+                            {{
+                              suitableFlyZoneKmzForm.fileName
+                                ? t('settings.areaSettings.suitableFlyZone.actions.replaceFile')
+                                : t('settings.areaSettings.suitableFlyZone.actions.selectFile')
+                            }}
+                          </a-button>
+                        </label>
+                        <span v-if="suitableFlyZoneKmzForm.fileName" class="system-font-upload__name">
+                          {{ suitableFlyZoneKmzForm.fileName }}
+                        </span>
+                        <a-button
+                          v-if="suitableFlyZoneKmzForm.fileName"
+                          type="link"
+                          danger
+                          size="small"
+                          @click="clearSuitableFlyZoneKmzSelection"
+                        >
+                          {{ t('settings.areaSettings.suitableFlyZone.actions.removeFile') }}
+                        </a-button>
+                      </div>
+                    </a-form-item>
+                    <a-form-item :label="t('settings.areaSettings.suitableFlyZone.fields.description')">
+                      <a-textarea
+                        v-model:value="suitableFlyZoneKmzForm.description"
+                        :placeholder="t('settings.areaSettings.suitableFlyZone.placeholders.description')"
+                        :rows="4"
+                      />
+                    </a-form-item>
+                    <div class="actions">
+                      <a-button type="primary" html-type="submit" :loading="suitableFlyZoneKmzSaving">
+                        {{ t('settings.areaSettings.suitableFlyZone.actions.save') }}
+                      </a-button>
+                      <a-button
+                        type="default"
+                        @click="loadSuitableFlyZoneKmzInfos"
+                        :disabled="suitableFlyZoneKmzLoading || suitableFlyZoneKmzSaving"
+                      >
+                        {{ t('settings.areaSettings.suitableFlyZone.actions.reload') }}
+                      </a-button>
+                    </div>
+                  </a-form>
+                </section>
+
+                <section class="invite-table">
+                  <a-table
+                    :columns="suitableFlyZoneKmzColumns"
+                    :data-source="suitableFlyZoneKmzList"
+                    :loading="suitableFlyZoneKmzLoading"
+                    :pagination="false"
+                    row-key="id"
+                    size="small"
+                    bordered
+                    :scroll="{ x: 980 }"
+                  >
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'attachmentName'">
+                        <a
+                          v-if="record?.attachmentName"
+                          :href="resolveSuitableFlyZoneKmzDownloadUrl(record.attachmentName)"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {{ extractObjectName(record.attachmentName) || record.attachmentName }}
+                        </a>
+                        <span v-else class="empty-hint">-</span>
+                      </template>
+                      <template v-else-if="column.key === 'description'">
+                        {{ record?.description || '-' }}
+                      </template>
+                      <template v-else-if="column.key === 'createdAt'">
+                        {{ record?.createdAt ? new Date(record.createdAt).toLocaleString() : '-' }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-tab-pane>
+            </a-tabs>
+          </div>
+        </a-tab-pane>
+
         <a-tab-pane key="system" :tab="t('settings.tabs.system')">
           <div class="tab-section">
             <section class="system-settings">
@@ -5397,6 +5956,62 @@ onMounted(() => {
   gap: 16px;
 }
 
+.ad-settings__config {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(220px, 320px);
+  gap: 16px;
+  align-items: stretch;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.ad-settings__config-main,
+.ad-settings__config-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ad-settings__config-side {
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.ad-settings__form-item {
+  margin-bottom: 0;
+  max-width: 260px;
+}
+
+.ad-settings__status-input {
+  width: 180px;
+}
+
+.ad-settings__helper {
+  max-width: 640px;
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.ad-settings__side-label {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.ad-settings__config-side strong {
+  color: #111827;
+  font-size: 1.4rem;
+}
+
+.ad-settings__form-actions {
+  justify-content: flex-start;
+}
+
 .ad-settings__stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -5651,6 +6266,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.newbie-task-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .report-entry-settings {
@@ -5931,6 +6553,55 @@ onMounted(() => {
 .newbie-task-meta {
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.newbie-task-reset-progress {
+  margin-top: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.newbie-task-reset-progress__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.newbie-task-reset-progress__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  flex-wrap: wrap;
+}
+
+.newbie-task-reset-progress__time {
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.newbie-task-reset-progress__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #475569;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.newbie-task-reset-progress__message {
+  color: #1f2937;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .newbie-task-row {
@@ -6302,6 +6973,47 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .ad-settings__config {
+    grid-template-columns: 1fr;
+  }
+
+  .ad-settings__form-item,
+  .ad-settings__status-input {
+    max-width: none;
+    width: 100%;
+  }
+}
+</style>
+
+<style>
+.newbie-task-reset-popconfirm .ant-popconfirm-buttons {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+}
+
+.newbie-task-reset-popconfirm .newbie-task-reset-popconfirm__ok.ant-btn,
+.newbie-task-reset-popconfirm .newbie-task-reset-popconfirm__ok.ant-btn-sm {
+  order: -1 !important;
+  margin-inline-start: 0 !important;
+  margin-inline-end: 0 !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 14px !important;
+  padding: 0 3px !important;
+  font-size: 10px !important;
+  line-height: 12px !important;
+  border-radius: 3px !important;
+}
+
+.newbie-task-reset-popconfirm .newbie-task-reset-popconfirm__cancel.ant-btn,
+.newbie-task-reset-popconfirm .newbie-task-reset-popconfirm__cancel.ant-btn-sm,
+.newbie-task-reset-popconfirm .newbie-task-reset-popconfirm__cancel.ant-btn-md {
+  margin-inline-start: auto !important;
 }
 </style>
 

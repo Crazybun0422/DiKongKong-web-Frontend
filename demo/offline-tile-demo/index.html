@@ -21,11 +21,32 @@
       </div>
 
       <div class="row">
-        <label class="label" for="coordType">坐标输入类型</label>
+        <label class="label" for="tileDir">离线瓦片目录</label>
+        <input id="tileDir" type="file" webkitdirectory directory multiple />
+      </div>
+
+      <div class="row">
+        <label class="label" for="coordType">点击识别坐标类型</label>
         <select id="coordType">
           <option value="GCJ02" selected>GCJ-02（腾讯）</option>
           <option value="WGS84">WGS84（自动转 GCJ-02）</option>
         </select>
+      </div>
+
+      <div class="row">
+        <label class="label" for="searchKeyword">地图搜索</label>
+        <div class="search-bar">
+          <input id="searchKeyword" type="text" placeholder="输入地名、地址、POI" />
+          <button id="searchBtn" type="button" class="search-btn">搜索</button>
+          <button id="clearSearchBtn" type="button" class="ghost search-btn">清空搜索</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="search-status">
+          <strong>搜索：</strong><span id="searchSummary">未搜索</span>
+        </div>
+        <div id="searchResults" class="search-results"></div>
       </div>
 
       <div class="row">
@@ -51,7 +72,7 @@
       <div class="row">
         <label class="label" for="coordPayload">KML 文本</label>
         <textarea id="coordPayload" rows="8"
-          placeholder="点击“导出当前层级 UOM”后会自动填充；或粘贴 KML / 选择 KML 文件后点击“导入 KML 并绘制”。"></textarea>
+          placeholder="点击“导出当前层级 UOM”后会自动填充；或粘贴 KML / 选择 KML 文件后点击“导入 KML 并绘制”。标准 KML 默认按 WGS84 导入。"></textarea>
       </div>
 
       <div class="status">

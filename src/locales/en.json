@@ -905,7 +905,74 @@
       "lottery": "Lottery settings",
       "reportEntry": "Report entry",
       "guideSettings": "Guide settings",
+      "areaSettings": "Area settings",
       "system": "System settings"
+    },
+    "areaSettings": {
+      "tabs": {
+        "kmlDecryptAes": "KML decrypt AES",
+        "suitableFlyZone": "Suitable fly zone"
+      },
+      "kmlDecryptAes": {
+        "title": "KML decrypt AES key",
+        "subtitle": "Configure the AES key used for KML decryption in area-related flows.",
+        "fields": {
+          "aesKey": "AES key"
+        },
+        "placeholders": {
+          "aesKey": "Enter AES key"
+        },
+        "actions": {
+          "save": "Save config",
+          "reload": "Reload",
+          "reset": "Reset"
+        },
+        "helper": "Saving replaces the current AES key used for KML decryption immediately.",
+        "messages": {
+          "loadFailed": "Failed to load the KML decrypt AES key",
+          "saveSuccess": "KML decrypt AES key saved",
+          "saveFailed": "Failed to save the KML decrypt AES key",
+          "noAesKey": "Please enter the AES key"
+        }
+      },
+      "suitableFlyZone": {
+        "fields": {
+          "name": "Name",
+          "version": "Version",
+          "file": "KMZ file",
+          "description": "Description"
+        },
+        "placeholders": {
+          "name": "Enter name",
+          "version": "Enter version",
+          "description": "Enter description"
+        },
+        "actions": {
+          "selectFile": "Select file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove file",
+          "save": "Create config",
+          "reload": "Reload"
+        },
+        "table": {
+          "columns": {
+            "name": "Name",
+            "version": "Version",
+            "attachment": "Attachment",
+            "description": "Description",
+            "createdAt": "Created at"
+          }
+        },
+        "messages": {
+          "loadFailed": "Failed to load suitable fly zone configs",
+          "saveSuccess": "Suitable fly zone config created",
+          "saveFailed": "Failed to create suitable fly zone config",
+          "noName": "Please enter a name",
+          "noVersion": "Please enter a version",
+          "noFile": "Please select a KMZ file",
+          "noDescription": "Please enter a description"
+        }
+      }
     },
     "newbieTasks": {
       "meta": {
@@ -943,8 +1010,26 @@
         },
         "actions": {
           "add": "Add task",
-          "remove": "Remove"
+          "remove": "Remove",
+          "resetFlags": "Reset all flags"
         },
+        "resetProgress": {
+          "title": "Reset task progress",
+          "updatedAt": "Last update: {time}",
+          "emptyUpdatedAt": "N/A",
+          "count": "Processed {processed} / {total}",
+          "socketConnected": "Progress channel connected",
+          "socketConnecting": "Connecting progress channel",
+          "status": {
+            "idle": "Not started",
+            "pending": "Pending",
+            "running": "Running",
+            "completed": "Completed",
+            "failed": "Failed",
+            "cancelled": "Cancelled"
+          }
+        },
+        "confirmResetFlags": "Reset popup and claim flags for all users? This will update all newbie task records.",
         "confirmDelete": "Delete the newbie task template?",
         "messages": {
           "loadFailed": "Failed to load newbie task template",
@@ -952,6 +1037,10 @@
           "saveFailed": "Failed to save newbie task template",
           "deleteSuccess": "Newbie task template deleted",
           "deleteFailed": "Failed to delete newbie task template",
+          "resetStarted": "Reset task started. Wait for the background job to finish.",
+          "resetInProgress": "A reset task is already running. Continuing to listen for progress.",
+          "resetSuccess": "Reset popup and claim flags for {count} user(s)",
+          "resetFailed": "Failed to reset popup and claim flags for all users",
           "empty": "Add at least one task with index and name"
         }
       },
@@ -977,28 +1066,6 @@
         },
         "messages": {
           "loadFailed": "Failed to load task completion stats"
-        }
-      },
-      "netdisk": {
-        "title": "Netdisk gift links",
-        "subtitle": "Maintain the shared netdisk gift links configuration.",
-        "listTitle": "Netdisk links",
-        "fields": {
-          "name": "Netdisk name",
-          "url": "Netdisk URL"
-        },
-        "actions": {
-          "add": "Add netdisk",
-          "remove": "Remove"
-        },
-        "confirmDelete": "Delete the netdisk gift config?",
-        "messages": {
-          "loadFailed": "Failed to load netdisk gift config",
-          "saveSuccess": "Netdisk gift config saved",
-          "saveFailed": "Failed to save netdisk gift config",
-          "deleteSuccess": "Netdisk gift config deleted",
-          "deleteFailed": "Failed to delete netdisk gift config",
-          "empty": "Add at least one netdisk name and URL"
         }
       }
     },
@@ -1534,20 +1601,21 @@
     },
     "adSettings": {
       "title": "No-ads settings",
-      "subtitle": "Configure the FLP threshold for ad-free users and trigger WeData crowd sync manually.",
+      "subtitle": "Configure the minimum membership status required for the no-ads crowd and trigger WeData sync manually.",
       "actions": {
         "reload": "Reload",
         "syncNow": "Sync now"
       },
       "form": {
-        "threshold": "No-ads FLP threshold",
-        "placeholder": "Enter threshold (>= 0)"
+        "threshold": "Minimum membership status",
+        "placeholder": "Enter status value",
+        "helper": "The sync includes users whose membership status value is greater than or equal to this value. The exact status value mapping is defined by the server."
       },
       "validation": {
-        "threshold": "Please enter a threshold greater than or equal to 0"
+        "threshold": "Please enter a membership status value greater than or equal to 0"
       },
       "stats": {
-        "currentThreshold": "Current threshold",
+        "currentThreshold": "Current minimum status",
         "lastSyncTime": "Last sync time",
         "lastSyncMembers": "Last sync member count",
         "lastSyncStatus": "Last sync status"
@@ -1555,7 +1623,7 @@
       "record": {
         "title": "Last sync record",
         "executedAt": "Executed at",
-        "threshold": "Threshold",
+        "threshold": "Membership status",
         "crowdName": "Crowd name",
         "crowdId": "Crowd ID",
         "mediaId": "Media ID",
@@ -1568,7 +1636,6 @@
           "featureCode": "Feature code",
           "username": "Username",
           "openid": "OpenID",
-          "flpBalance": "FLP balance",
           "status": "User status",
           "userCreatedAt": "Registered at"
         }
@@ -1580,13 +1647,14 @@
         "unknown": "Unknown"
       },
       "meta": {
-        "noData": "No data"
+        "noData": "No data",
+        "statusValue": "Status {value}"
       },
       "messages": {
-        "loadThresholdFailed": "Failed to load no-ads threshold",
+        "loadThresholdFailed": "Failed to load no-ads membership status config",
         "loadRecordFailed": "Failed to load no-ads sync record",
-        "saveThresholdSuccess": "No-ads threshold saved",
-        "saveThresholdFailed": "Failed to save no-ads threshold",
+        "saveThresholdSuccess": "No-ads membership status config saved",
+        "saveThresholdFailed": "Failed to save no-ads membership status config",
         "syncSuccess": "No-ads crowd sync triggered",
         "syncFailed": "Failed to sync no-ads crowd"
       }
@@ -1667,7 +1735,7 @@
   },
   "memberSettings": {
     "title": "Member settings",
-    "subtitle": "Manage member pricing, background package uploads, avatar package uploads, and voice package uploads.",
+    "subtitle": "Manage member pricing, member group QR code, background package uploads, avatar package uploads, and voice package uploads.",
     "actions": {
       "reload": "Reload"
     },
@@ -1702,7 +1770,8 @@
       },
       "paymentMode": {
         "wechat": "WeChat",
-        "flp": "FLP"
+        "flp": "FLP",
+        "cash": "Cash"
       },
       "pagination": {
         "total": "Total {total} records · Showing {start}-{end}"
@@ -1756,6 +1825,22 @@
         "saveFailed": "Failed to save member pricing"
       }
     },
+    "cashPayment": {
+      "title": "Cash payment switch",
+      "subtitle": "Control member cash payment independently.",
+      "updatedAt": "Updated at {time}",
+      "emptyUpdatedAt": "Not synced yet",
+      "field": "Cash payment",
+      "helper": "Toggling the switch saves immediately and does not submit any unsaved price edits.",
+      "switch": {
+        "checked": "Enabled",
+        "unchecked": "Disabled"
+      },
+      "messages": {
+        "saveSuccess": "Cash payment switch saved",
+        "saveFailed": "Failed to save cash payment switch"
+      }
+    },
     "inviteReward": {
       "title": "Member referral rewards",
       "subtitle": "Configure the FLP reward paid to an inviter after an invited user buys monthly or yearly membership.",
@@ -1777,6 +1862,22 @@
         "loadFailed": "Failed to load member referral rewards",
         "saveSuccess": "Member referral rewards saved",
         "saveFailed": "Failed to save member referral rewards"
+      }
+    },
+    "qrCode": {
+      "title": "Member group QR code",
+      "subtitle": "Upload the member group QR image used in the member experience.",
+      "updatedAt": "Updated at {time}",
+      "emptyUpdatedAt": "Not uploaded yet",
+      "helper": "Common image formats are supported. Uploading replaces the current member group QR code immediately.",
+      "actions": {
+        "upload": "Upload QR code",
+        "uploadReplace": "Replace QR code"
+      },
+      "messages": {
+        "loadFailed": "Failed to load member group QR code",
+        "uploadSuccess": "Member group QR code uploaded",
+        "uploadFailed": "Failed to upload member group QR code"
       }
     },
     "upload": {
@@ -1847,6 +1948,9 @@
   "users": {
     "title": "User management",
     "subtitle": "Review user registrations and token activity.",
+    "actions": {
+      "refreshDefaultAvatar": "Refresh default avatars"
+    },
     "search": {
       "placeholder": "Search by username or feature code",
       "submit": "Search",
@@ -1882,7 +1986,27 @@
     },
     "messages": {
       "loadFailed": "Failed to load users",
-      "logLoadFailed": "Failed to load token logs"
+      "logLoadFailed": "Failed to load token logs",
+      "avatarRefreshStarted": "Started refreshing users with empty avatars. Wait for the background task to finish.",
+      "avatarRefreshSuccess": "Updated default avatars for {count} user(s)",
+      "avatarRefreshFailed": "Failed to refresh default avatars"
+    },
+    "avatarRefresh": {
+      "title": "Default avatar refresh progress",
+      "updatedAt": "Last update: {time}",
+      "emptyUpdatedAt": "N/A",
+      "progress": "Processed {processed} / {total}",
+      "updatedCount": "Updated avatars: {count}",
+      "socketConnected": "Progress channel connected",
+      "socketConnecting": "Connecting progress channel",
+      "status": {
+        "idle": "Not started",
+        "started": "Pending",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      }
     },
     "detail": {
       "title": "User detail",

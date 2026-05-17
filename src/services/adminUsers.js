@@ -66,8 +66,14 @@ export const fetchAdminUserNewbieTasks = async ({ page = 1, size = 10, sortOrder
   return toPageResult(data, { page, size })
 }
 
+export const refreshAdminUsersDefaultAvatar = async () => {
+  const response = await http.post('/admin/users/avatar/default/refresh')
+  return response?.data?.data ?? response?.data ?? {}
+}
+
 export default {
   fetchAdminUsers,
   fetchAdminUserCheckins,
   fetchAdminUserNewbieTasks,
+  refreshAdminUsersDefaultAvatar,
 }

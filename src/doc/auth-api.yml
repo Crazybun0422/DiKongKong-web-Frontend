@@ -266,6 +266,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /api/admin/users/member/logs:
+    get:
+      summary: 分页获取会员订单日志
+      description: 仅管理员可调用，返回会员订单日志（包含微信人民币充值与 FLP 充值）。
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 0
+          description: 页码，从 0 开始。
+        - in: query
+          name: size
+          schema:
+            type: integer
+            minimum: 1
+          description: 每页数量，默认 20。
+        - in: query
+          name: featureCode
+          schema:
+            type: string
+          description: 可选，按用户 featureCode 过滤会员日志。
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAny'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+  /api/admin/users/member/increase-days:
+    post:
+      summary: 增加会员天数（仅已完成新手任务的会员）
+      description: 仅管理员可调用。仅当目标用户已完成全部新手任务时，才会增加会员到期日；若原本非会员会自动升级为会员。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminIncreaseMemberDaysRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUserSummaryResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
         '401':
           description: Unauthorized
           content:
@@ -287,6 +357,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseAdminProfileResponse'
+  /api/admin/users/avatar/default/refresh:
+    post:
+      summary: 刷新空头像为默认头像（管理员）
+      description: |
+        仅管理员可调用。批量扫描用户表，将 `avatarUrl` 为空（`null` 或空字符串）的记录更新为 `/assets/default-avatar.png`。
+
+        执行进度会通过 WebSocket 推送到 `/ws/admin/avatar-default-refresh-progress`。
+        推送消息字段：`status`（started/running/completed）、`total`、`processed`、`updated`。
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAny'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
   /api/auth/weapp/config:
     get:
       summary: 获取小程序相关密钥（含地图 map-key）
@@ -990,6 +1081,19 @@ components:
           additionalProperties:
             $ref: '#/components/schemas/UserPolicyAccessRecordResponse'
           description: 用户各协议类型最新访问记录，key 为 privacy 或 terms。
+    AdminIncreaseMemberDaysRequest:
+      type: object
+      required: [featureCode, days]
+      properties:
+        featureCode:
+          type: string
+          description: 用户特征码。
+          example: ABC123
+        days:
+          type: integer
+          minimum: 1
+          description: 增加会员天数，必须大于 0。
+          example: 30
     UserSummaryPageResponse:
       type: object
       properties:
@@ -1163,6 +1267,17 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/UserSummaryPageResponse'
+    ApiResponseUserSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          $ref: '#/components/schemas/UserSummaryResponse'
     ApiResponseCheckinStatsPageResponse:
       type: object
       properties:

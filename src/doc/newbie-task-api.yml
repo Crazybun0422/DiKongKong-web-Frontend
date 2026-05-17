@@ -25,8 +25,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
-        '404':
-          description: Not found
+        '409':
+          description: Task already running
           content:
             application/json:
               schema:
@@ -92,8 +92,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
-        '404':
-          description: Not found
+  /api/admin/newbie-tasks/reset-user-task-flags:
+    post:
+      summary: Reset popup and reward flags for all users
+      description: Admin only. Creates an asynchronous reset task for all user newbie task records. Progress is pushed via WebSocket `/ws/newbie-task-reset-progress`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNewbieTaskResetResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '409':
+          description: Task already running
           content:
             application/json:
               schema:
@@ -142,6 +159,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /ws/newbie-task-reset-progress:
+    get:
+      summary: WebSocket endpoint for newbie task reset progress
+      description: |
+        Connect to `/ws/newbie-task-reset-progress` to receive JSON progress events.
+        Event fields: `status` (`RUNNING`/`COMPLETED`), `total`, `processed`, `message`, `updatedAt`.
+      responses:
+        '101':
+          description: Switching Protocols
   /api/newbie-tasks:
     get:
       summary: Query newbie tasks
@@ -188,8 +214,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
-        '404':
-          description: Not found
+        '409':
+          description: Task already running
           content:
             application/json:
               schema:
@@ -198,6 +224,23 @@ paths:
     post:
       summary: Close the 30-second popup
       description: User only. Persists the 30-second popup flag to false.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNewbieTaskPopupResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+  /api/newbie-tasks/popup/open:
+    post:
+      summary: Open the 30-second popup
+      description: User only. Persists the 30-second popup flag to true.
       responses:
         '200':
           description: OK
@@ -234,12 +277,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
-        '404':
-          description: Not found
+        '409':
+          description: Task already running
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /api/newbie-tasks/member-reward:
+    post:
+      summary: Claim 7-day member reward
+      description: User only. Requires rewardAvailable=true and rewardClaimed=false.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseNewbieTaskMemberRewardResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+        '409':
+          description: Task already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseObject'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -291,6 +364,18 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/NewbieTaskRewardResponse'
+
+    ApiResponseNewbieTaskMemberRewardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          $ref: '#/components/schemas/NewbieTaskMemberRewardResponse'
     ApiResponseNewbieTaskPopupResponse:
       type: object
       properties:
@@ -302,6 +387,17 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/NewbieTaskPopupResponse'
+    ApiResponseNewbieTaskResetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          $ref: '#/components/schemas/NewbieTaskResetResponse'
     ApiResponseObject:
       type: object
       properties:
@@ -430,6 +526,12 @@ components:
       properties:
         showThirtySecondPopup:
           type: boolean
+    NewbieTaskResetResponse:
+      type: object
+      properties:
+        updatedUserCount:
+          type: integer
+          format: int64
     NewbieTaskItemResponse:
       type: object
       properties:
@@ -461,3 +563,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NetdiskLinkResponse'
+
+    NewbieTaskMemberRewardResponse:
+      type: object
+      properties:
+        member:
+          type: boolean
+          description: Whether user is member after claiming reward.
+        memberExpireDate:
+          type: string
+          format: date
+          nullable: true
+          description: Member expiry date after adding 7 days.

@@ -67,6 +67,22 @@ export const saveMemberInviteRewardConfig = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchMemberGroupQrcode = async () => {
+  const response = await http.get('/config/member-group-qrcode')
+  return normalizePagePayload(response, { imageUrl: '', updatedAt: null })
+}
+
+export const uploadMemberGroupQrcode = async (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await http.post('/config/member-group-qrcode', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+
+  return normalizePagePayload(response, { imageUrl: '', updatedAt: null })
+}
+
 export const fetchMemberOpenLogs = async ({ page = 1, size = 10, featureCode = '' } = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
@@ -103,6 +119,8 @@ export default {
   saveMemberRechargeConfig,
   fetchMemberInviteRewardConfig,
   saveMemberInviteRewardConfig,
+  fetchMemberGroupQrcode,
+  uploadMemberGroupQrcode,
   fetchMemberOpenLogs,
   fetchAvatarPackVersion,
   fetchVoicePackVersion,

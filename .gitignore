@@ -1,3 +1,5 @@
 node_modules/
 dist/
 /.gitignore_
+/demo/offline-tile-demo/*.kml
+*.kml
