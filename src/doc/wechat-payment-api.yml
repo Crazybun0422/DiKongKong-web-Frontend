@@ -1,15 +1,21 @@
 openapi: 3.0.1
 info:
   title: 微信支付 APIs
-  description: 小程序微信支付流程相关接口，包括预支付、回调通知与状态查询。
-  version: 1.0.0
+  description: |
+    小程序微信支付流程相关接口，包括预支付、回调通知与支付状态查询。
+
+    补充说明：
+    1. 当本地订单仍为 `WAITING_PAYMENT` 但微信侧已经支付成功时，状态查询接口会主动向微信查单并补单。
+    2. 服务端会按幂等方式处理重复回调，不会因同一笔订单的重复通知而重复开会员或重复发放后续业务奖励。
+    3. 后台存在定时补偿任务，会周期性扫描近期微信待支付订单，修复回调漏单场景。
+  version: 1.1.0
 servers:
   - url: /api
 paths:
   /api/payments/wechat/prepay:
     post:
       summary: 创建微信预支付订单
-      description: 普通用户凭借小程序登录态发起支付，接口会根据 feature code 创建待支付订单并返回调起支付所需参数。
+      description: 普通用户凭借小程序登录态发起支付，接口会根据 feature code 创建或复用待支付订单，并返回调起支付所需参数。
       security:
         - bearerAuth: []
       requestBody:
@@ -46,39 +52,39 @@ paths:
   /api/payments/wechat/callback:
     post:
       summary: 接收微信支付回调
-      description: 微信支付平台向该接口推送支付结果。接口会验证 HTTP 头部签名并更新订单状态。
+      description: 微信支付平台向该接口推送支付结果。接口会校验 HTTP 头签名，并在校验通过后更新订单状态。对于同一笔订单的重复成功回调，服务端会按已支付订单进行幂等处理。
       parameters:
         - in: header
           name: Wechatpay-Serial
           required: true
           schema:
             type: string
-          description: 微信平台证书序列号。
+          description: 微信平台证书序列号
         - in: header
           name: Wechatpay-Signature
           required: true
           schema:
             type: string
-          description: 回调请求的签名。
+          description: 回调请求签名
         - in: header
           name: Wechatpay-Timestamp
           required: true
           schema:
             type: string
-          description: 回调请求的时间戳。
+          description: 回调请求时间戳
         - in: header
           name: Wechatpay-Nonce
           required: true
           schema:
             type: string
-          description: 回调请求的随机串。
+          description: 回调请求随机串
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: string
-              description: 微信支付回调的原始报文字符串。
+              description: 微信支付回调的原始报文字符串
       responses:
         '200':
           description: 接收成功
@@ -101,7 +107,7 @@ paths:
   /api/payments/wechat/status/{orderId}:
     get:
       summary: 查询微信支付状态
-      description: 管理员或下单用户根据订单 ID 查询当前支付状态。
+      description: 管理员或下单用户根据订单 ID 查询当前支付状态。如果本地订单仍为 `WAITING_PAYMENT` 且支付方式为 `WECHAT`，接口会主动向微信按商户订单号查单；若微信返回 `SUCCESS`，服务端会先补写本地订单为 `PAID`，并触发原有会员开通、续期或其他支付成功后的业务处理，再返回最新状态。
       security:
         - bearerAuth: []
       parameters:
@@ -110,7 +116,7 @@ paths:
           required: true
           schema:
             type: string
-          description: 创建预支付时返回的订单 ID。
+          description: 创建预支付时返回的订单 ID
       responses:
         '200':
           description: OK
@@ -192,24 +198,24 @@ components:
       properties:
         featureCode:
           type: string
-          description: 用户绑定的 feature code，用于匹配 openid。
+          description: 用户绑定的 feature code，用于匹配 openid
         type:
           type: string
-          description: 订单类型，当前仅支持值 `MARKER`。
+          description: 订单类型，当前支持 `MARKER` 和 `MEMBER`
         referenceId:
           type: string
-          description: 业务主键，标记支付时对应 marker 的 ID。
+          description: 业务主键。标记支付时为 marker ID，会员支付时为 `MONTHLY` 或 `YEARLY`
         amount:
           type: number
           format: double
           minimum: 0.01
-          description: 支付金额，单位元。
+          description: 支付金额，单位元
     WechatPrepayResponse:
       type: object
       properties:
         orderId:
           type: string
-          description: 系统生成的订单 ID，可用于后续状态查询。
+          description: 系统生成的订单 ID，可用于后续状态查询
         appId:
           type: string
         timeStamp:
@@ -227,10 +233,10 @@ components:
       properties:
         paid:
           type: boolean
-          description: 是否已完成支付。
+          description: 是否已完成支付
         status:
           type: string
-          description: 订单状态。
+          description: 订单状态
           enum: [WAITING_PAYMENT, PAID, REFUNDED]
     WechatCallbackAck:
       type: object

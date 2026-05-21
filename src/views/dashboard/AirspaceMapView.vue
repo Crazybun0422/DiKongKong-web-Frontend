@@ -15,6 +15,7 @@ import {
   PIN_STATUS,
 } from '../../services/pins'
 import { fetchOrderByReference } from '../../services/orders'
+import { repairWechatPaymentOrder } from '../../services/wechatPayments'
 import {
   fetchPinReviewRewardConfig,
   savePinReviewRewardConfig,
@@ -52,6 +53,7 @@ const detailVisible = ref(false)
 const detailRecord = ref(null)
 const orderDetailVisible = ref(false)
 const orderDetailLoading = ref(false)
+const orderRepairing = ref(false)
 const orderDetail = ref(null)
 const markerSortBy = ref(MARKER_SORT_BY.CREATED_AT)
 const sortOrder = ref('DESC')
@@ -1145,6 +1147,8 @@ const syncDetailRecord = () => {
   }
 }
 
+const canRepairOrder = (order) => order?.status === 'WAITING_PAYMENT' && order?.paymentType === 'WECHAT' && !!order?.id
+
 const fetchAllMarkersByStatus = async (status) => {
   const pageSize = 100
   const allContent = []
@@ -1503,6 +1507,36 @@ const openOrderDetail = async (referenceId) => {
 
 const handleOpenOrderDetail = () => {
   openOrderDetail(detailRecord.value?.id)
+}
+
+const handleRepairOrderDetail = async () => {
+  if (!canRepairOrder(orderDetail.value)) return
+
+  orderRepairing.value = true
+  try {
+    const status = await repairWechatPaymentOrder(orderDetail.value.id)
+    const refreshedOrder = await fetchOrderByReference(orderDetail.value.referenceId)
+    if (refreshedOrder) {
+      orderDetail.value = refreshedOrder
+      if (detailRecord.value && refreshedOrder.status === 'PAID') {
+        detailRecord.value = {
+          ...detailRecord.value,
+          paid: true,
+        }
+      }
+    }
+
+    if (status?.paid || refreshedOrder?.status === 'PAID') {
+      message.success(t('orders.messages.repairPaid'))
+    } else {
+      message.info(t('orders.messages.repairNoChange'))
+    }
+  } catch (error) {
+    console.error('Failed to repair wechat payment order', error)
+    message.error(t('orders.messages.repairFailed'))
+  } finally {
+    orderRepairing.value = false
+  }
 }
 
 const closeOrderDetail = () => {
@@ -2204,6 +2238,9 @@ watch(
     <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px" :destroy-on-close="true"
       @cancel="closeOrderDetail">
       <template #footer>
+        <a-button v-if="canRepairOrder(orderDetail)" :loading="orderRepairing" @click="handleRepairOrderDetail">
+          {{ t('orders.actions.repair') }}
+        </a-button>
         <a-button @click="closeOrderDetail">{{ t('airspace.orderModal.close') }}</a-button>
       </template>
 

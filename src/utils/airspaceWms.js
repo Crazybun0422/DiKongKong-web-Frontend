@@ -4,7 +4,7 @@ import { buildProvinceLayerParams, buildProvinceLayerRecords } from './uomProvin
 
 const WMS_MIN_ZOOM = 5
 const WMS_MAX_ZOOM = 18
-const CAAC_TOKEN = '1e4b78fc-06bd-45be-8af7-cabd802ea9a8'
+const CAAC_TOKEN = 'c5771c6e-1f11-4955-8397-6986b70e05ee'
 const CAAC_BASE = 'https://uom.caac.gov.cn/map/airspace/wms'
 const EPSILON = 1e-10
 const PROVINCE_LAYER_RECORDS = buildProvinceLayerRecords(JSON.parse(chinaProvinceGeoJsonRaw))

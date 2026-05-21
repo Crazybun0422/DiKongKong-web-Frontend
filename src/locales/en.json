@@ -213,8 +213,12 @@
         "paymentType": "Payment",
         "amount": "Amount",
         "createdAt": "Created at",
-        "updatedAt": "Updated at"
+        "updatedAt": "Updated at",
+        "actions": "Actions"
       }
+    },
+    "actions": {
+      "repair": "Reconcile"
     },
     "status": {
       "waitingPayment": "Awaiting payment",
@@ -229,7 +233,10 @@
       "unknown": "Unknown"
     },
     "messages": {
-      "loadFailed": "Unable to load orders, please try again later."
+      "loadFailed": "Unable to load orders, please try again later.",
+      "repairPaid": "Reconciliation succeeded and the order is now marked as paid.",
+      "repairNoChange": "Reconciliation ran, but WeChat has not reported a successful payment yet.",
+      "repairFailed": "Failed to reconcile the order. Please try again later."
     },
     "pagination": {
       "total": "Total {total} orders · Showing {start}-{end}"

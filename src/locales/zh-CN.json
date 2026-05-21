@@ -213,8 +213,12 @@
         "paymentType": "支付方式",
         "amount": "金额",
         "createdAt": "创建时间",
-        "updatedAt": "更新时间"
+        "updatedAt": "更新时间",
+        "actions": "操作"
       }
+    },
+    "actions": {
+      "repair": "补单"
     },
     "status": {
       "waitingPayment": "待支付",
@@ -229,7 +233,10 @@
       "unknown": "未知"
     },
     "messages": {
-      "loadFailed": "订单加载失败，请稍后重试。"
+      "loadFailed": "订单加载失败，请稍后重试。",
+      "repairPaid": "补单成功，订单状态已更新为已支付。",
+      "repairNoChange": "已触发补单，但微信侧暂未返回支付成功。",
+      "repairFailed": "补单失败，请稍后重试。"
     },
     "pagination": {
       "total": "共 {total} 条订单 · 显示第 {start}-{end} 条"

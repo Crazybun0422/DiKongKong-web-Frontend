@@ -22,8 +22,13 @@ function fetchWechatPaymentStatus(orderId, options = {}) {
   }).then((body = {}) => body.data || {});
 }
 
+function repairWechatPaymentOrder(orderId, options = {}) {
+  return fetchWechatPaymentStatus(orderId, options);
+}
+
 module.exports = {
   createWechatPrepayOrder,
-  fetchWechatPaymentStatus
+  fetchWechatPaymentStatus,
+  repairWechatPaymentOrder
 };
 

@@ -3,3 +3,5 @@ dist/
 /.gitignore_
 /demo/offline-tile-demo/*.kml
 *.kml
+!demo/offline-tile-demo/province-kml/*.kml
+*.png

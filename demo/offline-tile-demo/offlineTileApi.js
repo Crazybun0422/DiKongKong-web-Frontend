@@ -411,6 +411,224 @@
     return ring
   }
 
+  function normalizeRegionRing(ring) {
+    if (!Array.isArray(ring) || ring.length < 3) {
+      return null
+    }
+
+    var normalized = []
+    for (var i = 0; i < ring.length; i += 1) {
+      var point = ring[i]
+      if (!Array.isArray(point) || point.length < 2) {
+        continue
+      }
+
+      var lng = Number(point[0])
+      var lat = Number(point[1])
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        continue
+      }
+
+      var last = normalized.length ? normalized[normalized.length - 1] : null
+      if (!last || last[0] !== lng || last[1] !== lat) {
+        normalized.push([lng, lat])
+      }
+    }
+
+    if (normalized.length < 3) {
+      return null
+    }
+
+    return ensureRingClosed(normalized)
+  }
+
+  function normalizeRegionShapes(shapes) {
+    if (!Array.isArray(shapes)) {
+      return []
+    }
+
+    var normalizedShapes = []
+    for (var i = 0; i < shapes.length; i += 1) {
+      var shape = shapes[i]
+      if (!shape || !shape.outerRing) {
+        continue
+      }
+
+      var outerRing = normalizeRegionRing(shape.outerRing)
+      if (!outerRing) {
+        continue
+      }
+
+      var innerRings = []
+      if (Array.isArray(shape.innerRings)) {
+        for (var j = 0; j < shape.innerRings.length; j += 1) {
+          var innerRing = normalizeRegionRing(shape.innerRings[j])
+          if (innerRing) {
+            innerRings.push(innerRing)
+          }
+        }
+      }
+
+      normalizedShapes.push({
+        outerRing: outerRing,
+        innerRings: innerRings,
+      })
+    }
+
+    return normalizedShapes
+  }
+
+  function buildShapeBounds(shapes) {
+    var normalizedShapes = normalizeRegionShapes(shapes)
+    if (!normalizedShapes.length) {
+      return null
+    }
+
+    var minLng = Infinity
+    var minLat = Infinity
+    var maxLng = -Infinity
+    var maxLat = -Infinity
+
+    for (var i = 0; i < normalizedShapes.length; i += 1) {
+      var ring = normalizedShapes[i].outerRing
+      for (var j = 0; j < ring.length; j += 1) {
+        var point = ring[j]
+        var lng = Number(point[0])
+        var lat = Number(point[1])
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          continue
+        }
+        if (lng < minLng) minLng = lng
+        if (lng > maxLng) maxLng = lng
+        if (lat < minLat) minLat = lat
+        if (lat > maxLat) maxLat = lat
+      }
+    }
+
+    if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) {
+      return null
+    }
+
+    return {
+      minLng: minLng,
+      minLat: minLat,
+      maxLng: maxLng,
+      maxLat: maxLat,
+    }
+  }
+
+  function makeBounds(minLng, minLat, maxLng, maxLat) {
+    return {
+      minLng: Math.min(minLng, maxLng),
+      minLat: Math.min(minLat, maxLat),
+      maxLng: Math.max(minLng, maxLng),
+      maxLat: Math.max(minLat, maxLat),
+    }
+  }
+
+  function doBoundsIntersect(a, b) {
+    if (!a || !b) {
+      return false
+    }
+
+    return !(a.maxLng < b.minLng || a.minLng > b.maxLng || a.maxLat < b.minLat || a.minLat > b.maxLat)
+  }
+
+  function isPointInRing(point, ring) {
+    if (!point || !Array.isArray(ring) || ring.length < 4) {
+      return false
+    }
+
+    var x = Number(point.lng)
+    var y = Number(point.lat)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return false
+    }
+
+    var inside = false
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      var xi = Number(ring[i][0])
+      var yi = Number(ring[i][1])
+      var xj = Number(ring[j][0])
+      var yj = Number(ring[j][1])
+
+      if (![xi, yi, xj, yj].every(Number.isFinite)) {
+        continue
+      }
+
+      var intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi)
+      if (intersects) {
+        inside = !inside
+      }
+    }
+
+    return inside
+  }
+
+  function isPointInShape(point, shape) {
+    if (!shape || !shape.outerRing || !isPointInRing(point, shape.outerRing)) {
+      return false
+    }
+
+    if (!Array.isArray(shape.innerRings) || !shape.innerRings.length) {
+      return true
+    }
+
+    for (var i = 0; i < shape.innerRings.length; i += 1) {
+      if (isPointInRing(point, shape.innerRings[i])) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  function isPointInShapes(point, shapes) {
+    var normalizedShapes = Array.isArray(shapes) && (!shapes.length || Array.isArray(shapes[0].outerRing))
+      ? shapes
+      : normalizeRegionShapes(shapes)
+
+    for (var i = 0; i < normalizedShapes.length; i += 1) {
+      if (isPointInShape(point, normalizedShapes[i])) {
+        return true
+      }
+    }
+    return false
+  }
+
+  function isBoundsFullyInsideShapes(bounds, shapes) {
+    if (!bounds) {
+      return false
+    }
+
+    var points = [
+      { lng: bounds.minLng, lat: bounds.minLat },
+      { lng: bounds.minLng, lat: bounds.maxLat },
+      { lng: bounds.maxLng, lat: bounds.minLat },
+      { lng: bounds.maxLng, lat: bounds.maxLat },
+      { lng: (bounds.minLng + bounds.maxLng) / 2, lat: (bounds.minLat + bounds.maxLat) / 2 },
+    ]
+
+    for (var i = 0; i < points.length; i += 1) {
+      if (!isPointInShapes(points[i], shapes)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  function metersPerPixelAtLat(lat, zoom, tileSize) {
+    var latitude = Number(lat)
+    var z = Number(zoom)
+    var size = Number(tileSize) || 256
+    if (!Number.isFinite(latitude) || !Number.isFinite(z)) {
+      return 0
+    }
+
+    return Math.cos(latitude * Math.PI / 180) * 2 * Math.PI * 6378137 / (size * Math.pow(2, z))
+  }
+
   function OfflineTilePackage(config) {
     this.zip = config.zip
     this.fileIndex = config.fileIndex || null
@@ -528,6 +746,23 @@
 
   OfflineTilePackage.prototype.hasZoom = function (zoom) {
     return this.tileNameIndex.has(Number(zoom))
+  }
+
+  OfflineTilePackage.prototype.getSharedZooms = function (otherPack) {
+    if (!otherPack || typeof otherPack.getAvailableZooms !== 'function') {
+      return []
+    }
+
+    var thisZooms = this.getAvailableZooms()
+    var otherZoomSet = new Set(otherPack.getAvailableZooms())
+    return thisZooms.filter(function (zoom) {
+      return otherZoomSet.has(zoom)
+    })
+  }
+
+  OfflineTilePackage.prototype.getHighestCommonZoom = function (otherPack) {
+    var sharedZooms = this.getSharedZooms(otherPack)
+    return sharedZooms.length ? sharedZooms[sharedZooms.length - 1] : null
   }
 
   OfflineTilePackage.prototype.getZoomTileCount = function (zoom) {
@@ -732,6 +967,228 @@
       return a.y - b.y
     })
     return entries
+  }
+
+  OfflineTilePackage.prototype.collectSelectedWorldPixelsInRegion = async function (input) {
+    var opts = input || {}
+    var z = Math.round(Number(opts.zoom))
+    if (!Number.isFinite(z)) {
+      throw new Error('Invalid zoom')
+    }
+
+    if (!this.hasZoom(z)) {
+      return {
+        zoom: z,
+        selectedPixels: 0,
+        uniqueCells: 0,
+        processedTiles: 0,
+        matchedTiles: 0,
+        tileSize: 256,
+        cellKeys: new Set(),
+      }
+    }
+
+    var regionShapes = normalizeRegionShapes(opts.regionShapes)
+    if (!regionShapes.length) {
+      throw new Error('缺少有效的省域范围')
+    }
+
+    var regionBounds = opts.regionBounds || buildShapeBounds(regionShapes)
+    var alphaThreshold = Number.isFinite(Number(opts.alphaThreshold))
+      ? Number(opts.alphaThreshold)
+      : DEFAULT_ALPHA_THRESHOLD
+    var selectMode = String(opts.selectMode || 'colored').toLowerCase()
+    var onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null
+
+    var entries = this.getTileEntriesForZoom(z)
+    var processedTiles = 0
+    var matchedTiles = 0
+    var selectedPixels = 0
+    var tileSize = 256
+    var worldScale = Math.pow(2, z) * tileSize
+    var cellKeys = new Set()
+
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i]
+      var tileBounds = tileXYToLonLatBounds(entry.x, entry.y, z)
+      var tileBoundsRect = makeBounds(tileBounds.lngLeft, tileBounds.latBottom, tileBounds.lngRight, tileBounds.latTop)
+
+      processedTiles += 1
+      if (!doBoundsIntersect(tileBoundsRect, regionBounds)) {
+        if (onProgress) {
+          onProgress({
+            tileDone: processedTiles,
+            tileTotal: entries.length,
+            matchedTiles: matchedTiles,
+            selectedPixels: selectedPixels,
+          })
+        }
+        continue
+      }
+
+      matchedTiles += 1
+      var imageData = await this.getTileImageData(z, entry.x, entry.y)
+      if (imageData && imageData.data) {
+        tileSize = Number(imageData.width) || 256
+        worldScale = Math.pow(2, z) * tileSize
+
+        var width = Number(imageData.width) || 256
+        var height = Number(imageData.height) || 256
+        var data = imageData.data
+        var tileFullyInsideRegion = isBoundsFullyInsideShapes(tileBoundsRect, regionShapes)
+
+        for (var py = 0; py < height; py += 1) {
+          var rowOffset = py * width * 4
+          for (var px = 0; px < width; px += 1) {
+            var alpha = data[rowOffset + px * 4 + 3]
+            if (!isSelectedByAlpha(alpha, alphaThreshold, selectMode)) {
+              continue
+            }
+
+            var worldX = entry.x * width + px
+            var worldY = entry.y * height + py
+            if (!tileFullyInsideRegion) {
+              var centerPoint = worldPixelToLonLat(worldX + 0.5, worldY + 0.5, z, width)
+              if (!isPointInShapes(centerPoint, regionShapes)) {
+                continue
+              }
+            }
+
+            var key = worldY * worldScale + worldX
+            if (!cellKeys.has(key)) {
+              cellKeys.add(key)
+              selectedPixels += 1
+            }
+          }
+        }
+      }
+
+      if (onProgress) {
+        onProgress({
+          tileDone: processedTiles,
+          tileTotal: entries.length,
+          matchedTiles: matchedTiles,
+          selectedPixels: selectedPixels,
+        })
+      }
+    }
+
+    return {
+      zoom: z,
+      selectedPixels: selectedPixels,
+      uniqueCells: cellKeys.size,
+      processedTiles: processedTiles,
+      matchedTiles: matchedTiles,
+      tileSize: tileSize,
+      cellKeys: cellKeys,
+    }
+  }
+
+  OfflineTilePackage.prototype.compareColoredRegion = async function (otherPack, input) {
+    if (!otherPack || typeof otherPack.collectSelectedWorldPixelsInRegion !== 'function') {
+      throw new Error('缺少对比瓦片包')
+    }
+
+    var opts = input || {}
+    var z = Math.round(Number(opts.zoom))
+    if (!Number.isFinite(z)) {
+      throw new Error('Invalid zoom')
+    }
+
+    if (!this.hasZoom(z) || !otherPack.hasZoom(z)) {
+      throw new Error('新旧版本在当前缩放级别没有共同瓦片')
+    }
+
+    var regionShapes = normalizeRegionShapes(opts.regionShapes)
+    if (!regionShapes.length) {
+      throw new Error('缺少有效的省域范围')
+    }
+
+    var regionBounds = opts.regionBounds || buildShapeBounds(regionShapes)
+    var onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null
+
+    var oldCoverage = await this.collectSelectedWorldPixelsInRegion({
+      zoom: z,
+      regionShapes: regionShapes,
+      regionBounds: regionBounds,
+      alphaThreshold: opts.alphaThreshold,
+      selectMode: opts.selectMode,
+      onProgress: function (progress) {
+        if (onProgress) {
+          onProgress({
+            stage: 'old',
+            progress: progress,
+          })
+        }
+      },
+    })
+
+    var newCoverage = await otherPack.collectSelectedWorldPixelsInRegion({
+      zoom: z,
+      regionShapes: regionShapes,
+      regionBounds: regionBounds,
+      alphaThreshold: opts.alphaThreshold,
+      selectMode: opts.selectMode,
+      onProgress: function (progress) {
+        if (onProgress) {
+          onProgress({
+            stage: 'new',
+            progress: progress,
+          })
+        }
+      },
+    })
+
+    var sharedPixels = 0
+    var removedPixels = 0
+    var addedPixels = 0
+
+    oldCoverage.cellKeys.forEach(function (key) {
+      if (newCoverage.cellKeys.has(key)) {
+        sharedPixels += 1
+      } else {
+        removedPixels += 1
+      }
+    })
+
+    newCoverage.cellKeys.forEach(function (key) {
+      if (!oldCoverage.cellKeys.has(key)) {
+        addedPixels += 1
+      }
+    })
+
+    var centerLat = regionBounds ? (regionBounds.minLat + regionBounds.maxLat) / 2 : 0
+    var tileSize = oldCoverage.tileSize || newCoverage.tileSize || 256
+    var metersPerPixel = metersPerPixelAtLat(centerLat, z, tileSize)
+    var pixelAreaSqMeters = metersPerPixel * metersPerPixel
+
+    return {
+      zoom: z,
+      regionBounds: regionBounds,
+      sharedPixels: sharedPixels,
+      addedPixels: addedPixels,
+      removedPixels: removedPixels,
+      oldPixels: oldCoverage.selectedPixels,
+      newPixels: newCoverage.selectedPixels,
+      pixelAreaSqMeters: pixelAreaSqMeters,
+      approxArea: {
+        oldSqMeters: oldCoverage.selectedPixels * pixelAreaSqMeters,
+        newSqMeters: newCoverage.selectedPixels * pixelAreaSqMeters,
+        sharedSqMeters: sharedPixels * pixelAreaSqMeters,
+        addedSqMeters: addedPixels * pixelAreaSqMeters,
+        removedSqMeters: removedPixels * pixelAreaSqMeters,
+      },
+      coverage: {
+        old: {
+          processedTiles: oldCoverage.processedTiles,
+          matchedTiles: oldCoverage.matchedTiles,
+        },
+        new: {
+          processedTiles: newCoverage.processedTiles,
+          matchedTiles: newCoverage.matchedTiles,
+        },
+      },
+    }
   }
 
   OfflineTilePackage.prototype.exportZoomRegionLatLng = async function (input) {
@@ -986,6 +1443,10 @@
     lonLatToTileXY: lonLatToTileXY,
     tileXYToLonLatBounds: tileXYToLonLatBounds,
     lonLatToPixelInTile: lonLatToPixelInTile,
+    normalizeRegionShapes: normalizeRegionShapes,
+    buildShapeBounds: buildShapeBounds,
+    isPointInShapes: isPointInShapes,
+    metersPerPixelAtLat: metersPerPixelAtLat,
     OfflineTilePackage: OfflineTilePackage,
   }
 })(window)

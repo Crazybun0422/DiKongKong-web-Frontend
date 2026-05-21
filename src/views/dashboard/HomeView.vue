@@ -38,6 +38,7 @@ import { DRONES } from '../../utils/drones'
 import { clampRadius, gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '../../utils/coords'
 import { fetchPendingMarkersCount, MARKER_REVIEW_STATUS } from '../../services/markers'
 import { fetchOrders } from '../../services/orders'
+import { repairWechatPaymentOrder } from '../../services/wechatPayments'
 // Layer settings are stored locally in the browser to avoid backend dependency
 
 
@@ -94,6 +95,7 @@ const orderColumns = computed(() => [
   { title: t('orders.table.columns.amount'), dataIndex: 'amount', key: 'amount', width: 120 },
   { title: t('orders.table.columns.createdAt'), dataIndex: 'createdAt', key: 'createdAt', width: 200 },
   { title: t('orders.table.columns.updatedAt'), dataIndex: 'updatedAt', key: 'updatedAt', width: 200 },
+  { title: t('orders.table.columns.actions'), key: 'actions', width: 140 },
 ])
 
 const orderPaginationConfig = computed(() => ({
@@ -206,6 +208,7 @@ const orderSummaryLoading = ref(false)
 const ordersVisible = ref(false)
 const ordersLoading = ref(false)
 const ordersTableData = ref([])
+const orderRepairingId = ref('')
 const orderPagination = reactive({
   current: 1,
   pageSize: 10,
@@ -463,6 +466,8 @@ const paymentTypeText = (type) => {
       return t('orders.paymentType.unknown')
   }
 }
+
+const canRepairOrder = (order) => order?.status === 'WAITING_PAYMENT' && order?.paymentType === 'WECHAT' && !!order?.id
 
 const toLatLng = (point) => new window.qq.maps.LatLng(Number(point.latitude), Number(point.longitude))
 
@@ -1718,6 +1723,26 @@ const loadOrders = async () => {
   }
 }
 
+const handleRepairOrder = async (order) => {
+  if (!canRepairOrder(order)) return
+
+  orderRepairingId.value = order.id
+  try {
+    const status = await repairWechatPaymentOrder(order.id)
+    if (status?.paid || status?.status === 'PAID') {
+      message.success(t('orders.messages.repairPaid'))
+    } else {
+      message.info(t('orders.messages.repairNoChange'))
+    }
+    await loadOrders()
+  } catch (error) {
+    console.error('Failed to repair wechat payment order', error)
+    message.error(t('orders.messages.repairFailed'))
+  } finally {
+    orderRepairingId.value = ''
+  }
+}
+
 const openOrdersModal = () => {
   orderPagination.current = 1
   ordersVisible.value = true
@@ -2228,6 +2253,20 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'createdAt' || column.key === 'updatedAt'">
             {{ formatDateTime(record[column.dataIndex || column.key]) }}
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <div class="order-actions">
+              <a-button
+                v-if="canRepairOrder(record)"
+                type="link"
+                size="small"
+                :loading="orderRepairingId === record.id"
+                @click="handleRepairOrder(record)"
+              >
+                {{ t('orders.actions.repair') }}
+              </a-button>
+              <span v-else>-</span>
+            </div>
           </template>
           <template v-else>
             {{ record[column.dataIndex || column.key] ?? '-' }}
@@ -3002,6 +3041,11 @@ onBeforeUnmount(() => {
 
 .orders-table {
   margin-top: 8px;
+}
+
+.order-actions {
+  display: flex;
+  align-items: center;
 }
 
 .layer-footer {
