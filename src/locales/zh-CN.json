@@ -1403,6 +1403,45 @@
           "deleteFailed": "隐私政策删除失败"
         }
       },
+      "tabs": {
+        "uomLayer": "UOM 图层",
+        "font": "字体文件",
+        "posterService": "海报服务版本",
+        "easterEggResource": "彩蛋资源包",
+        "skyTypeAvatarPack": "星格图片包",
+        "provinceCityKmlZip": "省区域压缩包",
+        "countyKmlZip": "县区域压缩包",
+        "memberAircraftModels": "会员机型统计",
+        "ladderLeaderboard": "天梯排行榜"
+      },
+      "uomLayer": {
+        "title": "UOM 图层配置",
+        "subtitle": "统一设置小程序是否使用 UOM 原始图层，以及图层使用的 token。",
+        "updatedAtLabel": "最近更新",
+        "emptyUpdatedAt": "未设置",
+        "fields": {
+          "useUomOriginalLayer": "使用 UOM 原始图层",
+          "token": "图层 Token"
+        },
+        "placeholders": {
+          "token": "请输入 UOM 图层 token"
+        },
+        "helper": "该配置为全局配置，保存后小程序用户端读取同一份设置。",
+        "status": {
+          "enabled": "已启用",
+          "disabled": "已关闭"
+        },
+        "actions": {
+          "save": "保存配置",
+          "reload": "重新加载",
+          "reset": "重置"
+        },
+        "messages": {
+          "loadFailed": "UOM 图层配置加载失败",
+          "saveSuccess": "UOM 图层配置已保存",
+          "saveFailed": "UOM 图层配置保存失败"
+        }
+      },
       "font": {
         "title": "字体文件设置",
         "subtitle": "上传并配置管理端使用的字体文件。",
@@ -1478,6 +1517,37 @@
           "loadFailed": "彩蛋资源包配置加载失败"
         }
       },
+      "skyTypeAvatarPack": {
+        "title": "星格图片包设置",
+        "subtitle": "上传低空星格测试结果使用的头像海报资源包。",
+        "currentFileLabel": "当前资源包",
+        "currentVersionLabel": "当前版本",
+        "emptyFile": "暂无星格图片包",
+        "emptyVersion": "未设置",
+        "fields": {
+          "file": "图片包文件",
+          "version": "版本号"
+        },
+        "placeholders": {
+          "version": "例如 1.0.1"
+        },
+        "helper": "支持 ZIP/RAR/7Z，资源包内需包含 low_altitude_skytype_posters_en/female 与 male 目录，文件名需与星格标识对应。",
+        "structureTitle": "推荐目录结构",
+        "actions": {
+          "selectFile": "选择文件",
+          "replaceFile": "更换文件",
+          "removeFile": "移除",
+          "upload": "上传并保存",
+          "reload": "重新加载"
+        },
+        "messages": {
+          "noFile": "请先选择星格图片包文件",
+          "noVersion": "请填写版本号",
+          "uploadSuccess": "星格图片包已更新",
+          "uploadFailed": "星格图片包上传失败",
+          "loadFailed": "星格图片包配置加载失败"
+        }
+      },
       "provinceCityKmlZip": {
         "title": "省区域信息压缩包设置",
         "subtitle": "上传并配置省区域信息使用的 zip 资源包。",
@@ -1536,6 +1606,21 @@
           "uploadSuccess": "县级区域信息压缩包已更新",
           "uploadFailed": "县级区域信息压缩包上传失败",
           "loadFailed": "县级区域信息压缩包配置加载失败"
+        }
+      },
+      "memberAircraftModels": {
+        "title": "会员机型统计",
+        "subtitle": "统计当前会员用户填写的执飞机型占比，未填写的会员会单独归类。",
+        "totalLabel": "会员用户",
+        "chartHelper": "占比仅基于会员身份统计，不校验会员是否过期。",
+        "emptyModel": "未填写",
+        "memberCount": "{count} 位会员",
+        "empty": "暂无会员机型统计数据",
+        "actions": {
+          "reload": "重新加载"
+        },
+        "messages": {
+          "loadFailed": "会员机型统计加载失败"
         }
       },
       "ladderLeaderboard": {

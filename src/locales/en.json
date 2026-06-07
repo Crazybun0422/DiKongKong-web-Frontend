@@ -1373,6 +1373,45 @@
           "deleteFailed": "Failed to delete privacy policy"
         }
       },
+      "tabs": {
+        "uomLayer": "UOM layer",
+        "font": "Font file",
+        "posterService": "Poster service",
+        "easterEggResource": "Easter egg package",
+        "skyTypeAvatarPack": "Skytype pack",
+        "provinceCityKmlZip": "Province package",
+        "countyKmlZip": "County package",
+        "memberAircraftModels": "Member aircraft mix",
+        "ladderLeaderboard": "Ladder leaderboard"
+      },
+      "uomLayer": {
+        "title": "UOM layer settings",
+        "subtitle": "Configure the global toggle for the original UOM layer and the token used by that layer.",
+        "updatedAtLabel": "Last updated",
+        "emptyUpdatedAt": "Not set",
+        "fields": {
+          "useUomOriginalLayer": "Use original UOM layer",
+          "token": "Layer token"
+        },
+        "placeholders": {
+          "token": "Enter the UOM layer token"
+        },
+        "helper": "This is a global configuration. Mini-program users read the same saved value.",
+        "status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "actions": {
+          "save": "Save config",
+          "reload": "Reload",
+          "reset": "Reset"
+        },
+        "messages": {
+          "loadFailed": "Failed to load UOM layer config",
+          "saveSuccess": "UOM layer config saved",
+          "saveFailed": "Failed to save UOM layer config"
+        }
+      },
       "font": {
         "title": "Font file settings",
         "subtitle": "Upload and configure the font file used in the console.",
@@ -1448,6 +1487,37 @@
           "loadFailed": "Failed to load easter egg package config"
         }
       },
+      "skyTypeAvatarPack": {
+        "title": "Skytype image package",
+        "subtitle": "Upload the poster asset package used by the Low Altitude Skytype results flow.",
+        "currentFileLabel": "Current package",
+        "currentVersionLabel": "Current version",
+        "emptyFile": "No skytype package uploaded",
+        "emptyVersion": "Not set",
+        "fields": {
+          "file": "Package file",
+          "version": "Version"
+        },
+        "placeholders": {
+          "version": "e.g. 1.0.1"
+        },
+        "helper": "Supports ZIP/RAR/7Z. Include the low_altitude_skytype_posters_en/female and male directories, and keep filenames aligned with skytype identifiers.",
+        "structureTitle": "Recommended structure",
+        "actions": {
+          "selectFile": "Choose file",
+          "replaceFile": "Replace file",
+          "removeFile": "Remove",
+          "upload": "Upload & save",
+          "reload": "Reload"
+        },
+        "messages": {
+          "noFile": "Please choose the skytype package file first",
+          "noVersion": "Please enter a version",
+          "uploadSuccess": "Skytype package updated",
+          "uploadFailed": "Failed to upload the skytype package",
+          "loadFailed": "Failed to load the skytype package config"
+        }
+      },
       "provinceCityKmlZip": {
         "title": "Province area package",
         "subtitle": "Upload and configure the ZIP package used for province area data.",
@@ -1506,6 +1576,21 @@
           "uploadSuccess": "County area package updated",
           "uploadFailed": "Failed to upload county area package",
           "loadFailed": "Failed to load county area package config"
+        }
+      },
+      "memberAircraftModels": {
+        "title": "Member aircraft mix",
+        "subtitle": "Show the aircraft-model share across current members. Members without a filled model are grouped separately.",
+        "totalLabel": "members",
+        "chartHelper": "The share is based on member identity only and ignores expiration.",
+        "emptyModel": "Not set",
+        "memberCount": "{count} members",
+        "empty": "No member aircraft statistics yet",
+        "actions": {
+          "reload": "Reload"
+        },
+        "messages": {
+          "loadFailed": "Failed to load member aircraft statistics"
         }
       },
       "ladderLeaderboard": {

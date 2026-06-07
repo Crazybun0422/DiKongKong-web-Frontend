@@ -408,6 +408,20 @@ export const refreshPosterServiceVersion = async () => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchUomLayerConfig = async () => {
+  const response = await http.get('/config/uom-layer')
+  return normalizePagePayload(response, {
+    useUomOriginalLayer: false,
+    token: '',
+    updatedAt: null,
+  })
+}
+
+export const saveUomLayerConfig = async (payload) => {
+  const response = await http.put('/config/uom-layer', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchPinReviewRewardConfig = async () => {
   const response = await http.get('/config/pin-review-reward')
   return normalizePagePayload(response, { approvedARewardFlp: 0, approvedBRewardFlp: 0 })

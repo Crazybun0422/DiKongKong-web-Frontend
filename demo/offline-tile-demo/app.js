@@ -7,10 +7,24 @@
   var MAX_PROVINCE_EVALUATION_ZOOM = 8
   var EMPTY_TILE_DATA_URL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
   var QQMAP_SUGGEST_KEY = 'BSTBZ-7EECN-MQEFW-S4VWD-SDM3J-GVBQW'
+  var LOCAL_UOM_TILE_URL_PREFIX =
+    (window.location && window.location.protocol === 'file:' ? 'http://127.0.0.1:5173' : '')
+    + '/api/local-uom-layer'
+  var LOCAL_UOM_MIN_ZOOM = 4
+  var LOCAL_UOM_MAX_ZOOM = 13
+  var LOCAL_UOM_OVERLAY_PADDING_TILES = 1
+  var LOCAL_UOM_OVERLAY_OPACITY = 0.72
+  var LOCAL_UOM_IMAGE_CACHE_LIMIT = 96
   var PACK_KEYS = ['old', 'new']
   var PACK_LABELS = {
     old: '旧版',
     new: '新版',
+  }
+  var LOCAL_UOM_COLOR_OPTIONS = {
+    current: { label: '默认/青蓝' },
+    green: { label: '绿色' },
+    gold: { label: '金黄' },
+    coral: { label: '珊红' },
   }
   var PROVINCE_DISPLAY_NAMES = {
     'CN-11': '北京市',
@@ -53,7 +67,12 @@
   }
 
   var OfflineTilePackage = window.OfflineTileApi.OfflineTilePackage
+  var gcj02ToWgs84 = window.OfflineTileApi.gcj02ToWgs84
+  var wgs84ToGcj02 = window.OfflineTileApi.wgs84ToGcj02
   var normalizeCoordToGcj02 = window.OfflineTileApi.normalizeCoordToGcj02
+  var lonLatToTileXY = window.OfflineTileApi.lonLatToTileXY
+  var tileXYToLonLatBounds = window.OfflineTileApi.tileXYToLonLatBounds
+  var lonLatToPixelInTile = window.OfflineTileApi.lonLatToPixelInTile
   var metersPerPixelAtLat = window.OfflineTileApi.metersPerPixelAtLat
 
   var state = {
@@ -89,6 +108,11 @@
     bboxSelectionStartPixel: null,
     bboxSelectionCurrentPixel: null,
     bboxSelectionBounds: null,
+    localUomOverlayMap: new Map(),
+    localUomOverlayTimer: null,
+    localUomImageDataCache: new Map(),
+    localUomRenderEnabled: false,
+    localUomRenderColor: 'current',
   }
 
   var $ = {
@@ -102,6 +126,9 @@
     newPackSummary: document.getElementById('newPackSummary'),
     activeLayerSummary: document.getElementById('activeLayerSummary'),
     zoomInfo: document.getElementById('zoomInfo'),
+    enableLocalUomLayer: document.getElementById('enableLocalUomLayer'),
+    localUomColor: document.getElementById('localUomColor'),
+    localUomSummary: document.getElementById('localUomSummary'),
     enableProvinceMask: document.getElementById('enableProvinceMask'),
     provinceSelect: document.getElementById('provinceSelect'),
     compareZoom: document.getElementById('compareZoom'),
@@ -138,6 +165,12 @@
     var el = kind === 'old' ? $.oldPackSummary : $.newPackSummary
     if (el) {
       el.textContent = text
+    }
+  }
+
+  function setLocalUomSummary(text) {
+    if ($.localUomSummary) {
+      $.localUomSummary.textContent = text
     }
   }
 
@@ -287,6 +320,334 @@
     }
   }
 
+  function resolveLocalUomColor(value) {
+    var key = String(value || '').trim().toLowerCase()
+    return LOCAL_UOM_COLOR_OPTIONS[key] ? key : 'current'
+  }
+
+  function resolveLocalUomColorLabel(value) {
+    return LOCAL_UOM_COLOR_OPTIONS[resolveLocalUomColor(value)].label
+  }
+
+  function buildLocalUomTileUrl(color, zoom, x, y) {
+    return LOCAL_UOM_TILE_URL_PREFIX
+      + '/'
+      + encodeURIComponent(resolveLocalUomColor(color))
+      + '/'
+      + Number(zoom)
+      + '/'
+      + Number(x)
+      + '/'
+      + Number(y)
+      + '.png'
+  }
+
+  function resolveLocalUomSourceZoom(mapZoom) {
+    var zoom = Math.round(Number(mapZoom))
+    if (!Number.isFinite(zoom)) zoom = DEFAULT_ZOOM
+    if (zoom < LOCAL_UOM_MIN_ZOOM) return LOCAL_UOM_MIN_ZOOM
+    if (zoom > LOCAL_UOM_MAX_ZOOM) return LOCAL_UOM_MAX_ZOOM
+    return zoom
+  }
+
+  function getMapBounds() {
+    if (!state.map || typeof state.map.getBounds !== 'function') return null
+    try {
+      return state.map.getBounds() || null
+    } catch (e) {
+      return null
+    }
+  }
+
+  function getLocalUomViewportBoundsWgs84() {
+    var bounds = getMapBounds()
+    if (!bounds || typeof bounds.getSouthWest !== 'function' || typeof bounds.getNorthEast !== 'function') {
+      return null
+    }
+
+    var sw = bounds.getSouthWest()
+    var ne = bounds.getNorthEast()
+    if (!sw || !ne) return null
+
+    var swLng = Number(sw.getLng && sw.getLng())
+    var swLat = Number(sw.getLat && sw.getLat())
+    var neLng = Number(ne.getLng && ne.getLng())
+    var neLat = Number(ne.getLat && ne.getLat())
+    if (![swLng, swLat, neLng, neLat].every(Number.isFinite)) {
+      return null
+    }
+
+    var swWgs = gcj02ToWgs84(swLng, swLat)
+    var neWgs = gcj02ToWgs84(neLng, neLat)
+    return {
+      west: Math.min(swWgs.lng, neWgs.lng),
+      east: Math.max(swWgs.lng, neWgs.lng),
+      south: Math.min(swWgs.lat, neWgs.lat),
+      north: Math.max(swWgs.lat, neWgs.lat),
+    }
+  }
+
+  function clampTileIndex(value, zoom) {
+    var max = Math.pow(2, Number(zoom)) - 1
+    var numeric = Math.round(Number(value))
+    if (!Number.isFinite(numeric)) return 0
+    return Math.max(0, Math.min(max, numeric))
+  }
+
+  function buildLocalUomViewportTiles(color, mapZoom) {
+    var viewport = getLocalUomViewportBoundsWgs84()
+    if (!viewport) return []
+
+    var sourceZoom = resolveLocalUomSourceZoom(mapZoom)
+    var tileNW = lonLatToTileXY(viewport.west, viewport.north, sourceZoom)
+    var tileSE = lonLatToTileXY(viewport.east, viewport.south, sourceZoom)
+    if (!tileNW || !tileSE) return []
+
+    var xMin = clampTileIndex(Math.min(tileNW.x, tileSE.x) - LOCAL_UOM_OVERLAY_PADDING_TILES, sourceZoom)
+    var xMax = clampTileIndex(Math.max(tileNW.x, tileSE.x) + LOCAL_UOM_OVERLAY_PADDING_TILES, sourceZoom)
+    var yMin = clampTileIndex(Math.min(tileNW.y, tileSE.y) - LOCAL_UOM_OVERLAY_PADDING_TILES, sourceZoom)
+    var yMax = clampTileIndex(Math.max(tileNW.y, tileSE.y) + LOCAL_UOM_OVERLAY_PADDING_TILES, sourceZoom)
+    var tiles = []
+
+    for (var x = xMin; x <= xMax; x += 1) {
+      for (var y = yMin; y <= yMax; y += 1) {
+        var wgsBounds = tileXYToLonLatBounds(x, y, sourceZoom)
+        if (!wgsBounds) continue
+        var gcjSW = wgs84ToGcj02(wgsBounds.lngLeft, wgsBounds.latBottom)
+        var gcjNE = wgs84ToGcj02(wgsBounds.lngRight, wgsBounds.latTop)
+        tiles.push({
+          id: sourceZoom + '/' + x + '/' + y,
+          signature: [
+            resolveLocalUomColor(color),
+            sourceZoom,
+            x,
+            y,
+            gcjSW.lng.toFixed(6),
+            gcjSW.lat.toFixed(6),
+            gcjNE.lng.toFixed(6),
+            gcjNE.lat.toFixed(6),
+          ].join(':'),
+          src: buildLocalUomTileUrl(color, sourceZoom, x, y),
+          bounds: {
+            southwest: { longitude: gcjSW.lng, latitude: gcjSW.lat },
+            northeast: { longitude: gcjNE.lng, latitude: gcjNE.lat },
+          },
+        })
+      }
+    }
+
+    return tiles
+  }
+
+  function createQqBounds(bounds) {
+    if (!window.qq || !window.qq.maps || !window.qq.maps.LatLngBounds || !window.qq.maps.LatLng) {
+      return null
+    }
+    return new window.qq.maps.LatLngBounds(
+      new window.qq.maps.LatLng(bounds.southwest.latitude, bounds.southwest.longitude),
+      new window.qq.maps.LatLng(bounds.northeast.latitude, bounds.northeast.longitude)
+    )
+  }
+
+  function clearLocalUomOverlays() {
+    state.localUomOverlayMap.forEach(function (entry) {
+      if (!entry || !entry.overlay || typeof entry.overlay.setMap !== 'function') return
+      try {
+        entry.overlay.setMap(null)
+      } catch (e) {
+        // ignore
+      }
+    })
+    state.localUomOverlayMap.clear()
+  }
+
+  function refreshLocalUomOverlays() {
+    if (!state.localUomRenderEnabled) {
+      clearLocalUomOverlays()
+      setLocalUomSummary('未启用')
+      return
+    }
+    if (!state.map || !window.qq || !window.qq.maps || !window.qq.maps.GroundOverlay) {
+      setLocalUomSummary('地图未就绪')
+      return
+    }
+
+    var mapZoom = getCurrentZoom()
+    var tiles = buildLocalUomViewportTiles(state.localUomRenderColor, mapZoom)
+    if (!tiles.length) {
+      clearLocalUomOverlays()
+      setLocalUomSummary('当前视口没有匹配瓦片')
+      return
+    }
+
+    var nextIds = new Set()
+    for (var i = 0; i < tiles.length; i += 1) {
+      var tile = tiles[i]
+      nextIds.add(tile.id)
+
+      var qqBounds = createQqBounds(tile.bounds)
+      if (!qqBounds) continue
+
+      var existing = state.localUomOverlayMap.get(tile.id)
+      if (existing && existing.signature === tile.signature) {
+        continue
+      }
+
+      if (existing && existing.overlay) {
+        try {
+          existing.overlay.setBounds(qqBounds)
+          existing.overlay.setImageUrl(tile.src)
+          existing.overlay.setOpacity(LOCAL_UOM_OVERLAY_OPACITY)
+          existing.overlay.setZIndex(12)
+          existing.signature = tile.signature
+          continue
+        } catch (e) {
+          try {
+            existing.overlay.setMap(null)
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+
+      state.localUomOverlayMap.set(tile.id, {
+        signature: tile.signature,
+        overlay: new window.qq.maps.GroundOverlay({
+          map: state.map,
+          imageUrl: tile.src,
+          bounds: qqBounds,
+          clickable: false,
+          opacity: LOCAL_UOM_OVERLAY_OPACITY,
+          zIndex: 12,
+          visible: true,
+        }),
+      })
+    }
+
+    Array.from(state.localUomOverlayMap.keys()).forEach(function (tileId) {
+      if (nextIds.has(tileId)) return
+      var entry = state.localUomOverlayMap.get(tileId)
+      if (entry && entry.overlay && typeof entry.overlay.setMap === 'function') {
+        try {
+          entry.overlay.setMap(null)
+        } catch (e) {
+          // ignore
+        }
+      }
+      state.localUomOverlayMap.delete(tileId)
+    })
+
+    setLocalUomSummary(
+      resolveLocalUomColorLabel(state.localUomRenderColor)
+      + ' | 源缩放 Z'
+      + resolveLocalUomSourceZoom(mapZoom)
+      + ' | tiles='
+      + tiles.length
+    )
+  }
+
+  function scheduleLocalUomOverlayRefresh() {
+    if (state.localUomOverlayTimer) {
+      clearTimeout(state.localUomOverlayTimer)
+    }
+    state.localUomOverlayTimer = setTimeout(function () {
+      state.localUomOverlayTimer = null
+      refreshLocalUomOverlays()
+    }, 60)
+  }
+
+  async function decodeBlobToImageData(blob) {
+    var bitmap = await createImageBitmap(blob)
+    var canvas = document.createElement('canvas')
+    canvas.width = bitmap.width || 256
+    canvas.height = bitmap.height || 256
+    var ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return ctx.getImageData(0, 0, canvas.width, canvas.height)
+  }
+
+  function getImageDataPixel(imageData, x, y) {
+    var idx = (y * imageData.width + x) * 4
+    var data = imageData.data
+    return { r: data[idx], g: data[idx + 1], b: data[idx + 2], a: data[idx + 3] }
+  }
+
+  function touchLocalUomImageCache(key, value) {
+    if (state.localUomImageDataCache.has(key)) {
+      state.localUomImageDataCache.delete(key)
+    }
+    state.localUomImageDataCache.set(key, value)
+    while (state.localUomImageDataCache.size > LOCAL_UOM_IMAGE_CACHE_LIMIT) {
+      var oldestKey = state.localUomImageDataCache.keys().next().value
+      state.localUomImageDataCache.delete(oldestKey)
+    }
+  }
+
+  async function getLocalUomTileImageData(color, zoom, x, y) {
+    var cacheKey = resolveLocalUomColor(color) + '/' + zoom + '/' + x + '/' + y
+    var cached = state.localUomImageDataCache.get(cacheKey)
+    if (cached) {
+      touchLocalUomImageCache(cacheKey, cached)
+      return cached
+    }
+
+    var response = await fetch(buildLocalUomTileUrl(color, zoom, x, y), { cache: 'no-store' })
+    if (!response.ok) return null
+
+    var blob = await response.blob()
+    var imageData = await decodeBlobToImageData(blob)
+    touchLocalUomImageCache(cacheKey, imageData)
+    return imageData
+  }
+
+  async function classifyLocalUomPoint(lat, lng, coordType) {
+    if (!state.localUomRenderEnabled) return null
+
+    var normalized = normalizeCoordToGcj02({
+      lng: lng,
+      lat: lat,
+      coordType: coordType || 'GCJ02',
+    })
+    var sourceZoom = resolveLocalUomSourceZoom(getCurrentZoom())
+    var wgsPoint = gcj02ToWgs84(normalized.lng, normalized.lat)
+    var tile = lonLatToTileXY(wgsPoint.lng, wgsPoint.lat, sourceZoom)
+    if (!tile) {
+      return {
+        loaded: false,
+        reason: 'invalid-uom-tile',
+        zone: 'not-loaded',
+        rgba: null,
+        alphaThreshold: 16,
+      }
+    }
+
+    var imageData = await getLocalUomTileImageData(state.localUomRenderColor, sourceZoom, tile.x, tile.y)
+    if (!imageData) {
+      if (window.location && window.location.protocol === 'file:') {
+        setLocalUomSummary('本地图层服务不可用，请先运行 npm run dev')
+      }
+      return {
+        loaded: false,
+        reason: 'missing-uom-tile',
+        zone: 'not-loaded',
+        rgba: null,
+        alphaThreshold: 16,
+      }
+    }
+
+    var bounds = tileXYToLonLatBounds(tile.x, tile.y, sourceZoom)
+    var pixel = lonLatToPixelInTile(wgsPoint.lng, wgsPoint.lat, bounds, imageData.width || 256)
+    var rgba = getImageDataPixel(imageData, pixel.px, pixel.py)
+    return {
+      loaded: true,
+      reason: '',
+      zone: rgba.a > 16 ? '适飞空域（限高120m）' : '管制空域',
+      rgba: rgba,
+      alphaThreshold: 16,
+    }
+  }
+
   function fitToBounds(bounds) {
     if (!state.map || !window.qq || !window.qq.maps || !bounds) {
       return
@@ -409,6 +770,7 @@
       $.zoomInfo.textContent = '当前缩放：Z' + z
 
       window.requestAnimationFrame(syncBboxSelectionRectFromBounds)
+      scheduleLocalUomOverlayRefresh()
       var activeKind = state.activePackKey
       if (!getPack(activeKind)) {
         return
@@ -426,10 +788,12 @@
 
     window.qq.maps.event.addListener(state.map, 'bounds_changed', function () {
       window.requestAnimationFrame(syncBboxSelectionRectFromBounds)
+      scheduleLocalUomOverlayRefresh()
     })
 
     window.qq.maps.event.addListener(state.map, 'center_changed', function () {
       window.requestAnimationFrame(syncBboxSelectionRectFromBounds)
+      scheduleLocalUomOverlayRefresh()
     })
 
     window.qq.maps.event.addListener(state.map, 'click', function (event) {
@@ -450,6 +814,7 @@
     })
 
     $.zoomInfo.textContent = '当前缩放：Z' + DEFAULT_ZOOM
+    scheduleLocalUomOverlayRefresh()
   }
 
   function renderClickMarker(lat, lng) {
@@ -680,7 +1045,7 @@
     var oldPack = getPack('old')
     var newPack = getPack('new')
 
-    if (!oldPack && !newPack) {
+    if (!oldPack && !newPack && !state.localUomRenderEnabled) {
       setClickResult(prefix + '未加载（坐标：' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '）')
       return
     }
@@ -688,6 +1053,12 @@
     var zoom = getCurrentZoom()
     var oldResult = oldPack ? await oldPack.classifyPoint({ lng: lng, lat: lat, zoom: zoom, coordType: coordType }) : null
     var newResult = newPack ? await newPack.classifyPoint({ lng: lng, lat: lat, zoom: zoom, coordType: coordType }) : null
+    var localResult = await classifyLocalUomPoint(lat, lng, coordType)
+
+    if (!oldResult && !newResult && localResult) {
+      setClickResult(prefix + buildClassifyText('UOM=', localResult))
+      return
+    }
 
     if (oldResult && newResult) {
       setClickResult(
@@ -3057,6 +3428,18 @@
     $.showNewBtn.addEventListener('click', function () {
       setActivePack('new')
     })
+    if ($.enableLocalUomLayer) {
+      $.enableLocalUomLayer.addEventListener('change', function () {
+        state.localUomRenderEnabled = !!$.enableLocalUomLayer.checked
+        scheduleLocalUomOverlayRefresh()
+      })
+    }
+    if ($.localUomColor) {
+      $.localUomColor.addEventListener('change', function () {
+        state.localUomRenderColor = resolveLocalUomColor($.localUomColor.value)
+        scheduleLocalUomOverlayRefresh()
+      })
+    }
     $.applyProvinceBtn.addEventListener('click', onApplyProvince)
     $.clearProvinceBtn.addEventListener('click', onClearProvince)
     $.evaluateBtn.addEventListener('click', function () {
@@ -3152,6 +3535,10 @@
     populateProvinceSelect()
     populateReportProvinceSelect()
     bindEvents()
+    state.localUomRenderEnabled = !!($.enableLocalUomLayer && $.enableLocalUomLayer.checked)
+    state.localUomRenderColor = resolveLocalUomColor($.localUomColor && $.localUomColor.value)
+    setLocalUomSummary(state.localUomRenderEnabled ? '正在准备...' : '未启用')
+    window.addEventListener('resize', scheduleLocalUomOverlayRefresh)
 
     setPackSummary('old', '未加载')
     setPackSummary('new', '未加载')
@@ -3167,6 +3554,7 @@
     syncCompareZoomOptions()
     updateLayerToggleButtons()
     syncBboxSelectionButtons()
+    scheduleLocalUomOverlayRefresh()
   }
 
   bootstrap()

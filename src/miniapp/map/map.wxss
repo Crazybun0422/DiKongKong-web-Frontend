@@ -649,6 +649,7 @@ button.marker-button::after,
   justify-content: flex-start;
   align-items: center;
   min-width: 0;
+  transform: translateY(-16rpx);
 }
 
 .profile-avatar-button {
@@ -716,7 +717,7 @@ button.marker-button::after,
 
 .profile-scroll {
   flex: 1;
-  padding: 48rpx 40rpx 200rpx;
+  padding: 24rpx 40rpx 200rpx;
   box-sizing: border-box;
 }
 

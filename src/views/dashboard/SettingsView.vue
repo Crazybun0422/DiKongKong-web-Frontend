@@ -57,6 +57,8 @@ import {
   uploadFontFileConfig,
   fetchPosterServiceVersion,
   refreshPosterServiceVersion,
+  fetchUomLayerConfig,
+  saveUomLayerConfig,
   fetchEasterEggResourceConfig,
   uploadEasterEggResourceConfig,
   fetchProvinceCityKmlZipConfig,
@@ -79,10 +81,11 @@ import { fetchWeappConfig, saveWeappConfig } from '../../services/weappConfig'
 import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
+import SkyTypePackSettings from '../../components/SkyTypePackSettings.vue'
 import MemberSettingsView from './MemberSettingsView.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
-import { fetchAdminUserCheckins, fetchAdminUserNewbieTasks } from '../../services/adminUsers'
+import { fetchAdminUserCheckins, fetchAdminUserNewbieTasks, fetchMemberAircraftModelStats } from '../../services/adminUsers'
 import {
   fetchNewbieTaskTemplate,
   saveNewbieTaskTemplate,
@@ -191,6 +194,7 @@ const translateNewbieTaskReset = (path, params = {}) => {
 const activeTab = ref('invite')
 const areaSettingsTab = ref('suitable-fly-zone')
 const guideSettingsTab = ref('gif')
+const systemSettingsTab = ref('uom-layer')
 
 const parseBulkTemplateInput = (input) => {
   const lines = (input || '').split('\n')
@@ -657,6 +661,13 @@ const fontFileSelected = ref(null)
 const posterServiceVersion = ref('')
 const posterServiceVersionLoading = ref(false)
 const posterServiceVersionRefreshing = ref(false)
+const uomLayerForm = reactive({
+  useUomOriginalLayer: false,
+  token: '',
+})
+const uomLayerLoading = ref(false)
+const uomLayerSaving = ref(false)
+const uomLayerUpdatedAt = ref(null)
 const easterEggResourceConfig = reactive({
   fileName: '',
   version: '',
@@ -749,6 +760,9 @@ const checkinLogPagination = reactive({
   pageSize: 10,
   total: 0,
 })
+const memberAircraftModelStats = ref([])
+const memberAircraftModelStatsLoading = ref(false)
+const memberAircraftModelTotal = ref(0)
 const ladderLeaderboard = ref([])
 const ladderLeaderboardLoading = ref(false)
 const ladderLeaderboardPagination = reactive({
@@ -1150,9 +1164,18 @@ const resetFontFileForm = (currentVersion = '') => {
   fontFileSelected.value = null
 }
 
+const resetUomLayerForm = (data = null) => {
+  uomLayerForm.useUomOriginalLayer = Boolean(data?.useUomOriginalLayer)
+  uomLayerForm.token = data?.token || ''
+  uomLayerUpdatedAt.value = data?.updatedAt || null
+}
+
 const fontFileDownloadUrl = computed(() => buildDownloadUrl(fontFileConfig.fileName || ''))
 const posterServiceVersionDisplay = computed(() =>
   posterServiceVersion.value || t('settings.system.posterService.emptyVersion'),
+)
+const uomLayerUpdatedAtDisplay = computed(() =>
+  uomLayerUpdatedAt.value ? formatDateTime(uomLayerUpdatedAt.value) : t('settings.system.uomLayer.emptyUpdatedAt'),
 )
 const tencentCosConfiguredText = computed(() =>
   tencentCosConfigured.value ? t('settings.system.tencentCos.configured') : t('settings.system.tencentCos.notConfigured'),
@@ -1303,6 +1326,57 @@ const ladderLeaderboardColumns = computed(() => [
     width: 200,
   },
 ])
+
+const memberAircraftModelPalette = ['#2563eb', '#0f766e', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#65a30d', '#ea580c']
+
+const formatMemberAircraftModelPercent = (ratio) => {
+  const percent = Number(ratio || 0) * 100
+  if (!Number.isFinite(percent)) return '0%'
+  const precision = percent >= 10 || Math.abs(percent - Math.round(percent)) < 0.05 ? 0 : 1
+  return `${percent.toFixed(precision)}%`
+}
+
+const normalizeMemberAircraftModelLabel = (value) => {
+  const normalized = String(value ?? '').trim()
+  if (!normalized || normalized === '未填写' || normalized === '鏈～鍐?') {
+    return t('settings.system.memberAircraftModels.emptyModel')
+  }
+  return normalized
+}
+
+const memberAircraftModelChartItems = computed(() =>
+  (Array.isArray(memberAircraftModelStats.value) ? memberAircraftModelStats.value : []).map((item, index) => ({
+    key: `${item?.aircraftModel || 'unknown'}-${index}`,
+    aircraftModel: normalizeMemberAircraftModelLabel(item?.aircraftModel),
+    memberCount: Number(item?.memberCount || 0),
+    ratio: Number(item?.ratio || 0),
+    percentLabel: formatMemberAircraftModelPercent(item?.ratio || 0),
+    color: memberAircraftModelPalette[index % memberAircraftModelPalette.length],
+  })),
+)
+
+const memberAircraftModelHasData = computed(
+  () => memberAircraftModelTotal.value > 0 && memberAircraftModelChartItems.value.length > 0,
+)
+
+const memberAircraftModelChartStyle = computed(() => {
+  const items = memberAircraftModelChartItems.value.filter((item) => item.ratio > 0)
+  if (!items.length) {
+    return { background: 'conic-gradient(#e5e7eb 0% 100%)' }
+  }
+
+  let currentPercent = 0
+  const segments = items.map((item, index) => {
+    const start = currentPercent
+    currentPercent += item.ratio * 100
+    const end = index === items.length - 1 ? 100 : Number(currentPercent.toFixed(4))
+    return `${item.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`
+  })
+
+  return {
+    background: `conic-gradient(${segments.join(', ')})`,
+  }
+})
 
 const newbieTaskStatsColumns = computed(() => [
   { title: t('settings.newbieTasks.stats.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode' },
@@ -2871,6 +2945,41 @@ const handleRefreshPosterServiceVersion = async () => {
   }
 }
 
+const loadUomLayerConfig = async () => {
+  uomLayerLoading.value = true
+  try {
+    const data = await fetchUomLayerConfig()
+    resetUomLayerForm(data)
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      console.error('Failed to load UOM layer config', error)
+      message.error(t('settings.system.uomLayer.messages.loadFailed'))
+    }
+    resetUomLayerForm()
+  } finally {
+    uomLayerLoading.value = false
+  }
+}
+
+const submitUomLayerForm = async () => {
+  if (uomLayerSaving.value) return
+  uomLayerSaving.value = true
+  try {
+    const payload = {
+      useUomOriginalLayer: Boolean(uomLayerForm.useUomOriginalLayer),
+      token: String(uomLayerForm.token || '').trim(),
+    }
+    const data = await saveUomLayerConfig(payload)
+    resetUomLayerForm(data || payload)
+    message.success(t('settings.system.uomLayer.messages.saveSuccess'))
+  } catch (error) {
+    console.error('Failed to save UOM layer config', error)
+    message.error(t('settings.system.uomLayer.messages.saveFailed'))
+  } finally {
+    uomLayerSaving.value = false
+  }
+}
+
 const handleFontFileSelect = (event) => {
   const file = event?.target?.files?.[0]
   if (!file) return
@@ -3364,6 +3473,20 @@ const loadLadderLeaderboard = async () => {
   }
 }
 
+const loadMemberAircraftModelStats = async () => {
+  memberAircraftModelStatsLoading.value = true
+  try {
+    const data = await fetchMemberAircraftModelStats()
+    memberAircraftModelTotal.value = Number(data?.totalMembers || 0)
+    memberAircraftModelStats.value = Array.isArray(data?.items) ? data.items : []
+  } catch (error) {
+    console.error('Failed to load member aircraft model stats', error)
+    message.error(t('settings.system.memberAircraftModels.messages.loadFailed'))
+  } finally {
+    memberAircraftModelStatsLoading.value = false
+  }
+}
+
 const handleLotteryLogSearch = () => {
   lotteryLogPagination.current = 1
   loadLotteryLogs()
@@ -3771,11 +3894,13 @@ onMounted(() => {
   loadPrivacyPolicies()
   loadFontFileConfig()
   loadPosterServiceVersion()
+  loadUomLayerConfig()
   loadEasterEggResourceConfig()
   loadProvinceCityKmlZipConfig()
   loadCountyKmlZipConfig()
   loadSuitableFlyZoneKmzInfos()
   loadKmlDecryptAesKeyConfig()
+  loadMemberAircraftModelStats()
   loadLadderLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
@@ -5536,341 +5661,468 @@ onBeforeUnmount(() => {
 
         <a-tab-pane key="system" :tab="t('settings.tabs.system')">
           <div class="tab-section">
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.font.title') }}</h3>
-                  <p>{{ t('settings.system.font.subtitle') }}</p>
-                </div>
-                <div class="system-settings__meta">
-                  <span class="system-settings__meta-label">
-                    {{ t('settings.system.font.currentVersionLabel') }}
-                  </span>
-                  <span class="system-settings__meta-value">
-                    {{ fontFileConfig.version || t('settings.system.font.emptyVersion') }}
-                  </span>
-                </div>
-              </header>
-              <a-spin :spinning="fontFileLoading">
-                <div class="system-font-current">
-                  <span class="system-font-current__label">
-                    {{ t('settings.system.font.currentFileLabel') }}
-                  </span>
-                  <a v-if="fontFileConfig.fileName" :href="fontFileDownloadUrl" target="_blank" rel="noreferrer">
-                    {{ fontFileConfig.fileName }}
-                  </a>
-                  <span v-else class="empty-hint">{{ t('settings.system.font.emptyFile') }}</span>
-                </div>
-                <a-form layout="vertical" :model="fontFileForm" @finish="submitFontFileForm">
-                  <a-form-item :label="t('settings.system.font.fields.file')">
-                    <div class="system-font-upload">
-                      <label class="system-font-upload__trigger">
-                        <input class="system-font-upload__input" type="file" accept=".ttf,.otf,.woff,.woff2"
-                          :disabled="fontFileSaving" @change="handleFontFileSelect" />
-                        <a-button type="dashed" :loading="fontFileSaving">
-                          {{
-                            fontFileForm.fileName
-                              ? t('settings.system.font.actions.replaceFile')
-                              : t('settings.system.font.actions.selectFile')
-                          }}
-                        </a-button>
-                      </label>
-                      <span v-if="fontFileForm.fileName" class="system-font-upload__name">
-                        {{ fontFileForm.fileName }}
-                      </span>
-                      <a-button v-if="fontFileForm.fileName" type="link" danger size="small"
-                        @click="clearFontFileSelection">
-                        {{ t('settings.system.font.actions.removeFile') }}
+            <a-tabs v-model:activeKey="systemSettingsTab" class="system-settings-tabs">
+              <a-tab-pane key="uom-layer" :tab="t('settings.system.tabs.uomLayer')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.uomLayer.title') }}</h3>
+                      <p>{{ t('settings.system.uomLayer.subtitle') }}</p>
+                    </div>
+                    <div class="actions actions--inline">
+                      <div class="system-settings__meta">
+                        <span class="system-settings__meta-label">
+                          {{ t('settings.system.uomLayer.updatedAtLabel') }}
+                        </span>
+                        <span class="system-settings__meta-value">
+                          {{ uomLayerUpdatedAtDisplay }}
+                        </span>
+                      </div>
+                      <a-button type="default" @click="loadUomLayerConfig" :loading="uomLayerLoading"
+                        :disabled="uomLayerSaving">
+                        {{ t('settings.system.uomLayer.actions.reload') }}
                       </a-button>
                     </div>
-                    <div class="system-font-helper">{{ t('settings.system.font.helper') }}</div>
-                  </a-form-item>
-                  <a-form-item :label="t('settings.system.font.fields.version')">
-                    <a-input v-model:value="fontFileForm.version"
-                      :placeholder="t('settings.system.font.placeholders.version')" />
-                  </a-form-item>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="fontFileSaving">
-                      {{ t('settings.system.font.actions.upload') }}
-                    </a-button>
-                    <a-button type="default" @click="loadFontFileConfig"
-                      :disabled="fontFileLoading || fontFileSaving">
-                      {{ t('settings.system.font.actions.reload') }}
-                    </a-button>
-                  </div>
-                </a-form>
-              </a-spin>
-            </section>
-
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.posterService.title') }}</h3>
-                  <p>{{ t('settings.system.posterService.subtitle') }}</p>
-                </div>
-                <div class="actions actions--inline">
-                  <div class="system-settings__meta">
-                    <span class="system-settings__meta-label">
-                      {{ t('settings.system.posterService.currentVersionLabel') }}
-                    </span>
-                    <span class="system-settings__meta-value">
-                      {{ posterServiceVersionDisplay }}
-                    </span>
-                  </div>
-                  <a-button type="primary" @click="handleRefreshPosterServiceVersion"
-                    :loading="posterServiceVersionRefreshing"
-                    :disabled="posterServiceVersionLoading">
-                    {{ t('settings.system.posterService.actions.pullLatest') }}
-                  </a-button>
-                  <a-button type="default" @click="loadPosterServiceVersion"
-                    :loading="posterServiceVersionLoading"
-                    :disabled="posterServiceVersionRefreshing">
-                    {{ t('settings.system.posterService.actions.reload') }}
-                  </a-button>
-                </div>
-              </header>
-            </section>
-
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.easterEggResource.title') }}</h3>
-                  <p>{{ t('settings.system.easterEggResource.subtitle') }}</p>
-                </div>
-                <div class="system-settings__meta">
-                  <span class="system-settings__meta-label">
-                    {{ t('settings.system.easterEggResource.currentVersionLabel') }}
-                  </span>
-                  <span class="system-settings__meta-value">
-                    {{ easterEggResourceConfig.version || t('settings.system.easterEggResource.emptyVersion') }}
-                  </span>
-                </div>
-              </header>
-              <a-spin :spinning="easterEggResourceLoading">
-                <div class="system-font-current">
-                  <span class="system-font-current__label">
-                    {{ t('settings.system.easterEggResource.currentFileLabel') }}
-                  </span>
-                  <a v-if="easterEggResourceConfig.fileName" :href="easterEggResourceDownloadUrl" target="_blank"
-                    rel="noreferrer">
-                    {{ easterEggResourceConfig.fileName }}
-                  </a>
-                  <span v-else class="empty-hint">{{ t('settings.system.easterEggResource.emptyFile') }}</span>
-                </div>
-                <a-form layout="vertical" :model="easterEggResourceForm" @finish="submitEasterEggResourceForm">
-                  <a-form-item :label="t('settings.system.easterEggResource.fields.file')">
-                    <div class="system-font-upload">
-                      <label class="system-font-upload__trigger">
-                        <input class="system-font-upload__input" type="file" accept=".zip"
-                          :disabled="easterEggResourceSaving" @change="handleEasterEggResourceSelect" />
-                        <a-button type="dashed" :loading="easterEggResourceSaving">
-                          {{
-                            easterEggResourceForm.fileName
-                              ? t('settings.system.easterEggResource.actions.replaceFile')
-                              : t('settings.system.easterEggResource.actions.selectFile')
-                          }}
+                  </header>
+                  <a-spin :spinning="uomLayerLoading">
+                    <a-form layout="vertical" :model="uomLayerForm" @finish="submitUomLayerForm">
+                      <a-row :gutter="[24, 12]">
+                        <a-col :xs="24" :md="12">
+                          <a-form-item :label="t('settings.system.uomLayer.fields.useUomOriginalLayer')">
+                            <div class="system-toggle-field">
+                              <a-switch v-model:checked="uomLayerForm.useUomOriginalLayer" />
+                              <span class="system-toggle-field__label">
+                                {{
+                                  uomLayerForm.useUomOriginalLayer
+                                    ? t('settings.system.uomLayer.status.enabled')
+                                    : t('settings.system.uomLayer.status.disabled')
+                                }}
+                              </span>
+                            </div>
+                            <div class="system-font-helper">{{ t('settings.system.uomLayer.helper') }}</div>
+                          </a-form-item>
+                        </a-col>
+                        <a-col :xs="24" :md="24">
+                          <a-form-item :label="t('settings.system.uomLayer.fields.token')">
+                            <a-input v-model:value="uomLayerForm.token"
+                              :placeholder="t('settings.system.uomLayer.placeholders.token')" allow-clear />
+                          </a-form-item>
+                        </a-col>
+                      </a-row>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="uomLayerSaving">
+                          {{ t('settings.system.uomLayer.actions.save') }}
                         </a-button>
-                      </label>
-                      <span v-if="easterEggResourceForm.fileName" class="system-font-upload__name">
-                        {{ easterEggResourceForm.fileName }}
+                        <a-button type="default" @click="loadUomLayerConfig"
+                          :disabled="uomLayerLoading || uomLayerSaving">
+                          {{ t('settings.system.uomLayer.actions.reset') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="font" :tab="t('settings.system.tabs.font')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.font.title') }}</h3>
+                      <p>{{ t('settings.system.font.subtitle') }}</p>
+                    </div>
+                    <div class="system-settings__meta">
+                      <span class="system-settings__meta-label">
+                        {{ t('settings.system.font.currentVersionLabel') }}
                       </span>
-                      <a-button v-if="easterEggResourceForm.fileName" type="link" danger size="small"
-                        @click="clearEasterEggResourceSelection">
-                        {{ t('settings.system.easterEggResource.actions.removeFile') }}
+                      <span class="system-settings__meta-value">
+                        {{ fontFileConfig.version || t('settings.system.font.emptyVersion') }}
+                      </span>
+                    </div>
+                  </header>
+                  <a-spin :spinning="fontFileLoading">
+                    <div class="system-font-current">
+                      <span class="system-font-current__label">
+                        {{ t('settings.system.font.currentFileLabel') }}
+                      </span>
+                      <a v-if="fontFileConfig.fileName" :href="fontFileDownloadUrl" target="_blank" rel="noreferrer">
+                        {{ fontFileConfig.fileName }}
+                      </a>
+                      <span v-else class="empty-hint">{{ t('settings.system.font.emptyFile') }}</span>
+                    </div>
+                    <a-form layout="vertical" :model="fontFileForm" @finish="submitFontFileForm">
+                      <a-form-item :label="t('settings.system.font.fields.file')">
+                        <div class="system-font-upload">
+                          <label class="system-font-upload__trigger">
+                            <input class="system-font-upload__input" type="file" accept=".ttf,.otf,.woff,.woff2"
+                              :disabled="fontFileSaving" @change="handleFontFileSelect" />
+                            <a-button type="dashed" :loading="fontFileSaving">
+                              {{
+                                fontFileForm.fileName
+                                  ? t('settings.system.font.actions.replaceFile')
+                                  : t('settings.system.font.actions.selectFile')
+                              }}
+                            </a-button>
+                          </label>
+                          <span v-if="fontFileForm.fileName" class="system-font-upload__name">
+                            {{ fontFileForm.fileName }}
+                          </span>
+                          <a-button v-if="fontFileForm.fileName" type="link" danger size="small"
+                            @click="clearFontFileSelection">
+                            {{ t('settings.system.font.actions.removeFile') }}
+                          </a-button>
+                        </div>
+                        <div class="system-font-helper">{{ t('settings.system.font.helper') }}</div>
+                      </a-form-item>
+                      <a-form-item :label="t('settings.system.font.fields.version')">
+                        <a-input v-model:value="fontFileForm.version"
+                          :placeholder="t('settings.system.font.placeholders.version')" />
+                      </a-form-item>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="fontFileSaving">
+                          {{ t('settings.system.font.actions.upload') }}
+                        </a-button>
+                        <a-button type="default" @click="loadFontFileConfig"
+                          :disabled="fontFileLoading || fontFileSaving">
+                          {{ t('settings.system.font.actions.reload') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="poster-service" :tab="t('settings.system.tabs.posterService')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.posterService.title') }}</h3>
+                      <p>{{ t('settings.system.posterService.subtitle') }}</p>
+                    </div>
+                    <div class="actions actions--inline">
+                      <div class="system-settings__meta">
+                        <span class="system-settings__meta-label">
+                          {{ t('settings.system.posterService.currentVersionLabel') }}
+                        </span>
+                        <span class="system-settings__meta-value">
+                          {{ posterServiceVersionDisplay }}
+                        </span>
+                      </div>
+                      <a-button type="primary" @click="handleRefreshPosterServiceVersion"
+                        :loading="posterServiceVersionRefreshing"
+                        :disabled="posterServiceVersionLoading">
+                        {{ t('settings.system.posterService.actions.pullLatest') }}
+                      </a-button>
+                      <a-button type="default" @click="loadPosterServiceVersion"
+                        :loading="posterServiceVersionLoading"
+                        :disabled="posterServiceVersionRefreshing">
+                        {{ t('settings.system.posterService.actions.reload') }}
                       </a-button>
                     </div>
-                    <div class="system-font-helper">{{ t('settings.system.easterEggResource.helper') }}</div>
-                  </a-form-item>
-                  <a-form-item :label="t('settings.system.easterEggResource.fields.version')">
-                    <a-input v-model:value="easterEggResourceForm.version"
-                      :placeholder="t('settings.system.easterEggResource.placeholders.version')" />
-                  </a-form-item>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="easterEggResourceSaving">
-                      {{ t('settings.system.easterEggResource.actions.upload') }}
-                    </a-button>
-                    <a-button type="default" @click="loadEasterEggResourceConfig"
-                      :disabled="easterEggResourceLoading || easterEggResourceSaving">
-                      {{ t('settings.system.easterEggResource.actions.reload') }}
-                    </a-button>
-                  </div>
-                </a-form>
-              </a-spin>
-            </section>
+                  </header>
+                </section>
+              </a-tab-pane>
 
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.provinceCityKmlZip.title') }}</h3>
-                  <p>{{ t('settings.system.provinceCityKmlZip.subtitle') }}</p>
-                </div>
-                <div class="system-settings__meta">
-                  <span class="system-settings__meta-label">
-                    {{ t('settings.system.provinceCityKmlZip.currentVersionLabel') }}
-                  </span>
-                  <span class="system-settings__meta-value">
-                    {{ provinceCityKmlZipConfig.version || t('settings.system.provinceCityKmlZip.emptyVersion') }}
-                  </span>
-                </div>
-              </header>
-              <a-spin :spinning="provinceCityKmlZipLoading">
-                <div class="system-font-current">
-                  <span class="system-font-current__label">
-                    {{ t('settings.system.provinceCityKmlZip.currentFileLabel') }}
-                  </span>
-                  <a v-if="provinceCityKmlZipConfig.fileName" :href="provinceCityKmlZipDownloadUrl" target="_blank"
-                    rel="noreferrer">
-                    {{ provinceCityKmlZipConfig.fileName }}
-                  </a>
-                  <span v-else class="empty-hint">{{ t('settings.system.provinceCityKmlZip.emptyFile') }}</span>
-                </div>
-                <a-form layout="vertical" :model="provinceCityKmlZipForm" @finish="submitProvinceCityKmlZipForm">
-                  <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.file')">
-                    <div class="system-font-upload">
-                      <label class="system-font-upload__trigger">
-                        <input class="system-font-upload__input" type="file" accept=".zip"
-                          :disabled="provinceCityKmlZipSaving" @change="handleProvinceCityKmlZipSelect" />
-                        <a-button type="dashed" :loading="provinceCityKmlZipSaving">
-                          {{
-                            provinceCityKmlZipForm.fileName
-                              ? t('settings.system.provinceCityKmlZip.actions.replaceFile')
-                              : t('settings.system.provinceCityKmlZip.actions.selectFile')
-                          }}
-                        </a-button>
-                      </label>
-                      <span v-if="provinceCityKmlZipForm.fileName" class="system-font-upload__name">
-                        {{ provinceCityKmlZipForm.fileName }}
+              <a-tab-pane key="easter-egg-resource" :tab="t('settings.system.tabs.easterEggResource')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.easterEggResource.title') }}</h3>
+                      <p>{{ t('settings.system.easterEggResource.subtitle') }}</p>
+                    </div>
+                    <div class="system-settings__meta">
+                      <span class="system-settings__meta-label">
+                        {{ t('settings.system.easterEggResource.currentVersionLabel') }}
                       </span>
-                      <a-button v-if="provinceCityKmlZipForm.fileName" type="link" danger size="small"
-                        @click="clearProvinceCityKmlZipSelection">
-                        {{ t('settings.system.provinceCityKmlZip.actions.removeFile') }}
+                      <span class="system-settings__meta-value">
+                        {{ easterEggResourceConfig.version || t('settings.system.easterEggResource.emptyVersion') }}
+                      </span>
+                    </div>
+                  </header>
+                  <a-spin :spinning="easterEggResourceLoading">
+                    <div class="system-font-current">
+                      <span class="system-font-current__label">
+                        {{ t('settings.system.easterEggResource.currentFileLabel') }}
+                      </span>
+                      <a v-if="easterEggResourceConfig.fileName" :href="easterEggResourceDownloadUrl" target="_blank"
+                        rel="noreferrer">
+                        {{ easterEggResourceConfig.fileName }}
+                      </a>
+                      <span v-else class="empty-hint">{{ t('settings.system.easterEggResource.emptyFile') }}</span>
+                    </div>
+                    <a-form layout="vertical" :model="easterEggResourceForm" @finish="submitEasterEggResourceForm">
+                      <a-form-item :label="t('settings.system.easterEggResource.fields.file')">
+                        <div class="system-font-upload">
+                          <label class="system-font-upload__trigger">
+                            <input class="system-font-upload__input" type="file" accept=".zip"
+                              :disabled="easterEggResourceSaving" @change="handleEasterEggResourceSelect" />
+                            <a-button type="dashed" :loading="easterEggResourceSaving">
+                              {{
+                                easterEggResourceForm.fileName
+                                  ? t('settings.system.easterEggResource.actions.replaceFile')
+                                  : t('settings.system.easterEggResource.actions.selectFile')
+                              }}
+                            </a-button>
+                          </label>
+                          <span v-if="easterEggResourceForm.fileName" class="system-font-upload__name">
+                            {{ easterEggResourceForm.fileName }}
+                          </span>
+                          <a-button v-if="easterEggResourceForm.fileName" type="link" danger size="small"
+                            @click="clearEasterEggResourceSelection">
+                            {{ t('settings.system.easterEggResource.actions.removeFile') }}
+                          </a-button>
+                        </div>
+                        <div class="system-font-helper">{{ t('settings.system.easterEggResource.helper') }}</div>
+                      </a-form-item>
+                      <a-form-item :label="t('settings.system.easterEggResource.fields.version')">
+                        <a-input v-model:value="easterEggResourceForm.version"
+                          :placeholder="t('settings.system.easterEggResource.placeholders.version')" />
+                      </a-form-item>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="easterEggResourceSaving">
+                          {{ t('settings.system.easterEggResource.actions.upload') }}
+                        </a-button>
+                        <a-button type="default" @click="loadEasterEggResourceConfig"
+                          :disabled="easterEggResourceLoading || easterEggResourceSaving">
+                          {{ t('settings.system.easterEggResource.actions.reload') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="skytype-avatar-pack" :tab="t('settings.system.tabs.skyTypeAvatarPack')">
+                <SkyTypePackSettings />
+              </a-tab-pane>
+
+              <a-tab-pane key="province-city-kml-zip" :tab="t('settings.system.tabs.provinceCityKmlZip')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.provinceCityKmlZip.title') }}</h3>
+                      <p>{{ t('settings.system.provinceCityKmlZip.subtitle') }}</p>
+                    </div>
+                    <div class="system-settings__meta">
+                      <span class="system-settings__meta-label">
+                        {{ t('settings.system.provinceCityKmlZip.currentVersionLabel') }}
+                      </span>
+                      <span class="system-settings__meta-value">
+                        {{ provinceCityKmlZipConfig.version || t('settings.system.provinceCityKmlZip.emptyVersion') }}
+                      </span>
+                    </div>
+                  </header>
+                  <a-spin :spinning="provinceCityKmlZipLoading">
+                    <div class="system-font-current">
+                      <span class="system-font-current__label">
+                        {{ t('settings.system.provinceCityKmlZip.currentFileLabel') }}
+                      </span>
+                      <a v-if="provinceCityKmlZipConfig.fileName" :href="provinceCityKmlZipDownloadUrl" target="_blank"
+                        rel="noreferrer">
+                        {{ provinceCityKmlZipConfig.fileName }}
+                      </a>
+                      <span v-else class="empty-hint">{{ t('settings.system.provinceCityKmlZip.emptyFile') }}</span>
+                    </div>
+                    <a-form layout="vertical" :model="provinceCityKmlZipForm" @finish="submitProvinceCityKmlZipForm">
+                      <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.file')">
+                        <div class="system-font-upload">
+                          <label class="system-font-upload__trigger">
+                            <input class="system-font-upload__input" type="file" accept=".zip"
+                              :disabled="provinceCityKmlZipSaving" @change="handleProvinceCityKmlZipSelect" />
+                            <a-button type="dashed" :loading="provinceCityKmlZipSaving">
+                              {{
+                                provinceCityKmlZipForm.fileName
+                                  ? t('settings.system.provinceCityKmlZip.actions.replaceFile')
+                                  : t('settings.system.provinceCityKmlZip.actions.selectFile')
+                              }}
+                            </a-button>
+                          </label>
+                          <span v-if="provinceCityKmlZipForm.fileName" class="system-font-upload__name">
+                            {{ provinceCityKmlZipForm.fileName }}
+                          </span>
+                          <a-button v-if="provinceCityKmlZipForm.fileName" type="link" danger size="small"
+                            @click="clearProvinceCityKmlZipSelection">
+                            {{ t('settings.system.provinceCityKmlZip.actions.removeFile') }}
+                          </a-button>
+                        </div>
+                        <div class="system-font-helper">{{ t('settings.system.provinceCityKmlZip.helper') }}</div>
+                      </a-form-item>
+                      <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.version')">
+                        <a-input v-model:value="provinceCityKmlZipForm.version"
+                          :placeholder="t('settings.system.provinceCityKmlZip.placeholders.version')" />
+                      </a-form-item>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="provinceCityKmlZipSaving">
+                          {{ t('settings.system.provinceCityKmlZip.actions.upload') }}
+                        </a-button>
+                        <a-button type="default" @click="loadProvinceCityKmlZipConfig"
+                          :disabled="provinceCityKmlZipLoading || provinceCityKmlZipSaving">
+                          {{ t('settings.system.provinceCityKmlZip.actions.reload') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="county-kml-zip" :tab="t('settings.system.tabs.countyKmlZip')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.countyKmlZip.title') }}</h3>
+                      <p>{{ t('settings.system.countyKmlZip.subtitle') }}</p>
+                    </div>
+                    <div class="system-settings__meta">
+                      <span class="system-settings__meta-label">
+                        {{ t('settings.system.countyKmlZip.currentVersionLabel') }}
+                      </span>
+                      <span class="system-settings__meta-value">
+                        {{ countyKmlZipConfig.version || t('settings.system.countyKmlZip.emptyVersion') }}
+                      </span>
+                    </div>
+                  </header>
+                  <a-spin :spinning="countyKmlZipLoading">
+                    <div class="system-font-current">
+                      <span class="system-font-current__label">
+                        {{ t('settings.system.countyKmlZip.currentFileLabel') }}
+                      </span>
+                      <a v-if="countyKmlZipConfig.fileName" :href="countyKmlZipDownloadUrl" target="_blank"
+                        rel="noreferrer">
+                        {{ countyKmlZipConfig.fileName }}
+                      </a>
+                      <span v-else class="empty-hint">{{ t('settings.system.countyKmlZip.emptyFile') }}</span>
+                    </div>
+                    <a-form layout="vertical" :model="countyKmlZipForm" @finish="submitCountyKmlZipForm">
+                      <a-form-item :label="t('settings.system.countyKmlZip.fields.file')">
+                        <div class="system-font-upload">
+                          <label class="system-font-upload__trigger">
+                            <input class="system-font-upload__input" type="file" accept=".zip"
+                              :disabled="countyKmlZipSaving" @change="handleCountyKmlZipSelect" />
+                            <a-button type="dashed" :loading="countyKmlZipSaving">
+                              {{
+                                countyKmlZipForm.fileName
+                                  ? t('settings.system.countyKmlZip.actions.replaceFile')
+                                  : t('settings.system.countyKmlZip.actions.selectFile')
+                              }}
+                            </a-button>
+                          </label>
+                          <span v-if="countyKmlZipForm.fileName" class="system-font-upload__name">
+                            {{ countyKmlZipForm.fileName }}
+                          </span>
+                          <a-button v-if="countyKmlZipForm.fileName" type="link" danger size="small"
+                            @click="clearCountyKmlZipSelection">
+                            {{ t('settings.system.countyKmlZip.actions.removeFile') }}
+                          </a-button>
+                        </div>
+                        <div class="system-font-helper">{{ t('settings.system.countyKmlZip.helper') }}</div>
+                      </a-form-item>
+                      <a-form-item :label="t('settings.system.countyKmlZip.fields.version')">
+                        <a-input v-model:value="countyKmlZipForm.version"
+                          :placeholder="t('settings.system.countyKmlZip.placeholders.version')" />
+                      </a-form-item>
+                      <div class="actions">
+                        <a-button type="primary" html-type="submit" :loading="countyKmlZipSaving">
+                          {{ t('settings.system.countyKmlZip.actions.upload') }}
+                        </a-button>
+                        <a-button type="default" @click="loadCountyKmlZipConfig"
+                          :disabled="countyKmlZipLoading || countyKmlZipSaving">
+                          {{ t('settings.system.countyKmlZip.actions.reload') }}
+                        </a-button>
+                      </div>
+                    </a-form>
+                  </a-spin>
+                </section>
+              </a-tab-pane>
+
+              <a-tab-pane key="member-aircraft-models" :tab="t('settings.system.tabs.memberAircraftModels')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.memberAircraftModels.title') }}</h3>
+                      <p>{{ t('settings.system.memberAircraftModels.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadMemberAircraftModelStats"
+                        :loading="memberAircraftModelStatsLoading">
+                        {{ t('settings.system.memberAircraftModels.actions.reload') }}
                       </a-button>
                     </div>
-                    <div class="system-font-helper">{{ t('settings.system.provinceCityKmlZip.helper') }}</div>
-                  </a-form-item>
-                  <a-form-item :label="t('settings.system.provinceCityKmlZip.fields.version')">
-                    <a-input v-model:value="provinceCityKmlZipForm.version"
-                      :placeholder="t('settings.system.provinceCityKmlZip.placeholders.version')" />
-                  </a-form-item>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="provinceCityKmlZipSaving">
-                      {{ t('settings.system.provinceCityKmlZip.actions.upload') }}
-                    </a-button>
-                    <a-button type="default" @click="loadProvinceCityKmlZipConfig"
-                      :disabled="provinceCityKmlZipLoading || provinceCityKmlZipSaving">
-                      {{ t('settings.system.provinceCityKmlZip.actions.reload') }}
-                    </a-button>
-                  </div>
-                </a-form>
-              </a-spin>
-            </section>
+                  </header>
+                  <a-spin :spinning="memberAircraftModelStatsLoading">
+                    <div v-if="memberAircraftModelHasData" class="member-aircraft-models">
+                      <div class="member-aircraft-models__chart-card">
+                        <div class="member-aircraft-models__chart" :style="memberAircraftModelChartStyle">
+                          <div class="member-aircraft-models__chart-center">
+                            <strong>{{ memberAircraftModelTotal }}</strong>
+                            <span>{{ t('settings.system.memberAircraftModels.totalLabel') }}</span>
+                          </div>
+                        </div>
+                        <p class="member-aircraft-models__chart-helper">
+                          {{ t('settings.system.memberAircraftModels.chartHelper') }}
+                        </p>
+                      </div>
+                      <div class="member-aircraft-models__legend">
+                        <div v-for="item in memberAircraftModelChartItems" :key="item.key"
+                          class="member-aircraft-models__legend-item">
+                          <span class="member-aircraft-models__legend-dot" :style="{ backgroundColor: item.color }"></span>
+                          <div class="member-aircraft-models__legend-body">
+                            <div class="member-aircraft-models__legend-main">
+                              <span class="member-aircraft-models__legend-name">{{ item.aircraftModel }}</span>
+                              <strong class="member-aircraft-models__legend-percent">{{ item.percentLabel }}</strong>
+                            </div>
+                            <span class="member-aircraft-models__legend-meta">
+                              {{ t('settings.system.memberAircraftModels.memberCount', { count: item.memberCount }) }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <a-empty v-else :description="t('settings.system.memberAircraftModels.empty')" />
+                  </a-spin>
+                </section>
+              </a-tab-pane>
 
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.countyKmlZip.title') }}</h3>
-                  <p>{{ t('settings.system.countyKmlZip.subtitle') }}</p>
-                </div>
-                <div class="system-settings__meta">
-                  <span class="system-settings__meta-label">
-                    {{ t('settings.system.countyKmlZip.currentVersionLabel') }}
-                  </span>
-                  <span class="system-settings__meta-value">
-                    {{ countyKmlZipConfig.version || t('settings.system.countyKmlZip.emptyVersion') }}
-                  </span>
-                </div>
-              </header>
-              <a-spin :spinning="countyKmlZipLoading">
-                <div class="system-font-current">
-                  <span class="system-font-current__label">
-                    {{ t('settings.system.countyKmlZip.currentFileLabel') }}
-                  </span>
-                  <a v-if="countyKmlZipConfig.fileName" :href="countyKmlZipDownloadUrl" target="_blank"
-                    rel="noreferrer">
-                    {{ countyKmlZipConfig.fileName }}
-                  </a>
-                  <span v-else class="empty-hint">{{ t('settings.system.countyKmlZip.emptyFile') }}</span>
-                </div>
-                <a-form layout="vertical" :model="countyKmlZipForm" @finish="submitCountyKmlZipForm">
-                  <a-form-item :label="t('settings.system.countyKmlZip.fields.file')">
-                    <div class="system-font-upload">
-                      <label class="system-font-upload__trigger">
-                        <input class="system-font-upload__input" type="file" accept=".zip"
-                          :disabled="countyKmlZipSaving" @change="handleCountyKmlZipSelect" />
-                        <a-button type="dashed" :loading="countyKmlZipSaving">
-                          {{
-                            countyKmlZipForm.fileName
-                              ? t('settings.system.countyKmlZip.actions.replaceFile')
-                              : t('settings.system.countyKmlZip.actions.selectFile')
-                          }}
-                        </a-button>
-                      </label>
-                      <span v-if="countyKmlZipForm.fileName" class="system-font-upload__name">
-                        {{ countyKmlZipForm.fileName }}
-                      </span>
-                      <a-button v-if="countyKmlZipForm.fileName" type="link" danger size="small"
-                        @click="clearCountyKmlZipSelection">
-                        {{ t('settings.system.countyKmlZip.actions.removeFile') }}
+              <a-tab-pane key="ladder-leaderboard" :tab="t('settings.system.tabs.ladderLeaderboard')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.ladderLeaderboard.title') }}</h3>
+                      <p>{{ t('settings.system.ladderLeaderboard.subtitle') }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadLadderLeaderboard" :loading="ladderLeaderboardLoading">
+                        {{ t('settings.system.ladderLeaderboard.actions.reload') }}
                       </a-button>
                     </div>
-                    <div class="system-font-helper">{{ t('settings.system.countyKmlZip.helper') }}</div>
-                  </a-form-item>
-                  <a-form-item :label="t('settings.system.countyKmlZip.fields.version')">
-                    <a-input v-model:value="countyKmlZipForm.version"
-                      :placeholder="t('settings.system.countyKmlZip.placeholders.version')" />
-                  </a-form-item>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="countyKmlZipSaving">
-                      {{ t('settings.system.countyKmlZip.actions.upload') }}
-                    </a-button>
-                    <a-button type="default" @click="loadCountyKmlZipConfig"
-                      :disabled="countyKmlZipLoading || countyKmlZipSaving">
-                      {{ t('settings.system.countyKmlZip.actions.reload') }}
-                    </a-button>
-                  </div>
-                </a-form>
-              </a-spin>
-            </section>
-
-            <section class="system-settings">
-              <header class="section-header">
-                <div>
-                  <h3>{{ t('settings.system.ladderLeaderboard.title') }}</h3>
-                  <p>{{ t('settings.system.ladderLeaderboard.subtitle') }}</p>
-                </div>
-                <div class="actions">
-                  <a-button type="default" @click="loadLadderLeaderboard" :loading="ladderLeaderboardLoading">
-                    {{ t('settings.system.ladderLeaderboard.actions.reload') }}
-                  </a-button>
-                </div>
-              </header>
-              <a-table
-                :columns="ladderLeaderboardColumns"
-                :data-source="ladderLeaderboard"
-                :loading="ladderLeaderboardLoading"
-                :pagination="ladderLeaderboardPaginationConfig"
-                row-key="featureCode"
-                size="small"
-                bordered
-                :scroll="{ x: 920 }"
-                @change="handleLadderLeaderboardTableChange"
-              >
-                <template #bodyCell="{ column, record }">
-                  <template v-if="column.key === 'avatar'">
-                    <a-avatar :src="record?.avatarUrl" :alt="record?.username" />
-                  </template>
-                  <template v-else-if="column.key === 'highestScore'">
-                    {{ Number(record?.highestScore ?? 0) }}
-                  </template>
-                  <template v-else-if="column.key === 'gameCount'">
-                    {{ record?.gameCount ?? '-' }}
-                  </template>
-                  <template v-else-if="column.key === 'latestGameTime'">
-                    {{ record?.latestGameTime ? new Date(record.latestGameTime).toLocaleString() : '-' }}
-                  </template>
-                </template>
-              </a-table>
-            </section>
+                  </header>
+                  <a-table
+                    :columns="ladderLeaderboardColumns"
+                    :data-source="ladderLeaderboard"
+                    :loading="ladderLeaderboardLoading"
+                    :pagination="ladderLeaderboardPaginationConfig"
+                    row-key="featureCode"
+                    size="small"
+                    bordered
+                    :scroll="{ x: 920 }"
+                    @change="handleLadderLeaderboardTableChange"
+                  >
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'avatar'">
+                        <a-avatar :src="record?.avatarUrl" :alt="record?.username" />
+                      </template>
+                      <template v-else-if="column.key === 'highestScore'">
+                        {{ Number(record?.highestScore ?? 0) }}
+                      </template>
+                      <template v-else-if="column.key === 'gameCount'">
+                        {{ record?.gameCount ?? '-' }}
+                      </template>
+                      <template v-else-if="column.key === 'latestGameTime'">
+                        {{ record?.latestGameTime ? new Date(record.latestGameTime).toLocaleString() : '-' }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-tab-pane>
+            </a-tabs>
           </div>
         </a-tab-pane>
       </a-tabs>
@@ -6377,6 +6629,143 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.system-settings-tabs :deep(.ant-tabs-nav) {
+  margin-bottom: 20px;
+}
+
+.member-aircraft-models {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.member-aircraft-models__chart-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.member-aircraft-models__chart {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.member-aircraft-models__chart::after {
+  content: '';
+  position: absolute;
+  inset: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
+.member-aircraft-models__chart-center {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.member-aircraft-models__chart-center strong {
+  font-size: 2.2rem;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.member-aircraft-models__chart-center span {
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.member-aircraft-models__chart-helper {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.member-aircraft-models__legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.member-aircraft-models__legend-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.member-aircraft-models__legend-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
+}
+
+.member-aircraft-models__legend-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.member-aircraft-models__legend-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.member-aircraft-models__legend-name {
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.member-aircraft-models__legend-percent {
+  color: #2563eb;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.member-aircraft-models__legend-meta {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.system-toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.system-toggle-field__label {
+  color: #111827;
+  font-weight: 600;
 }
 
 .guide-upload {
@@ -6962,6 +7351,15 @@ onBeforeUnmount(() => {
   .report-entry-mini-program,
   .report-entry-guide-video {
     grid-template-columns: 1fr;
+  }
+
+  .member-aircraft-models {
+    grid-template-columns: 1fr;
+  }
+
+  .member-aircraft-models__chart {
+    width: min(220px, 72vw);
+    height: min(220px, 72vw);
   }
 
   .report-entry-dialog {

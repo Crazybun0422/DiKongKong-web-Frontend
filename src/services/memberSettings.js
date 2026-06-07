@@ -15,7 +15,9 @@ const toPageResult = (payload = {}, defaults = {}) => ({
 const uploadPack = async (endpoint, file, version) => {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('version', version)
+  if (String(version ?? '').trim()) {
+    formData.append('version', String(version).trim())
+  }
 
   const response = await http.post(endpoint, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -104,7 +106,7 @@ export const fetchVoicePackVersion = async () => fetchPackVersion('/voice-packs/
 
 export const fetchBackgroundImagePackVersion = async () => fetchPackVersion('/background-image-packs/version')
 
-export const uploadAvatarPack = async (file, version) => uploadPack('/avatar-packs/upload', file, version)
+export const uploadAvatarPack = async (file) => uploadPack('/avatar-packs/upload', file)
 
 export const uploadVoicePack = async (file, version) => uploadPack('/voice-packs/upload', file, version)
 

@@ -127,6 +127,7 @@ const packConfigs = computed(() => [
     title: t('memberSettings.upload.background.title'),
     subtitle: t('memberSettings.upload.background.subtitle'),
     helper: t('memberSettings.upload.background.helper'),
+    requiresVersion: true,
     accept: '.zip,.rar,.7z',
     fetchVersion: fetchBackgroundImagePackVersion,
     upload: uploadBackgroundImagePack,
@@ -137,6 +138,7 @@ const packConfigs = computed(() => [
     title: t('memberSettings.upload.avatar.title'),
     subtitle: t('memberSettings.upload.avatar.subtitle'),
     helper: t('memberSettings.upload.avatar.helper'),
+    requiresVersion: false,
     accept: '.zip,.rar,.7z',
     fetchVersion: fetchAvatarPackVersion,
     upload: uploadAvatarPack,
@@ -147,6 +149,7 @@ const packConfigs = computed(() => [
     title: t('memberSettings.upload.voice.title'),
     subtitle: t('memberSettings.upload.voice.subtitle'),
     helper: t('memberSettings.upload.voice.helper'),
+    requiresVersion: true,
     accept: '.zip,.rar,.7z',
     fetchVersion: fetchVoicePackVersion,
     upload: uploadVoicePack,
@@ -545,7 +548,7 @@ const loadPackVersion = async (type) => {
     const data = await config.fetchVersion()
     uploadState[type].currentFileName = data?.fileName || ''
     uploadState[type].currentVersion = data?.version || ''
-    if (!uploadState[type].version) {
+    if (config.requiresVersion && !uploadState[type].version) {
       uploadState[type].version = bumpPatchVersion(data?.version)
     }
   } catch (error) {
@@ -555,7 +558,7 @@ const loadPackVersion = async (type) => {
     }
     uploadState[type].currentFileName = ''
     uploadState[type].currentVersion = ''
-    if (!uploadState[type].version) {
+    if (config.requiresVersion && !uploadState[type].version) {
       uploadState[type].version = '1.0.0'
     }
   } finally {
@@ -589,19 +592,23 @@ const submitPackUpload = async (type) => {
     message.warning(t(`memberSettings.upload.${type}.messages.noFile`))
     return
   }
-  if (!String(uploadState[type].version || '').trim()) {
+  if (config.requiresVersion && !String(uploadState[type].version || '').trim()) {
     message.warning(t('memberSettings.upload.messages.noVersion'))
     return
   }
 
   uploadState[type].uploading = true
   try {
-    const data = await config.upload(file, uploadState[type].version.trim())
+    const version = config.requiresVersion ? uploadState[type].version.trim() : undefined
+    const data = await config.upload(file, version)
     uploadState[type].result = normalizeUploadResult(data, config.buildDownloadUrl)
     uploadState[type].currentFileName = uploadState[type].result.objectName
-    uploadState[type].currentVersion = uploadState[type].version.trim()
-    uploadState[type].version = bumpPatchVersion(uploadState[type].currentVersion)
+    if (config.requiresVersion) {
+      uploadState[type].currentVersion = uploadState[type].version.trim()
+      uploadState[type].version = bumpPatchVersion(uploadState[type].currentVersion)
+    }
     uploadState[type].file = null
+    await loadPackVersion(type)
     message.success(t(`memberSettings.upload.${type}.messages.uploadSuccess`))
   } catch (error) {
     console.warn(`Failed to upload ${type} pack`, error)
@@ -858,7 +865,7 @@ onMounted(() => {
             {{ t('memberSettings.upload.actions.remove') }}
           </a-button>
         </div>
-        <a-form layout="vertical" class="pack-version-form">
+        <a-form v-if="config.requiresVersion" layout="vertical" class="pack-version-form">
           <a-form-item :label="t('memberSettings.upload.versionLabel')" required>
             <a-input
               v-model:value="uploadState[config.key].version"

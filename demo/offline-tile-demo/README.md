@@ -18,11 +18,21 @@ npx serve .
 http://localhost:3000/demo/offline-tile-demo/index.html
 ```
 
+如果要使用本地 `UOM` 四色图层，请改用项目的 `Vite` 开发服务，因为本地图层通过开发服务器把固定磁盘目录映射到 `/api/local-uom-layer/...`：
+```bash
+npm run dev
+```
+访问：
+```text
+http://127.0.0.1:5173/demo/offline-tile-demo/index.html
+```
+
 ## 图层显示
 - 支持加载 `zip` 或直接选择本地瓦片目录
 - 兼容 `uom_demo` 生成的裸目录瓦片结构：`{z}/{x}/{y}.png`，以及对应的 `*_tiles_manifest.json`
 - 加载后，Demo 会把离线瓦片挂到腾讯地图 `overlayMapTypes`，显示为真实瓦片图层
 - 不再绘制导出多边形遮罩
+- 新增 `UOM 本地图层` 开关：直接根据当前地图视口计算所需瓦片，并将 `WGS84` 瓦片按 `GCJ-02` 边界对齐显示，避免图层偏移
 
 ## 识别规则
 - 未加载离线包：显示 `未加载`

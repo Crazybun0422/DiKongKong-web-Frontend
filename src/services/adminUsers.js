@@ -66,6 +66,11 @@ export const fetchAdminUserNewbieTasks = async ({ page = 1, size = 10, sortOrder
   return toPageResult(data, { page, size })
 }
 
+export const fetchMemberAircraftModelStats = async () => {
+  const response = await http.get('/admin/users/member/aircraft-model-stats')
+  return response?.data?.data ?? { totalMembers: 0, items: [] }
+}
+
 export const refreshAdminUsersDefaultAvatar = async () => {
   const response = await http.post('/admin/users/avatar/default/refresh')
   return response?.data?.data ?? response?.data ?? {}
@@ -75,5 +80,6 @@ export default {
   fetchAdminUsers,
   fetchAdminUserCheckins,
   fetchAdminUserNewbieTasks,
+  fetchMemberAircraftModelStats,
   refreshAdminUsersDefaultAvatar,
 }

@@ -48,6 +48,36 @@
     return { lng: longitude + dLng, lat: latitude + dLat }
   }
 
+  function gcj02ToWgs84(lng, lat) {
+    var longitude = Number(lng)
+    var latitude = Number(lat)
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+      throw new Error('Invalid coordinates')
+    }
+    if (outOfChina(latitude, longitude)) {
+      return { lng: longitude, lat: latitude }
+    }
+
+    var dLat = transformLat(longitude - 105.0, latitude - 35.0)
+    var dLng = transformLng(longitude - 105.0, latitude - 35.0)
+    var radLat = latitude / 180.0 * PI
+    var magic = Math.sin(radLat)
+    magic = 1 - EE * magic * magic
+    var sqrtMagic = Math.sqrt(magic)
+    dLat = (dLat * 180.0) / (((A * (1 - EE)) / (magic * sqrtMagic)) * PI)
+    dLng = (dLng * 180.0) / ((A / sqrtMagic) * Math.cos(radLat) * PI)
+    var mgLat = latitude + dLat
+    var mgLng = longitude + dLng
+    return { lng: longitude * 2 - mgLng, lat: latitude * 2 - mgLat }
+  }
+
+  function normalizeCoordTypeName(value, fallback) {
+    var text = String(value || '').trim().toUpperCase().replace(/[\s_-]+/g, '')
+    if (text === 'GCJ02') return 'GCJ02'
+    if (text === 'WGS84' || text === 'EPSG4326' || text === 'EPSG4490') return 'WGS84'
+    return fallback
+  }
+
   function normalizeCoordToGcj02(input) {
     var useType = String((input && input.coordType) || '').toUpperCase()
     var lng = Number(input && input.lng)
@@ -98,6 +128,17 @@
     return { r: data[idx], g: data[idx + 1], b: data[idx + 2], a: data[idx + 3] }
   }
 
+  function lonLatToWorldPixel(lng, lat, zoom, tileSize) {
+    var size = Number(tileSize) || 256
+    var clampedLat = Math.max(-85.05112878, Math.min(85.05112878, Number(lat)))
+    var sinLat = Math.sin((clampedLat * Math.PI) / 180)
+    var scale = Math.pow(2, Number(zoom)) * size
+    return {
+      x: ((Number(lng) + 180) / 360) * scale,
+      y: (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale,
+    }
+  }
+
   async function decodeBlobToImageData(blob) {
     var bitmap = await createImageBitmap(blob)
     var canvas = document.createElement('canvas')
@@ -107,6 +148,14 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     return ctx.getImageData(0, 0, canvas.width, canvas.height)
+  }
+
+  function canvasToBlob(canvas, type) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        resolve(blob || null)
+      }, type || 'image/png')
+    })
   }
 
   function normalizePath(path) {
@@ -203,9 +252,18 @@
       tileSummary.downloaded = tilePaths.length
     }
 
+    var coordType = normalizeCoordTypeName(
+      metadata.coordType
+      || metadata.coord_type
+      || metadata.tileCoordType
+      || metadata.tile_coord_type,
+      /_tiles_manifest\.json$/i.test(String(manifestPath || '')) ? 'WGS84' : 'GCJ02'
+    )
+
     return {
       rootDir: rootDir,
       bounds: metadata.bounds || null,
+      coordType: coordType,
       zoom: Number.isFinite(Number(metadata.zoom)) ? Number(metadata.zoom) : undefined,
       zoomRange: metadata.zoomRange || {
         start: Number.isFinite(Number(metadata.min_zoom)) ? Number(metadata.min_zoom) : undefined,
@@ -638,6 +696,7 @@
     this.tileNameIndex = new Map()
     this.tileObjectUrlIndex = new Map()
     this.zoomPrepared = new Set()
+    this.zoomPreparedDisplayCoordTypes = new Map()
     this._buildTileNameIndex()
   }
 
@@ -771,8 +830,112 @@
     return this.tileNameIndex.get(z).size
   }
 
+  OfflineTilePackage.prototype.getCoordType = function () {
+    return normalizeCoordTypeName(this.metadata && this.metadata.coordType, 'GCJ02')
+  }
+
   OfflineTilePackage.prototype.isZoomPrepared = function (zoom) {
     return this.zoomPrepared.has(Number(zoom))
+  }
+
+  OfflineTilePackage.prototype._buildDisplayEntriesForZoom = function (zoom, displayCoordType) {
+    var z = Number(zoom)
+    var targetCoordType = normalizeCoordTypeName(displayCoordType, this.getCoordType())
+    var packCoordType = this.getCoordType()
+    var entries = this.getTileEntriesForZoom(z)
+    if (packCoordType === targetCoordType) {
+      return entries.map(function (entry) {
+        return { key: entry.key, x: entry.x, y: entry.y }
+      })
+    }
+
+    var entryMap = new Map()
+    for (var i = 0; i < entries.length; i += 1) {
+      var entry = entries[i]
+      var bounds = tileXYToLonLatBounds(entry.x, entry.y, z)
+      var corners = [
+        wgs84ToGcj02(bounds.lngLeft, bounds.latTop),
+        wgs84ToGcj02(bounds.lngRight, bounds.latTop),
+        wgs84ToGcj02(bounds.lngRight, bounds.latBottom),
+        wgs84ToGcj02(bounds.lngLeft, bounds.latBottom),
+      ]
+      var minLng = Infinity
+      var maxLng = -Infinity
+      var minLat = Infinity
+      var maxLat = -Infinity
+      for (var j = 0; j < corners.length; j += 1) {
+        if (corners[j].lng < minLng) minLng = corners[j].lng
+        if (corners[j].lng > maxLng) maxLng = corners[j].lng
+        if (corners[j].lat < minLat) minLat = corners[j].lat
+        if (corners[j].lat > maxLat) maxLat = corners[j].lat
+      }
+      var nw = lonLatToTileXY(minLng, maxLat, z)
+      var se = lonLatToTileXY(maxLng, minLat, z)
+      for (var ty = Math.min(nw.y, se.y); ty <= Math.max(nw.y, se.y); ty += 1) {
+        for (var tx = Math.min(nw.x, se.x); tx <= Math.max(nw.x, se.x); tx += 1) {
+          var key = String(tx) + '/' + String(ty)
+          if (!entryMap.has(key)) {
+            entryMap.set(key, { key: key, x: tx, y: ty })
+          }
+        }
+      }
+    }
+    return Array.from(entryMap.values())
+  }
+
+  OfflineTilePackage.prototype._renderWgsTileAsGcjBlob = async function (zoom, x, y) {
+    var z = Number(zoom)
+    var tileX = Number(x)
+    var tileY = Number(y)
+    var tileSize = 256
+    var gcjBounds = tileXYToLonLatBounds(tileX, tileY, z)
+    var gcjCenter = {
+      lng: (gcjBounds.lngLeft + gcjBounds.lngRight) / 2,
+      lat: (gcjBounds.latTop + gcjBounds.latBottom) / 2,
+    }
+    var wgsCenter = gcj02ToWgs84(gcjCenter.lng, gcjCenter.lat)
+    var gcjWorld = lonLatToWorldPixel(gcjCenter.lng, gcjCenter.lat, z, tileSize)
+    var wgsWorld = lonLatToWorldPixel(wgsCenter.lng, wgsCenter.lat, z, tileSize)
+    var offsetX = wgsWorld.x - gcjWorld.x
+    var offsetY = wgsWorld.y - gcjWorld.y
+    var sourceWorldLeft = tileX * tileSize + offsetX
+    var sourceWorldTop = tileY * tileSize + offsetY
+    var sourceWorldRight = sourceWorldLeft + tileSize
+    var sourceWorldBottom = sourceWorldTop + tileSize
+    var sourceTileXMin = Math.floor(sourceWorldLeft / tileSize)
+    var sourceTileXMax = Math.floor((sourceWorldRight - 1e-6) / tileSize)
+    var sourceTileYMin = Math.floor(sourceWorldTop / tileSize)
+    var sourceTileYMax = Math.floor((sourceWorldBottom - 1e-6) / tileSize)
+
+    var canvas = document.createElement('canvas')
+    canvas.width = tileSize
+    canvas.height = tileSize
+    var ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    var tileCanvas = document.createElement('canvas')
+    var tileCtx = tileCanvas.getContext('2d')
+    var drew = false
+
+    for (var sy = sourceTileYMin; sy <= sourceTileYMax; sy += 1) {
+      for (var sx = sourceTileXMin; sx <= sourceTileXMax; sx += 1) {
+        var imageData = await this.getTileImageData(z, sx, sy)
+        if (!imageData || !imageData.data) {
+          continue
+        }
+        var width = Number(imageData.width) || tileSize
+        var height = Number(imageData.height) || tileSize
+        tileCanvas.width = width
+        tileCanvas.height = height
+        tileCtx.clearRect(0, 0, width, height)
+        tileCtx.putImageData(imageData, 0, 0)
+        ctx.drawImage(tileCanvas, sx * tileSize - sourceWorldLeft, sy * tileSize - sourceWorldTop, width, height)
+        drew = true
+      }
+    }
+
+    if (!drew) return null
+    return await canvasToBlob(canvas, 'image/png')
   }
 
   OfflineTilePackage.prototype.prepareZoomTileUrls = async function (zoom, options) {
@@ -780,34 +943,34 @@
     var opts = options || {}
     var onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null
     var force = Boolean(opts.force)
+    var displayCoordType = normalizeCoordTypeName(opts.displayCoordType, this.getCoordType())
+    var packCoordType = this.getCoordType()
 
     if (!this.tileNameIndex.has(z)) {
       return { zoom: z, total: 0, prepared: 0, loadedNow: 0 }
     }
 
-    if (this.zoomPrepared.has(z) && !force) {
+    if (this.zoomPrepared.has(z) && !force && this.zoomPreparedDisplayCoordTypes.get(z) === displayCoordType) {
       return {
         zoom: z,
-        total: this.getZoomTileCount(z),
-        prepared: this.getZoomTileCount(z),
+        total: this.tileObjectUrlIndex.has(z) ? this.tileObjectUrlIndex.get(z).size : this.getZoomTileCount(z),
+        prepared: this.tileObjectUrlIndex.has(z) ? this.tileObjectUrlIndex.get(z).size : this.getZoomTileCount(z),
         loadedNow: 0,
       }
     }
 
-    if (force) {
+    if (force || this.zoomPreparedDisplayCoordTypes.get(z) !== displayCoordType) {
       this.releaseZoomTileUrls(z)
     }
 
-    var nameMap = this.tileNameIndex.get(z)
     var urlMap = ensureZoomMap(this.tileObjectUrlIndex, z)
-    var entries = Array.from(nameMap.entries())
+    var entries = this._buildDisplayEntriesForZoom(z, displayCoordType)
     var total = entries.length
     var done = 0
     var loadedNow = 0
 
     for (var i = 0; i < entries.length; i += 1) {
-      var key = entries[i][0]
-      var path = entries[i][1]
+      var key = entries[i].key
 
       if (urlMap.has(key)) {
         done += 1
@@ -815,7 +978,13 @@
         continue
       }
 
-      var blob = await this._getBlobByPath(path)
+      var blob = null
+      if (packCoordType === displayCoordType) {
+        var path = this.resolveTilePath(z, entries[i].x, entries[i].y)
+        blob = path ? await this._getBlobByPath(path) : null
+      } else if (packCoordType === 'WGS84' && displayCoordType === 'GCJ02') {
+        blob = await this._renderWgsTileAsGcjBlob(z, entries[i].x, entries[i].y)
+      }
       if (!blob) {
         done += 1
         if (onProgress) onProgress({ zoom: z, done: done, total: total })
@@ -833,6 +1002,7 @@
     }
 
     this.zoomPrepared.add(z)
+    this.zoomPreparedDisplayCoordTypes.set(z, displayCoordType)
     return { zoom: z, total: total, prepared: urlMap.size, loadedNow: loadedNow }
   }
 
@@ -847,6 +1017,7 @@
     var z = Number(zoom)
     if (!this.tileObjectUrlIndex.has(z)) {
       this.zoomPrepared.delete(z)
+      this.zoomPreparedDisplayCoordTypes.delete(z)
       return
     }
 
@@ -860,6 +1031,7 @@
     })
     this.tileObjectUrlIndex.delete(z)
     this.zoomPrepared.delete(z)
+    this.zoomPreparedDisplayCoordTypes.delete(z)
   }
 
   OfflineTilePackage.prototype.dispose = function () {
@@ -1439,6 +1611,7 @@
   global.OfflineTileApi = {
     TENCENT_MAP_KEY: TENCENT_MAP_KEY,
     wgs84ToGcj02: wgs84ToGcj02,
+    gcj02ToWgs84: gcj02ToWgs84,
     normalizeCoordToGcj02: normalizeCoordToGcj02,
     lonLatToTileXY: lonLatToTileXY,
     tileXYToLonLatBounds: tileXYToLonLatBounds,
