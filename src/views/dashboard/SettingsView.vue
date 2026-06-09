@@ -36,6 +36,8 @@ import {
   savePlanetCreationAdvancedGuideCopy,
   fetchShareToPlatformCopy,
   saveShareToPlatformCopy,
+  fetchLowAltitudeCircleGuideCopy,
+  saveLowAltitudeCircleGuideCopy,
   fetchFlpRewardHelpCopy,
   saveFlpRewardHelpCopy,
   fetchInviteGuideCopy,
@@ -395,6 +397,7 @@ const copyTypeGroups = computed(() => [
       { value: 'planetMerchantAdvancedGuide', label: t('settings.copySettings.options.planetMerchantAdvancedGuide') },
       { value: 'planetCreationAdvancedGuide', label: t('settings.copySettings.options.planetCreationAdvancedGuide') },
       { value: 'shareToPlatform', label: t('settings.copySettings.options.shareToPlatform') },
+      { value: 'lowAltitudeCircleGuide', label: t('settings.copySettings.options.lowAltitudeCircleGuide') },
       { value: 'flpRewardHelp', label: t('settings.copySettings.options.flpRewardHelp') },
       { value: 'inviteGuide', label: t('settings.copySettings.options.inviteGuide') },
       { value: 'coordinateLongPressGuide', label: t('settings.copySettings.options.coordinateLongPressGuide') },
@@ -454,6 +457,10 @@ const copyHandlers = {
   shareToPlatform: {
     fetch: fetchShareToPlatformCopy,
     save: saveShareToPlatformCopy,
+  },
+  lowAltitudeCircleGuide: {
+    fetch: fetchLowAltitudeCircleGuideCopy,
+    save: saveLowAltitudeCircleGuideCopy,
   },
   flpRewardHelp: {
     fetch: fetchFlpRewardHelpCopy,

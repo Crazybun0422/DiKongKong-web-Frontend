@@ -248,6 +248,7 @@
     "mainTabs": {
       "markers": "Merchant Markers",
       "pinAudit": "Pin Reviews",
+      "lowAltitudeCircles": "Low Altitude Circles",
       "noFlyZones": "Temporary No-Fly Zones"
     },
     "tabs": {
@@ -317,6 +318,95 @@
     },
     "actions": {
       "mapPreview": "Map preview"
+    },
+    "circle": {
+      "subtitle": "Review and manage low altitude circle submissions.",
+      "tabs": {
+        "all": "All",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "columns": {
+        "name": "Circle name",
+        "summary": "Summary",
+        "category": "Category",
+        "memberCount": "Members",
+        "status": "Review status",
+        "actions": "Actions"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "banned": "Banned",
+        "unknown": "Unknown"
+      },
+      "category": {
+        "regional_pilots": "Regional pilot groups",
+        "industry_exchange": "Industry exchange groups",
+        "association_org": "Associations"
+      },
+      "joinMethod": {
+        "group_qr": "Group QR code",
+        "owner_qr": "Owner QR code",
+        "owner_wechat": "Owner WeChat",
+        "unknown": "Not provided"
+      },
+      "actions": {
+        "detail": "Details",
+        "approve": "Approve",
+        "reject": "Reject"
+      },
+      "messages": {
+        "loadFailed": "Failed to load low altitude circles.",
+        "reviewSuccess": "Circle review submitted.",
+        "reviewFailed": "Failed to submit circle review.",
+        "rejectReasonRequired": "Please enter a reject reason."
+      },
+      "confirm": {
+        "approve": {
+          "title": "Approve review",
+          "content": "Approve \"{name}\"?",
+          "ok": "Approve"
+        },
+        "reject": {
+          "title": "Reject review",
+          "content": "Reject \"{name}\"?",
+          "ok": "Reject"
+        },
+        "rejectReason": {
+          "title": "Reject reason",
+          "placeholder": "Enter the reject reason for \"{name}\""
+        }
+      },
+      "modal": {
+        "title": "Circle details",
+        "sections": {
+          "basic": "Basic info",
+          "description": "Description",
+          "images": "Images",
+          "join": "Join method"
+        },
+        "fields": {
+          "name": "Name",
+          "category": "Category",
+          "status": "Status",
+          "memberCount": "Members",
+          "regionLabel": "Region label",
+          "summary": "Summary",
+          "entryRequirement": "Requirement",
+          "joinMethod": "Join method",
+          "ownerFeatureCode": "Applicant feature code",
+          "sortOrder": "Sort order",
+          "createdAt": "Created at",
+          "updatedAt": "Updated at",
+          "reviewedAt": "Reviewed at",
+          "rejectReason": "Reject reason",
+          "rejectReasonEmpty": "No reject reason",
+          "wechatNo": "WeChat"
+        }
+      }
     },
     "confirm": {
       "approve": {
@@ -1775,6 +1865,7 @@
         "planetMerchantAdvancedGuide": "Planet merchant advanced guide",
         "planetCreationAdvancedGuide": "Planet creation advanced guide",
         "shareToPlatform": "Share to platform",
+        "lowAltitudeCircleGuide": "Low altitude circle guide",
         "flpRewardHelp": "FLP mechanism",
         "inviteGuide": "Invite guide",
         "coordinateLongPressGuide": "Center long-press guide",

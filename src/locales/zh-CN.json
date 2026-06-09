@@ -248,6 +248,7 @@
     "mainTabs": {
       "markers": "商户标点",
       "pinAudit": "用户发布",
+      "lowAltitudeCircles": "低空有圈",
       "noFlyZones": "临时禁飞区"
     },
     "tabs": {
@@ -317,6 +318,95 @@
     },
     "actions": {
       "mapPreview": "地图预览"
+    },
+    "circle": {
+      "subtitle": "管理低空有圈的收录申请与审核状态。",
+      "tabs": {
+        "all": "全部",
+        "pending": "待审核",
+        "approved": "已通过",
+        "rejected": "已驳回"
+      },
+      "columns": {
+        "name": "社群名称",
+        "summary": "社群简介",
+        "category": "社群类型",
+        "memberCount": "成员数",
+        "status": "审核状态",
+        "actions": "操作"
+      },
+      "status": {
+        "pending": "待审核",
+        "approved": "已通过",
+        "rejected": "已驳回",
+        "banned": "已封禁",
+        "unknown": "未知"
+      },
+      "category": {
+        "regional_pilots": "地区飞友群",
+        "industry_exchange": "行业交流群",
+        "association_org": "协会组织"
+      },
+      "joinMethod": {
+        "group_qr": "群二维码",
+        "owner_qr": "群主二维码",
+        "owner_wechat": "群主微信号",
+        "unknown": "未提供"
+      },
+      "actions": {
+        "detail": "查看详情",
+        "approve": "通过",
+        "reject": "驳回"
+      },
+      "messages": {
+        "loadFailed": "低空有圈数据加载失败，请稍后重试。",
+        "reviewSuccess": "圈审核结果已提交。",
+        "reviewFailed": "圈审核提交失败，请稍后重试。",
+        "rejectReasonRequired": "请填写驳回理由。"
+      },
+      "confirm": {
+        "approve": {
+          "title": "确认通过审核",
+          "content": "确定通过“{name}”的审核吗？",
+          "ok": "确认通过"
+        },
+        "reject": {
+          "title": "确认驳回",
+          "content": "确定驳回“{name}”吗？",
+          "ok": "确认驳回"
+        },
+        "rejectReason": {
+          "title": "填写驳回理由",
+          "placeholder": "请填写“{name}”的驳回理由"
+        }
+      },
+      "modal": {
+        "title": "圈详情",
+        "sections": {
+          "basic": "基础信息",
+          "description": "详细说明",
+          "images": "展示图片",
+          "join": "入群方式"
+        },
+        "fields": {
+          "name": "社群名称",
+          "category": "社群类型",
+          "status": "审核状态",
+          "memberCount": "成员数",
+          "regionLabel": "地区标签",
+          "summary": "社群简介",
+          "entryRequirement": "入群要求",
+          "joinMethod": "入群方式",
+          "ownerFeatureCode": "申请人低空号",
+          "sortOrder": "排序值",
+          "createdAt": "创建时间",
+          "updatedAt": "更新时间",
+          "reviewedAt": "审核时间",
+          "rejectReason": "驳回理由",
+          "rejectReasonEmpty": "未填写驳回理由",
+          "wechatNo": "微信号"
+        }
+      }
     },
     "confirm": {
       "approve": {
@@ -1805,6 +1895,7 @@
         "planetMerchantAdvancedGuide": "星球商户进阶攻略",
         "planetCreationAdvancedGuide": "星球创作进阶攻略",
         "shareToPlatform": "共享到平台",
+        "lowAltitudeCircleGuide": "低空有圈说明",
         "flpRewardHelp": "FLP机制",
         "inviteGuide": "邀请攻略",
         "coordinateLongPressGuide": "中心点长按说明",

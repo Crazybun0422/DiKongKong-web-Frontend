@@ -7,6 +7,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { EnvironmentOutlined } from '@ant-design/icons-vue'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS, MARKER_SORT_BY } from '../../services/markers'
 import {
+  fetchAdminLowAltitudeCircles,
+  reviewLowAltitudeCircle,
+  LOW_ALTITUDE_CIRCLE_REVIEW_STATUS,
+} from '../../services/lowAltitudeCircles'
+import {
   fetchPins,
   reviewPin,
   updatePinStatus,
@@ -30,6 +35,7 @@ import pointAerialIcon from '../../assets/img/aerial.png'
 import pointDockIcon from '../../assets/img/dock.png'
 import pointElevationIcon from '../../assets/img/elevation.png'
 import TemporaryNoFlyZoneManager from '../../components/noFlyZones/TemporaryNoFlyZoneManager.vue'
+import { buildDownloadUrl, extractObjectName } from '../../services/files'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -51,6 +57,16 @@ const pagination = reactive({
 
 const detailVisible = ref(false)
 const detailRecord = ref(null)
+const circleAuditLoading = ref(false)
+const circleAuditData = ref([])
+const activeCircleStatus = ref(LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.ALL)
+const circlePagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
+const circleDetailVisible = ref(false)
+const circleDetailRecord = ref(null)
 const orderDetailVisible = ref(false)
 const orderDetailLoading = ref(false)
 const orderRepairing = ref(false)
@@ -130,6 +146,7 @@ const updateRouteStatus = (status) => {
 const mainTabs = computed(() => [
   { key: 'markers', label: t('airspace.mainTabs.markers') },
   { key: 'pinAudit', label: t('airspace.mainTabs.pinAudit') },
+  { key: 'lowAltitudeCircles', label: t('airspace.mainTabs.lowAltitudeCircles') },
   { key: 'noFlyZones', label: t('airspace.mainTabs.noFlyZones') },
 ])
 
@@ -157,6 +174,13 @@ const statusTabs = computed(() => [
   { key: MARKER_TAB_STATUS.APPROVED, label: t('airspace.tabs.approved') },
   { key: MARKER_TAB_STATUS.ORDINARY, label: t('airspace.tabs.ordinary') },
   { key: MARKER_TAB_STATUS.REJECTED, label: t('airspace.tabs.rejected') },
+])
+
+const circleStatusTabs = computed(() => [
+  { key: LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.ALL, label: t('airspace.circle.tabs.all') },
+  { key: LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.PENDING, label: t('airspace.circle.tabs.pending') },
+  { key: LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED, label: t('airspace.circle.tabs.approved') },
+  { key: LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED, label: t('airspace.circle.tabs.rejected') },
 ])
 
 const statusColors = {
@@ -409,6 +433,21 @@ const formatDateTime = (value) => {
 const statusText = (status) => {
   if (!status) return t('airspace.status.unknown')
   return t(`airspace.status.${status.toLowerCase()}`)
+}
+
+const circleStatusText = (status) => {
+  if (!status) return t('airspace.circle.status.unknown')
+  return t(`airspace.circle.status.${String(status).toLowerCase()}`, status)
+}
+
+const circleCategoryText = (category) => {
+  if (!category) return '-'
+  return t(`airspace.circle.category.${String(category).toLowerCase()}`, category)
+}
+
+const circleJoinMethodText = (joinMethod) => {
+  if (!joinMethod) return t('airspace.circle.joinMethod.unknown')
+  return t(`airspace.circle.joinMethod.${String(joinMethod).toLowerCase()}`, joinMethod)
 }
 
 const pinVisibilityText = (visibility) => {
@@ -906,6 +945,42 @@ const markerTypeKey = (marker) => {
 
 const markerTypeText = (marker) => t(`airspace.markerType.${markerTypeKey(marker)}`)
 
+const circleStatusColors = {
+  PENDING: 'gold',
+  APPROVED: 'green',
+  REJECTED: 'red',
+  BANNED: 'volcano',
+}
+
+const getCircleStatusDisplay = (record) => {
+  const status = record?.status
+  return {
+    text: circleStatusText(status),
+    color: circleStatusColors[status] || 'default',
+  }
+}
+
+const resolveCircleAssetUrl = (value) => {
+  const objectName = extractObjectName(value || '')
+  return objectName ? buildDownloadUrl(objectName) : value || ''
+}
+
+const resolveCircleImageList = (record) => {
+  const seen = new Set()
+  const result = []
+  const append = (value) => {
+    const normalized = extractObjectName(value || '') || String(value || '').trim()
+    if (!normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    result.push(value)
+  }
+  append(record?.coverImage)
+  if (Array.isArray(record?.showcaseImages)) {
+    record.showcaseImages.forEach(append)
+  }
+  return result
+}
+
 const isDraftRecord = (record) => {
   if (!record) return false
   if (typeof record.draft === 'boolean') {
@@ -977,6 +1052,7 @@ const getStatusDisplay = (record) => {
 const canReviewRecord = (record) => record?.reviewStatus === MARKER_REVIEW_STATUS.PENDING
 const isMarkerRejected = (record) => record?.reviewStatus === MARKER_REVIEW_STATUS.REJECTED
 const isPinRejected = (pin) => pin?.reviewStatus === PIN_REVIEW_STATUS.REJECTED
+const canReviewLowAltitudeCircle = (record) => record?.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.PENDING
 const canSubmitMarkerReview = (record, status) =>
   status === MARKER_REVIEW_STATUS.REJECTED && isMarkerRejected(record)
     ? !!record?.id
@@ -1111,10 +1187,32 @@ const columns = computed(() => [
   { title: t('airspace.table.columns.actions'), key: 'actions', width: 140 },
 ])
 
+const circleColumns = computed(() => [
+  { title: t('airspace.circle.columns.name'), dataIndex: 'name', key: 'name', width: 280 },
+  { title: t('airspace.circle.columns.summary'), dataIndex: 'summary', key: 'summary' },
+  { title: t('airspace.circle.columns.category'), dataIndex: 'category', key: 'category', width: 180 },
+  { title: t('airspace.circle.columns.status'), dataIndex: 'status', key: 'status', width: 140 },
+  { title: t('airspace.circle.columns.actions'), key: 'actions', width: 220 },
+])
+
 const pinAuditPaginationConfig = computed(() => ({
   current: pinAuditPagination.current,
   pageSize: pinAuditPagination.pageSize,
   total: pinAuditPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50', '100'],
+  showTotal: (total, range) =>
+    t('airspace.pagination.showTotal', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
+const circlePaginationConfig = computed(() => ({
+  current: circlePagination.current,
+  pageSize: circlePagination.pageSize,
+  total: circlePagination.total,
   showSizeChanger: true,
   pageSizeOptions: ['10', '20', '50', '100'],
   showTotal: (total, range) =>
@@ -1291,6 +1389,32 @@ const loadPinAuditData = async () => {
   }
 }
 
+const loadLowAltitudeCircleData = async () => {
+  circleAuditLoading.value = true
+  try {
+    const { content, totalElements, page, size } = await fetchAdminLowAltitudeCircles({
+      page: circlePagination.current,
+      size: circlePagination.pageSize,
+      status: activeCircleStatus.value,
+    })
+    circleAuditData.value = content
+    circlePagination.total = totalElements
+    circlePagination.current = page
+    circlePagination.pageSize = size
+    if (circleDetailVisible.value && circleDetailRecord.value?.id) {
+      const latest = content.find((item) => item.id === circleDetailRecord.value.id)
+      if (latest) {
+        circleDetailRecord.value = { ...circleDetailRecord.value, ...latest }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load low altitude circles', error)
+    message.error(t('airspace.circle.messages.loadFailed'))
+  } finally {
+    circleAuditLoading.value = false
+  }
+}
+
 const loadPinRewardConfig = async () => {
   if (pinRewardLoading.value) return
   pinRewardLoading.value = true
@@ -1368,6 +1492,8 @@ const handleMainTabChange = (key) => {
   } else if (key === 'pinAudit') {
     loadPinAuditData()
     loadPinRewardConfig()
+  } else if (key === 'lowAltitudeCircles') {
+    loadLowAltitudeCircleData()
   }
 }
 
@@ -1393,6 +1519,18 @@ const handlePinAuditTableChange = (pager) => {
   pinAuditPagination.current = pager?.current ?? 1
   pinAuditPagination.pageSize = pager?.pageSize ?? pinAuditPagination.pageSize
   loadPinAuditData()
+}
+
+const handleLowAltitudeCircleStatusChange = (nextStatus) => {
+  activeCircleStatus.value = nextStatus || LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.ALL
+  circlePagination.current = 1
+  loadLowAltitudeCircleData()
+}
+
+const handleLowAltitudeCircleTableChange = (pager) => {
+  circlePagination.current = pager?.current ?? 1
+  circlePagination.pageSize = pager?.pageSize ?? circlePagination.pageSize
+  loadLowAltitudeCircleData()
 }
 
 const syncPinDetailRecord = (pin) => {
@@ -1422,6 +1560,16 @@ const closeDetail = () => {
   detailVisible.value = false
   detailRecord.value = null
   closePinVideoPlayer()
+}
+
+const openCircleDetail = (record) => {
+  circleDetailRecord.value = { ...record }
+  circleDetailVisible.value = true
+}
+
+const closeCircleDetail = () => {
+  circleDetailVisible.value = false
+  circleDetailRecord.value = null
 }
 
 const openPinDetail = (record) => {
@@ -1618,6 +1766,47 @@ const handleReview = (record, status) => {
   })
 }
 
+const executeLowAltitudeCircleReview = async (record, status, rejectReason) => {
+  if (!record?.id || !canReviewLowAltitudeCircle(record)) return
+  try {
+    const updated = await reviewLowAltitudeCircle(record.id, status, rejectReason)
+    message.success(t('airspace.circle.messages.reviewSuccess'))
+    await loadLowAltitudeCircleData()
+    if (updated && circleDetailRecord.value?.id === record.id) {
+      circleDetailRecord.value = { ...circleDetailRecord.value, ...updated }
+    }
+  } catch (error) {
+    console.error('Failed to review low altitude circle', error)
+    message.error(t('airspace.circle.messages.reviewFailed'))
+  }
+}
+
+const handleLowAltitudeCircleReview = (record, status) => {
+  const statusKey = status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED ? 'approve' : 'reject'
+  if (status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED) {
+    openRejectReasonModal({
+      title: t('airspace.circle.confirm.rejectReason.title'),
+      okText: t('airspace.circle.confirm.reject.ok'),
+      placeholder: t('airspace.circle.confirm.rejectReason.placeholder', { name: record.name || '' }),
+      requiredMessage: t('airspace.circle.messages.rejectReasonRequired'),
+      initialValue: record?.rejectReason || '',
+      onSubmit: (rejectReason) => executeLowAltitudeCircleReview(record, status, rejectReason),
+    })
+    return
+  }
+  Modal.confirm({
+    title: t(`airspace.circle.confirm.${statusKey}.title`),
+    content: t(`airspace.circle.confirm.${statusKey}.content`, { name: record.name || '' }),
+    okText: t(`airspace.circle.confirm.${statusKey}.ok`),
+    cancelText: t('airspace.confirm.cancel'),
+    okButtonProps: {
+      type: 'primary',
+      danger: status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED,
+    },
+    onOk: () => executeLowAltitudeCircleReview(record, status),
+  })
+}
+
 const submitPinReview = async (pin, status, rejectDetail) => {
   if (!canSubmitPinReview(pin, status)) {
     message.info(t('airspace.pinAudit.messages.onlyPublicReview'))
@@ -1799,6 +1988,73 @@ watch(
             </template>
           </template>
         </a-table>
+      </template>
+      <template v-else-if="activeMainTab === 'lowAltitudeCircles'">
+        <div class="circle-audit-panel">
+          <div class="circle-audit-subtitle">{{ t('airspace.circle.subtitle') }}</div>
+          <a-tabs :active-key="activeCircleStatus" @change="handleLowAltitudeCircleStatusChange" class="status-tabs">
+            <a-tab-pane v-for="tab in circleStatusTabs" :key="tab.key" :tab="tab.label" />
+          </a-tabs>
+          <a-table
+            :columns="circleColumns"
+            :data-source="circleAuditData"
+            :loading="circleAuditLoading"
+            :pagination="circlePaginationConfig"
+            row-key="id"
+            class="markers-table"
+            @change="handleLowAltitudeCircleTableChange"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'name'">
+                <div class="name-cell">
+                  <div class="primary-line">
+                    <span class="marker-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</span>
+                  </div>
+                  <div class="secondary-line">
+                    <span>{{ record.regionLabel || t('airspace.table.placeholders.notProvided') }}</span>
+                  </div>
+                </div>
+              </template>
+              <template v-else-if="column.key === 'summary'">
+                <div class="circle-summary-cell">
+                  {{ record.summary || record.description || t('airspace.table.placeholders.notProvided') }}
+                </div>
+              </template>
+              <template v-else-if="column.key === 'category'">
+                {{ circleCategoryText(record.category) }}
+              </template>
+              <template v-else-if="column.key === 'status'">
+                <a-tag :color="getCircleStatusDisplay(record).color">
+                  {{ getCircleStatusDisplay(record).text }}
+                </a-tag>
+              </template>
+              <template v-else-if="column.key === 'actions'">
+                <div class="circle-action-group">
+                  <a-button type="link" size="small" @click="openCircleDetail(record)">
+                    {{ t('airspace.circle.actions.detail') }}
+                  </a-button>
+                  <a-button
+                    v-if="canReviewLowAltitudeCircle(record)"
+                    type="link"
+                    size="small"
+                    @click="handleLowAltitudeCircleReview(record, LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED)"
+                  >
+                    {{ t('airspace.circle.actions.approve') }}
+                  </a-button>
+                  <a-button
+                    v-if="canReviewLowAltitudeCircle(record)"
+                    type="link"
+                    size="small"
+                    danger
+                    @click="handleLowAltitudeCircleReview(record, LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED)"
+                  >
+                    {{ t('airspace.circle.actions.reject') }}
+                  </a-button>
+                </div>
+              </template>
+            </template>
+          </a-table>
+        </div>
       </template>
       <template v-else-if="activeMainTab === 'pinAudit'">
         <div class="pin-reward-form" role="form" aria-live="polite">
@@ -2235,6 +2491,134 @@ watch(
       </div>
       <a-empty v-else />
     </a-modal>
+    <a-modal
+      :open="circleDetailVisible"
+      :title="t('airspace.circle.modal.title')"
+      width="760px"
+      :destroy-on-close="true"
+      @cancel="closeCircleDetail"
+    >
+      <template #footer>
+        <a-button
+          v-if="circleDetailRecord && canReviewLowAltitudeCircle(circleDetailRecord)"
+          danger
+          ghost
+          @click="handleLowAltitudeCircleReview(circleDetailRecord, LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED)"
+        >
+          {{ t('airspace.circle.actions.reject') }}
+        </a-button>
+        <a-button
+          v-if="circleDetailRecord && canReviewLowAltitudeCircle(circleDetailRecord)"
+          type="primary"
+          @click="handleLowAltitudeCircleReview(circleDetailRecord, LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED)"
+        >
+          {{ t('airspace.circle.actions.approve') }}
+        </a-button>
+        <a-button @click="closeCircleDetail">{{ t('airspace.modal.actions.close') }}</a-button>
+      </template>
+
+      <div v-if="circleDetailRecord" class="detail-body">
+        <section class="detail-section">
+          <h3>{{ t('airspace.circle.modal.sections.basic') }}</h3>
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.name')">
+              {{ circleDetailRecord.name || '-' }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.category')">
+              {{ circleCategoryText(circleDetailRecord.category) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.status')">
+              <a-tag :color="getCircleStatusDisplay(circleDetailRecord).color">
+                {{ getCircleStatusDisplay(circleDetailRecord).text }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.regionLabel')">
+              {{ circleDetailRecord.regionLabel || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.sortOrder')">
+              {{ circleDetailRecord.sortOrder ?? 0 }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.ownerFeatureCode')">
+              {{ circleDetailRecord.ownerFeatureCode || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.joinMethod')">
+              {{ circleJoinMethodText(circleDetailRecord.joinMethod) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.createdAt')">
+              {{ formatDateTime(circleDetailRecord.createdAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.updatedAt')">
+              {{ formatDateTime(circleDetailRecord.updatedAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.reviewedAt')">
+              {{ formatDateTime(circleDetailRecord.reviewedAt) }}
+            </a-descriptions-item>
+            <a-descriptions-item
+              v-if="circleDetailRecord.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.REJECTED"
+              :label="t('airspace.circle.modal.fields.rejectReason')"
+              :span="2"
+            >
+              {{ circleDetailRecord.rejectReason || t('airspace.circle.modal.fields.rejectReasonEmpty') }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </section>
+
+        <section class="detail-section">
+          <h3>{{ t('airspace.circle.modal.sections.description') }}</h3>
+          <a-descriptions :column="1" bordered size="small">
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.summary')">
+              {{ circleDetailRecord.summary || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.entryRequirement')">
+              {{ circleDetailRecord.entryRequirement || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <p v-if="circleDetailRecord.description" class="description-text">{{ circleDetailRecord.description }}</p>
+        </section>
+
+        <section class="detail-section">
+          <h3>{{ t('airspace.circle.modal.sections.join') }}</h3>
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.joinMethod')">
+              {{ circleJoinMethodText(circleDetailRecord.joinMethod) }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.wechatNo')">
+              {{ circleDetailRecord.ownerWechatNo || t('airspace.table.placeholders.notProvided') }}
+            </a-descriptions-item>
+          </a-descriptions>
+          <div class="circle-image-grid">
+            <a-image
+              v-if="circleDetailRecord.groupQrImage"
+              :src="resolveCircleAssetUrl(circleDetailRecord.groupQrImage)"
+              width="120"
+              height="120"
+            />
+            <a-image
+              v-if="circleDetailRecord.ownerQrImage"
+              :src="resolveCircleAssetUrl(circleDetailRecord.ownerQrImage)"
+              width="120"
+              height="120"
+            />
+          </div>
+        </section>
+
+        <section class="detail-section" v-if="resolveCircleImageList(circleDetailRecord).length">
+          <h3>{{ t('airspace.circle.modal.sections.images') }}</h3>
+          <a-image-preview-group>
+            <div class="circle-image-grid">
+              <a-image
+                v-for="url in resolveCircleImageList(circleDetailRecord)"
+                :key="url"
+                :src="resolveCircleAssetUrl(url)"
+                width="120"
+                height="120"
+              />
+            </div>
+          </a-image-preview-group>
+        </section>
+      </div>
+      <a-empty v-else />
+    </a-modal>
     <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px" :destroy-on-close="true"
       @cancel="closeOrderDetail">
       <template #footer>
@@ -2380,6 +2764,17 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.circle-audit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.circle-audit-subtitle {
+  color: #64748b;
+  font-size: 0.95rem;
 }
 
 .pin-reward-form {
@@ -2540,6 +2935,22 @@ watch(
   gap: 4px;
 }
 
+.circle-summary-cell {
+  color: #475569;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.circle-action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .detail-button {
   display: inline-flex;
   align-items: center;
@@ -2604,6 +3015,13 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 12px;
+}
+
+.circle-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .link-list {

@@ -166,6 +166,16 @@ export const saveShareToPlatformCopy = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
+export const fetchLowAltitudeCircleGuideCopy = async () => {
+  const response = await http.get('/config/low-altitude-circle-guide')
+  return normalizePagePayload(response, { content: '' })
+}
+
+export const saveLowAltitudeCircleGuideCopy = async (payload) => {
+  const response = await http.put('/config/low-altitude-circle-guide', payload)
+  return normalizePagePayload(response, {})
+}
+
 export const fetchFlpRewardHelpCopy = async () => {
   const response = await http.get('/config/flp-reward-help')
   return normalizePagePayload(response, { content: '' })
