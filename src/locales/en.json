@@ -329,8 +329,9 @@
       },
       "columns": {
         "name": "Circle name",
-        "summary": "Summary",
+        "summary": "Description / requirements",
         "category": "Category",
+        "likeCount": "Likes",
         "memberCount": "Members",
         "status": "Review status",
         "actions": "Actions"
@@ -394,8 +395,9 @@
           "status": "Status",
           "memberCount": "Members",
           "regionLabel": "Region label",
-          "summary": "Summary",
-          "entryRequirement": "Requirement",
+          "summary": "Description / requirements",
+          "entryRequirement": "Description / requirements",
+          "likeCount": "Likes",
           "joinMethod": "Join method",
           "ownerFeatureCode": "Applicant feature code",
           "sortOrder": "Sort order",

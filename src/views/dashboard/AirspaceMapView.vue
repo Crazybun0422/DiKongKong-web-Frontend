@@ -445,6 +445,9 @@ const circleCategoryText = (category) => {
   return t(`airspace.circle.category.${String(category).toLowerCase()}`, category)
 }
 
+const circleOverviewText = (record = {}) =>
+  record.description || record.entryRequirement || record.summary || t('airspace.table.placeholders.notProvided')
+
 const circleJoinMethodText = (joinMethod) => {
   if (!joinMethod) return t('airspace.circle.joinMethod.unknown')
   return t(`airspace.circle.joinMethod.${String(joinMethod).toLowerCase()}`, joinMethod)
@@ -1188,11 +1191,12 @@ const columns = computed(() => [
 ])
 
 const circleColumns = computed(() => [
-  { title: t('airspace.circle.columns.name'), dataIndex: 'name', key: 'name', width: 280 },
-  { title: t('airspace.circle.columns.summary'), dataIndex: 'summary', key: 'summary' },
-  { title: t('airspace.circle.columns.category'), dataIndex: 'category', key: 'category', width: 180 },
-  { title: t('airspace.circle.columns.status'), dataIndex: 'status', key: 'status', width: 140 },
-  { title: t('airspace.circle.columns.actions'), key: 'actions', width: 220 },
+  { title: t('airspace.circle.columns.name'), dataIndex: 'name', key: 'name', width: 220 },
+  { title: t('airspace.circle.columns.summary'), dataIndex: 'summary', key: 'summary', width: 520 },
+  { title: t('airspace.circle.columns.category'), dataIndex: 'category', key: 'category', width: 150 },
+  { title: t('airspace.circle.columns.likeCount'), dataIndex: 'likeCount', key: 'likeCount', width: 90 },
+  { title: t('airspace.circle.columns.status'), dataIndex: 'status', key: 'status', width: 120 },
+  { title: t('airspace.circle.columns.actions'), key: 'actions', width: 150 },
 ])
 
 const pinAuditPaginationConfig = computed(() => ({
@@ -2001,7 +2005,8 @@ watch(
             :loading="circleAuditLoading"
             :pagination="circlePaginationConfig"
             row-key="id"
-            class="markers-table"
+            class="markers-table circle-audit-table"
+            :scroll="{ x: 1250 }"
             @change="handleLowAltitudeCircleTableChange"
           >
             <template #bodyCell="{ column, record }">
@@ -2011,17 +2016,20 @@ watch(
                     <span class="marker-name">{{ record.name || t('airspace.table.placeholders.unnamed') }}</span>
                   </div>
                   <div class="secondary-line">
-                    <span>{{ record.regionLabel || t('airspace.table.placeholders.notProvided') }}</span>
+                    <span>{{ record.ownerFeatureCode || t('airspace.table.placeholders.notProvided') }}</span>
                   </div>
                 </div>
               </template>
               <template v-else-if="column.key === 'summary'">
                 <div class="circle-summary-cell">
-                  {{ record.summary || record.description || t('airspace.table.placeholders.notProvided') }}
+                  {{ circleOverviewText(record) }}
                 </div>
               </template>
               <template v-else-if="column.key === 'category'">
                 {{ circleCategoryText(record.category) }}
+              </template>
+              <template v-else-if="column.key === 'likeCount'">
+                {{ record.likeCount ?? 0 }}
               </template>
               <template v-else-if="column.key === 'status'">
                 <a-tag :color="getCircleStatusDisplay(record).color">
@@ -2532,11 +2540,11 @@ watch(
                 {{ getCircleStatusDisplay(circleDetailRecord).text }}
               </a-tag>
             </a-descriptions-item>
-            <a-descriptions-item :label="t('airspace.circle.modal.fields.regionLabel')">
-              {{ circleDetailRecord.regionLabel || t('airspace.table.placeholders.notProvided') }}
-            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.circle.modal.fields.sortOrder')">
               {{ circleDetailRecord.sortOrder ?? 0 }}
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.likeCount')">
+              {{ circleDetailRecord.likeCount ?? 0 }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.circle.modal.fields.ownerFeatureCode')">
               {{ circleDetailRecord.ownerFeatureCode || t('airspace.table.placeholders.notProvided') }}
@@ -2567,13 +2575,9 @@ watch(
           <h3>{{ t('airspace.circle.modal.sections.description') }}</h3>
           <a-descriptions :column="1" bordered size="small">
             <a-descriptions-item :label="t('airspace.circle.modal.fields.summary')">
-              {{ circleDetailRecord.summary || t('airspace.table.placeholders.notProvided') }}
-            </a-descriptions-item>
-            <a-descriptions-item :label="t('airspace.circle.modal.fields.entryRequirement')">
-              {{ circleDetailRecord.entryRequirement || t('airspace.table.placeholders.notProvided') }}
+              {{ circleOverviewText(circleDetailRecord) }}
             </a-descriptions-item>
           </a-descriptions>
-          <p v-if="circleDetailRecord.description" class="description-text">{{ circleDetailRecord.description }}</p>
         </section>
 
         <section class="detail-section">
@@ -2581,9 +2585,6 @@ watch(
           <a-descriptions :column="2" bordered size="small">
             <a-descriptions-item :label="t('airspace.circle.modal.fields.joinMethod')">
               {{ circleJoinMethodText(circleDetailRecord.joinMethod) }}
-            </a-descriptions-item>
-            <a-descriptions-item :label="t('airspace.circle.modal.fields.wechatNo')">
-              {{ circleDetailRecord.ownerWechatNo || t('airspace.table.placeholders.notProvided') }}
             </a-descriptions-item>
           </a-descriptions>
           <div class="circle-image-grid">
@@ -2936,19 +2937,35 @@ watch(
 }
 
 .circle-summary-cell {
+  max-width: 520px;
   color: #475569;
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+  white-space: normal;
+}
+
+.circle-audit-table :deep(.ant-table) {
+  table-layout: fixed;
+}
+
+.circle-audit-table :deep(.ant-table-cell) {
+  vertical-align: middle;
+}
+
+.circle-audit-table :deep(.ant-table-cell:nth-child(2)) {
+  max-width: 520px;
 }
 
 .circle-action-group {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .detail-button {

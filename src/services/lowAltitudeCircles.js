@@ -14,6 +14,7 @@ const normalizePagePayload = (response, fallback = {}) => {
 
 const normalizeCircle = (circle = {}) => ({
   ...circle,
+  likeCount: Number.isFinite(Number(circle.likeCount)) ? Number(circle.likeCount) : 0,
   rejectReason: circle.rejectReason || '',
   showcaseImages: Array.isArray(circle.showcaseImages) ? circle.showcaseImages : [],
 })

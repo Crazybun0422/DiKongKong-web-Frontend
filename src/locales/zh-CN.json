@@ -329,8 +329,9 @@
       },
       "columns": {
         "name": "社群名称",
-        "summary": "社群简介",
+        "summary": "社群简介/入群要求",
         "category": "社群类型",
+        "likeCount": "点赞量",
         "memberCount": "成员数",
         "status": "审核状态",
         "actions": "操作"
@@ -394,8 +395,9 @@
           "status": "审核状态",
           "memberCount": "成员数",
           "regionLabel": "地区标签",
-          "summary": "社群简介",
-          "entryRequirement": "入群要求",
+          "summary": "社群简介/入群要求",
+          "entryRequirement": "社群简介/入群要求",
+          "likeCount": "点赞量",
           "joinMethod": "入群方式",
           "ownerFeatureCode": "申请人低空号",
           "sortOrder": "排序值",
