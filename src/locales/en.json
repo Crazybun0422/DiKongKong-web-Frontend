@@ -9,6 +9,7 @@
     "user": "User Management",
     "groups": "Group Management",
     "subscription": "Subscription Push",
+    "flpPool": "FLP Pool",
     "settings": "Settings"
   },
   "subscriptionPush": {
@@ -1196,14 +1197,12 @@
         },
         "fields": {
           "type": "Prize type",
-          "flpCount": "FLP amount",
           "description": "Prize name",
           "imageUrl": "Prize image",
           "probability": "Probability (%)"
         },
         "placeholders": {
           "description": "Example: annual membership, coupon, merchandise",
-          "flpCount": "Enter FLP amount",
           "imageUrl": "Auto-filled after upload",
           "probability": "Enter percentage"
         },
@@ -1473,7 +1472,7 @@
         "skyTypeAvatarPack": "Skytype pack",
         "provinceCityKmlZip": "Province package",
         "countyKmlZip": "County package",
-        "memberAircraftModels": "Member aircraft mix",
+        "memberAircraftModels": "Aircraft mix",
         "ladderLeaderboard": "Ladder leaderboard"
       },
       "uomLayer": {
@@ -1671,18 +1670,18 @@
         }
       },
       "memberAircraftModels": {
-        "title": "Member aircraft mix",
-        "subtitle": "Show the aircraft-model share across current members. Members without a filled model are grouped separately.",
-        "totalLabel": "members",
-        "chartHelper": "The share is based on member identity only and ignores expiration.",
+        "title": "Aircraft model mix",
+        "subtitle": "Show the aircraft-model share across all users. Users without a filled model are grouped separately.",
+        "totalLabel": "users",
+        "chartHelper": "The share is based on all users. Aircraft model selection no longer requires membership.",
         "emptyModel": "Not set",
-        "memberCount": "{count} members",
-        "empty": "No member aircraft statistics yet",
+        "memberCount": "{count} users",
+        "empty": "No aircraft statistics yet",
         "actions": {
           "reload": "Reload"
         },
         "messages": {
-          "loadFailed": "Failed to load member aircraft statistics"
+          "loadFailed": "Failed to load aircraft statistics"
         }
       },
       "ladderLeaderboard": {
@@ -1923,6 +1922,19 @@
     "subtitle": "Manage member pricing, member group QR code, background package uploads, avatar package uploads, and voice package uploads.",
     "actions": {
       "reload": "Reload"
+    },
+    "durationDouble": {
+      "confirmTitle": "Double active membership duration?",
+      "confirmContent": "Only currently active members are affected. Their remaining membership duration will be doubled and written to their expiration date immediately.",
+      "actions": {
+        "trigger": "Double active duration",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "messages": {
+        "success": "Updated {count} active members, adding {days} days in total",
+        "failed": "Failed to double active membership duration"
+      }
     },
     "tabs": {
       "logs": "Membership Logs",

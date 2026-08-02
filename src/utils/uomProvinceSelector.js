@@ -6,8 +6,11 @@ export const MAINLAND_PROVINCE_CODES = [
   '12', '13', '14', '15', '21', '22', '23', '31', '32', '33', '34', '35', '36', '37', '41', '42',
   '43', '44', '45', '46', '50', '51', '52', '53', '54', '61', '62', '63', '64', '65',
 ]
+export const SPECIAL_REGION_CODES = ['71', '81', '82']
 
 const SUPPORTED_PROVINCE_CODE_SET = new Set(MAINLAND_PROVINCE_CODES)
+const SPECIAL_REGION_CODE_SET = new Set(SPECIAL_REGION_CODES)
+const ALL_REGION_CODE_SET = new Set([...MAINLAND_PROVINCE_CODES, ...SPECIAL_REGION_CODES])
 
 const normalizePoint = (point) => {
   if (!Array.isArray(point) || point.length < 2) return null
@@ -197,12 +200,13 @@ const polygonIntersectsRect = (polygon, rect) => {
   return false
 }
 
-const extractProvinceCode = (adcode) => {
+const extractProvinceCode = (adcode, options = {}) => {
+  const allowedCodeSet = options.allowedCodeSet || SUPPORTED_PROVINCE_CODE_SET
   const raw = String(adcode ?? '').trim()
   const match = raw.match(/^(\d{2})\d{4}$/)
   if (!match) return null
   const code = match[1]
-  return SUPPORTED_PROVINCE_CODE_SET.has(code) ? code : null
+  return allowedCodeSet.has(code) ? code : null
 }
 
 const normalizeProvinceGeometry = (geometry) => {
@@ -222,11 +226,12 @@ const normalizeProvinceGeometry = (geometry) => {
 export function buildProvinceLayerRecords(geojson, options = {}) {
   const layerNamespace = options.layerNamespace || DEFAULT_LAYER_NAMESPACE
   const styleName = options.styleName || DEFAULT_STYLE_NAME
+  const allowedCodeSet = options.includeSpecialRegions ? ALL_REGION_CODE_SET : SUPPORTED_PROVINCE_CODE_SET
   const features = Array.isArray(geojson?.features) ? geojson.features : []
 
   return features
     .map((feature) => {
-      const provinceCode = extractProvinceCode(feature?.properties?.adcode)
+      const provinceCode = extractProvinceCode(feature?.properties?.adcode, { allowedCodeSet })
       if (!provinceCode) return null
       const polygons = normalizeProvinceGeometry(feature.geometry)
       if (!polygons.length) return null
@@ -235,6 +240,7 @@ export function buildProvinceLayerRecords(geojson, options = {}) {
         adcode: Number(feature.properties.adcode),
         provinceCode,
         name: String(feature.properties?.name || provinceCode),
+        isSpecialRegion: SPECIAL_REGION_CODE_SET.has(provinceCode),
         layerName: `${layerNamespace}:sf${provinceCode}0000`,
         styleName: `${layerNamespace}:${styleName}`,
         polygons,
@@ -243,6 +249,15 @@ export function buildProvinceLayerRecords(geojson, options = {}) {
     })
     .filter(Boolean)
     .sort((a, b) => a.provinceCode.localeCompare(b.provinceCode))
+}
+
+export function findProvinceLayerRecordForPoint(records, point) {
+  const normalizedPoint = normalizePoint([point?.longitude ?? point?.lng, point?.latitude ?? point?.lat])
+  if (!normalizedPoint) return null
+  return (Array.isArray(records) ? records : []).find((record) => {
+    if (!record?.bounds || !pointInRect(normalizedPoint, record.bounds)) return false
+    return record.polygons.some((polygon) => pointInPolygon(normalizedPoint, polygon))
+  }) || null
 }
 
 export function findIntersectingProvinceLayerRecords(records, bbox) {
@@ -294,7 +309,9 @@ export function buildProvinceLayerParams(records, bbox) {
 
 export default {
   MAINLAND_PROVINCE_CODES,
+  SPECIAL_REGION_CODES,
   buildProvinceLayerRecords,
+  findProvinceLayerRecordForPoint,
   findIntersectingProvinceLayerRecords,
   findNearestProvinceLayerRecord,
   buildProvinceLayerParams,

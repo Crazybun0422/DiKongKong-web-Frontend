@@ -6,41 +6,6 @@ info:
 servers:
   - url: /api
 paths:
-  /api/config/invite:
-    get:
-      summary: 获取拉新管理配置
-      description: 普通用户可读取，返回好友注册与标记奖励配置；数据库中始终只有一条配置记录。
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseInviteConfigResponse'
-    put:
-      summary: 创建或更新拉新管理配置
-      description: 仅管理员可调用，用于创建或更新唯一的拉新管理配置记录。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InviteConfigRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseInviteConfigResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseObject'
   /api/config/map-settlement:
     get:
       summary: 获取地图入驻配置
@@ -1894,59 +1859,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
-  /api/config/pin-review-reward:
-    get:
-      summary: 获取 Pin 审核奖励配置
-      description: 普通用户可读取，返回不同审核结果对应的 FLP 奖励配置；数据库中仅维护一条记录。
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponsePinReviewRewardConfigResponse'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseObject'
-    put:
-      summary: 创建或更新 Pin 审核奖励配置
-      description: 仅管理员可调用，用于创建或更新唯一的 Pin 审核奖励配置记录。
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PinReviewRewardConfigRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponsePinReviewRewardConfigResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseObject'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseObject'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseObject'
   /api/config/pin-video-upload-flp-limit:
     get:
       summary: 获取 Pin 视频上传 FLP 门槛配置
@@ -2223,40 +2135,6 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    InviteConfigRequest:
-      type: object
-      required:
-        - friendRegisterRewardFlp
-        - friendFirstMarkerFlp
-      properties:
-        friendRegisterRewardFlp:
-          type: number
-          format: double
-          description: 好友注册成功时给予的 FLP 奖励点数。
-        friendFirstMarkerFlp:
-          type: number
-          format: double
-          description: 好友首次标记时给予的 FLP 奖励点数。
-    InviteConfigResponse:
-      allOf:
-        - $ref: '#/components/schemas/InviteConfigRequest'
-        - type: object
-          properties:
-            updatedAt:
-              type: string
-              format: date-time
-              description: 配置最后更新时间。
-    ApiResponseInviteConfigResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: object
-          additionalProperties:
-            type: string
-        data:
-          $ref: '#/components/schemas/InviteConfigResponse'
     MapSettlementConfigRequest:
       type: object
       required:
@@ -2931,40 +2809,6 @@ components:
         value:
           type: string
           description: 模版字段对应的 value，将作为键发送给微信接口。
-    PinReviewRewardConfigRequest:
-      type: object
-      required:
-        - approvedARewardFlp
-        - approvedBRewardFlp
-      properties:
-        approvedARewardFlp:
-          type: number
-          format: double
-          description: Pin 审核通过 A 级时发放的 FLP 数量。
-        approvedBRewardFlp:
-          type: number
-          format: double
-          description: Pin 审核通过 B 级时发放的 FLP 数量。
-    PinReviewRewardConfigResponse:
-      allOf:
-        - $ref: '#/components/schemas/PinReviewRewardConfigRequest'
-        - type: object
-          properties:
-            updatedAt:
-              type: string
-              format: date-time
-              description: 配置最后更新时间。
-    ApiResponsePinReviewRewardConfigResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: object
-          additionalProperties:
-            type: string
-        data:
-          $ref: '#/components/schemas/PinReviewRewardConfigResponse'
     PinVideoUploadFlpLimitRequest:
       type: object
       required:

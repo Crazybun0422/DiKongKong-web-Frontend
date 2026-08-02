@@ -1,11 +1,9 @@
-﻿<script setup>
+<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import COS from 'cos-js-sdk-v5'
 import {
-  fetchInviteConfig,
-  saveInviteConfig,
   fetchMapSettlementConfig,
   saveMapSettlementConfig,
   fetchMerchantIntroLongImageConfig,
@@ -84,6 +82,7 @@ import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import OpenPlatformEditor from '../../components/OpenPlatformEditor.vue'
 import SkyTypePackSettings from '../../components/SkyTypePackSettings.vue'
+import PlanetBroadcastSettings from '../../components/PlanetBroadcastSettings.vue'
 import MemberSettingsView from './MemberSettingsView.vue'
 import { fetchSubscriptionAutoTask, saveSubscriptionAutoTask } from '../../services/weappSubscriptions'
 import { fetchLotteryConfig, fetchLotteryLogs, saveLotteryConfig } from '../../services/lottery'
@@ -232,21 +231,6 @@ const parseBulkTemplateInput = (input) => {
     page: payload.page || '',
   }))
 }
-
-const inviteForm = reactive({
-  friendRegisterRewardFlp: 0,
-  friendFirstMarkerFlp: 0,
-})
-const inviteRules = computed(() => ({
-  friendRegisterRewardFlp: [
-    { required: true, message: t('settings.invite.validation.friendRegisterRewardFlp') },
-  ],
-  friendFirstMarkerFlp: [
-    { required: true, message: t('settings.invite.validation.friendFirstMarkerFlp') },
-  ],
-}))
-const inviteLoading = ref(false)
-const inviteSaving = ref(false)
 
 const inviteLogs = ref([])
 const inviteLogsLoading = ref(false)
@@ -809,7 +793,6 @@ const createDefaultLotteryPrizes = () =>
   Array.from({ length: 8 }, (_, index) => ({
     level: index + 1,
     flp: false,
-    flpCount: '',
     description: '',
     imageUrl: '',
     probability: 0,
@@ -825,7 +808,6 @@ const normalizeLotteryPrizes = (prizes = []) => {
     return {
       level,
       flp: Boolean(source.flp),
-      flpCount: source.flp ? String(source.flpCount ?? '') : '',
       description: source.description ?? '',
       imageUrl: extractObjectName(source.imageUrl ?? ''),
       probability: Number(source.probability ?? 0),
@@ -1355,7 +1337,7 @@ const memberAircraftModelChartItems = computed(() =>
   (Array.isArray(memberAircraftModelStats.value) ? memberAircraftModelStats.value : []).map((item, index) => ({
     key: `${item?.aircraftModel || 'unknown'}-${index}`,
     aircraftModel: normalizeMemberAircraftModelLabel(item?.aircraftModel),
-    memberCount: Number(item?.memberCount || 0),
+    memberCount: Number(item?.userCount ?? item?.memberCount ?? 0),
     ratio: Number(item?.ratio || 0),
     percentLabel: formatMemberAircraftModelPercent(item?.ratio || 0),
     color: memberAircraftModelPalette[index % memberAircraftModelPalette.length],
@@ -1450,20 +1432,6 @@ const reportEntryRules = computed(() => ({
   miniProgramPath: [{ required: false, message: t('settings.reportEntry.validation.path') }],
 }))
 
-const loadInviteConfig = async () => {
-  inviteLoading.value = true
-  try {
-    const data = await fetchInviteConfig()
-    inviteForm.friendRegisterRewardFlp = data?.friendRegisterRewardFlp ?? 0
-    inviteForm.friendFirstMarkerFlp = data?.friendFirstMarkerFlp ?? 0
-  } catch (error) {
-    console.error('Failed to load invite config', error)
-    message.error(t('settings.invite.messages.loadFailed'))
-  } finally {
-    inviteLoading.value = false
-  }
-}
-
 const loadInviteLogs = async () => {
   inviteLogsLoading.value = true
   try {
@@ -1510,23 +1478,6 @@ const handleInviteLogTableChange = (pager) => {
   inviteLogPagination.current = pager?.current ?? 1
   inviteLogPagination.pageSize = pager?.pageSize ?? inviteLogPagination.pageSize
   loadInviteLogs()
-}
-
-const submitInviteForm = async () => {
-  inviteSaving.value = true
-  try {
-    await saveInviteConfig({
-      friendRegisterRewardFlp: Number(inviteForm.friendRegisterRewardFlp) || 0,
-      friendFirstMarkerFlp: Number(inviteForm.friendFirstMarkerFlp) || 0,
-    })
-    message.success(t('settings.invite.messages.saveSuccess'))
-    loadInviteConfig()
-  } catch (error) {
-    console.error('Failed to save invite config', error)
-    message.error(t('settings.invite.messages.saveFailed'))
-  } finally {
-    inviteSaving.value = false
-  }
 }
 
 const loadMapConfig = async () => {
@@ -3399,7 +3350,6 @@ const submitLotteryConfig = async () => {
     const prizes = lotteryPrizeForm.value.map((item) => ({
       level: item.level,
       flp: Boolean(item.flp),
-      flpCount: item.flp ? String(item.flpCount || '').trim() || null : null,
       description: item.flp ? '' : (item.description || '').trim(),
       imageUrl: item.flp ? '' : extractObjectName(item.imageUrl || ''),
       probability: Number(item.probability || 0),
@@ -3484,10 +3434,10 @@ const loadMemberAircraftModelStats = async () => {
   memberAircraftModelStatsLoading.value = true
   try {
     const data = await fetchMemberAircraftModelStats()
-    memberAircraftModelTotal.value = Number(data?.totalMembers || 0)
+    memberAircraftModelTotal.value = Number(data?.totalUsers ?? data?.totalMembers ?? 0)
     memberAircraftModelStats.value = Array.isArray(data?.items) ? data.items : []
   } catch (error) {
-    console.error('Failed to load member aircraft model stats', error)
+    console.error('Failed to load aircraft model stats', error)
     message.error(t('settings.system.memberAircraftModels.messages.loadFailed'))
   } finally {
     memberAircraftModelStatsLoading.value = false
@@ -3884,7 +3834,6 @@ watch(reportEntryTreeFilterResult, (result) => {
 })
 
 onMounted(() => {
-  loadInviteConfig()
   loadInviteLogs()
   loadMapConfig()
   loadTencentCosConfig()
@@ -3976,36 +3925,6 @@ onBeforeUnmount(() => {
                 </a-table>
             </section>
 
-            <section class="invite-form">
-              <h3>{{ t('settings.invite.form.title') }}</h3>
-              <a-spin :spinning="inviteLoading">
-                <a-form :model="inviteForm" :rules="inviteRules" layout="vertical" @finish="submitInviteForm">
-                  <a-row :gutter="[24, 12]">
-                    <a-col :xs="24" :md="12">
-                      <a-form-item name="friendRegisterRewardFlp"
-                        :label="t('settings.invite.form.friendRegisterRewardFlp')">
-                        <a-input-number v-model:value="inviteForm.friendRegisterRewardFlp" :min="0" :step="0.1"
-                          :precision="2" :placeholder="t('settings.invite.form.placeholder')" style="width: 100%" />
-                      </a-form-item>
-                    </a-col>
-                    <a-col :xs="24" :md="12">
-                      <a-form-item name="friendFirstMarkerFlp" :label="t('settings.invite.form.friendFirstMarkerFlp')">
-                        <a-input-number v-model:value="inviteForm.friendFirstMarkerFlp" :min="0" :step="0.1"
-                          :precision="2" :placeholder="t('settings.invite.form.placeholder')" style="width: 100%" />
-                      </a-form-item>
-                    </a-col>
-                  </a-row>
-                  <div class="actions">
-                    <a-button type="primary" html-type="submit" :loading="inviteSaving">
-                      {{ t('common.actions.save') }}
-                    </a-button>
-                    <a-button type="default" @click="loadInviteConfig" :disabled="inviteLoading || inviteSaving">
-                      {{ t('common.actions.reset') }}
-                    </a-button>
-                  </div>
-                </a-form>
-              </a-spin>
-            </section>
           </div>
         </a-tab-pane>
 
@@ -4996,6 +4915,12 @@ onBeforeUnmount(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="planet-broadcast" tab="星球广播">
+          <div class="tab-section">
+            <PlanetBroadcastSettings />
+          </div>
+        </a-tab-pane>
+
         <a-tab-pane key="lottery" :tab="t('settings.tabs.lottery')">
           <div class="tab-section">
             <header class="lottery-hero">
@@ -5059,11 +4984,7 @@ onBeforeUnmount(() => {
                               <a-radio :value="false">{{ t('settings.lottery.prizes.type.other') }}</a-radio>
                             </a-radio-group>
                           </a-form-item>
-                          <a-form-item v-if="prize.flp" :label="t('settings.lottery.prizes.fields.flpCount')">
-                            <a-input v-model:value="prize.flpCount" inputmode="decimal"
-                              :placeholder="t('settings.lottery.prizes.placeholders.flpCount')" />
-                          </a-form-item>
-                          <template v-else>
+                          <template v-if="!prize.flp">
                             <a-form-item :label="t('settings.lottery.prizes.fields.description')">
                               <a-input v-model:value="prize.description"
                                 :placeholder="t('settings.lottery.prizes.placeholders.description')" allow-clear />

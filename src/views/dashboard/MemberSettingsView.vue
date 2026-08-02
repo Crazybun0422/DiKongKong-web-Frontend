@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, SaveOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -10,11 +10,10 @@ import {
   buildVoicePackDownloadUrl,
   fetchAvatarPackVersion,
   fetchBackgroundImagePackVersion,
+  doubleActiveMemberDuration,
   fetchMemberOpenLogs,
-  fetchMemberInviteRewardConfig,
   fetchMemberRechargeConfig,
   fetchVoicePackVersion,
-  saveMemberInviteRewardConfig,
   saveMemberRechargeConfig,
   uploadAvatarPack,
   uploadBackgroundImagePack,
@@ -31,16 +30,13 @@ const priceLoading = ref(false)
 const priceSaving = ref(false)
 const cashSaving = ref(false)
 const priceUpdatedAt = ref('')
-const inviteRewardFormRef = ref(null)
-const inviteRewardLoading = ref(false)
-const inviteRewardSaving = ref(false)
-const inviteRewardUpdatedAt = ref('')
 const memberGroupQrcodeUrl = ref('')
 const memberGroupQrcodeUpdatedAt = ref(null)
 const memberGroupQrcodeLoading = ref(false)
 const memberGroupQrcodeUploading = ref(false)
 const memberOpenLogs = ref([])
 const memberLogLoading = ref(false)
+const memberDurationDoubling = ref(false)
 const memberLogFilters = reactive({
   featureCode: '',
 })
@@ -85,11 +81,6 @@ const persistedRechargeConfig = reactive({
 })
 
 const cashPaymentEnabled = ref(false)
-
-const inviteRewardForm = reactive({
-  yearlyRewardFlp: 0,
-  monthlyRewardFlp: 0,
-})
 
 const uploadState = reactive({
   background: {
@@ -208,11 +199,6 @@ const priceGroups = computed(() => [
 
 const priceFields = computed(() => priceGroups.value.flatMap((group) => group.rows.flatMap((row) => row.fields)))
 
-const inviteRewardFields = computed(() => [
-  { key: 'monthlyRewardFlp', label: t('memberSettings.inviteReward.fields.monthlyRewardFlp') },
-  { key: 'yearlyRewardFlp', label: t('memberSettings.inviteReward.fields.yearlyRewardFlp') },
-])
-
 const memberLogColumns = computed(() => [
   { title: t('memberSettings.logs.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 160 },
   { title: t('memberSettings.logs.columns.username'), dataIndex: 'username', key: 'username', width: 180 },
@@ -235,7 +221,6 @@ const memberLogPaginationConfig = computed(() => ({
 
 const settingsReloadLoading = computed(() =>
   priceLoading.value ||
-  inviteRewardLoading.value ||
   memberGroupQrcodeLoading.value ||
   Object.values(uploadState).some((item) => item.loading),
 )
@@ -260,18 +245,9 @@ const priceRules = computed(() =>
   buildNonNegativeRules(priceFields.value, 'memberSettings.price.validation.nonNegative'),
 )
 
-const inviteRewardRules = computed(() =>
-  buildNonNegativeRules(inviteRewardFields.value, 'memberSettings.inviteReward.validation.nonNegative'),
-)
-
 const formattedPriceUpdatedAt = computed(() => {
   if (!priceUpdatedAt.value) return t('memberSettings.price.emptyUpdatedAt')
   return new Date(priceUpdatedAt.value).toLocaleString()
-})
-
-const formattedInviteRewardUpdatedAt = computed(() => {
-  if (!inviteRewardUpdatedAt.value) return t('memberSettings.inviteReward.emptyUpdatedAt')
-  return new Date(inviteRewardUpdatedAt.value).toLocaleString()
 })
 
 const formattedMemberGroupQrcodeUpdatedAt = computed(() => {
@@ -366,22 +342,6 @@ const loadMemberRechargeConfig = async () => {
   }
 }
 
-const loadMemberInviteRewardConfig = async () => {
-  inviteRewardLoading.value = true
-  try {
-    const data = await fetchMemberInviteRewardConfig()
-    Object.keys(inviteRewardForm).forEach((key) => {
-      inviteRewardForm[key] = Number(data?.[key] ?? 0)
-    })
-    inviteRewardUpdatedAt.value = data?.updatedAt || ''
-  } catch (error) {
-    console.warn('Failed to load member invite reward config', error)
-    message.error(t('memberSettings.inviteReward.messages.loadFailed'))
-  } finally {
-    inviteRewardLoading.value = false
-  }
-}
-
 const loadMemberGroupQrcode = async () => {
   memberGroupQrcodeLoading.value = true
   try {
@@ -440,9 +400,34 @@ const handleSettingsReload = () => {
   loadAllPackVersions()
 }
 
+const handleDoubleActiveMemberDuration = () => {
+  Modal.confirm({
+    title: t('memberSettings.durationDouble.confirmTitle'),
+    content: t('memberSettings.durationDouble.confirmContent'),
+    okText: t('memberSettings.durationDouble.actions.confirm'),
+    cancelText: t('memberSettings.durationDouble.actions.cancel'),
+    okType: 'danger',
+    onOk: async () => {
+      memberDurationDoubling.value = true
+      try {
+        const data = await doubleActiveMemberDuration()
+        message.success(t('memberSettings.durationDouble.messages.success', {
+          count: Number(data?.updatedMemberCount ?? 0),
+          days: Number(data?.totalAddedDays ?? 0),
+        }))
+        loadMemberOpenLogs({ pageOverride: 1 })
+      } catch (error) {
+        console.warn('Failed to double active member duration', error)
+        message.error(t('memberSettings.durationDouble.messages.failed'))
+      } finally {
+        memberDurationDoubling.value = false
+      }
+    },
+  })
+}
+
 const loadMemberSettings = () => {
   loadMemberRechargeConfig()
-  loadMemberInviteRewardConfig()
   loadMemberGroupQrcode()
 }
 
@@ -519,24 +504,6 @@ const submitCashPaymentConfig = async () => {
 const handleCashPaymentToggle = async (checked) => {
   cashPaymentEnabled.value = Boolean(checked)
   await submitCashPaymentConfig()
-}
-
-const submitMemberInviteRewardConfig = async () => {
-  inviteRewardSaving.value = true
-  try {
-    const payload = Object.keys(inviteRewardForm).reduce((acc, key) => {
-      acc[key] = Number(inviteRewardForm[key] ?? 0)
-      return acc
-    }, {})
-    const data = await saveMemberInviteRewardConfig(payload)
-    inviteRewardUpdatedAt.value = data?.updatedAt || new Date().toISOString()
-    message.success(t('memberSettings.inviteReward.messages.saveSuccess'))
-  } catch (error) {
-    console.warn('Failed to save member invite reward config', error)
-    message.error(t('memberSettings.inviteReward.messages.saveFailed'))
-  } finally {
-    inviteRewardSaving.value = false
-  }
 }
 
 const loadPackVersion = async (type) => {
@@ -637,6 +604,9 @@ onMounted(() => {
     <a-tabs v-model:activeKey="memberSettingsTab" class="member-settings-tabs">
       <a-tab-pane key="settings" :tab="t('memberSettings.tabs.settings')">
         <div class="actions actions--inline member-settings-tab-actions">
+          <a-button danger :loading="memberDurationDoubling" @click="handleDoubleActiveMemberDuration">
+            {{ t('memberSettings.durationDouble.actions.trigger') }}
+          </a-button>
           <a-button :loading="settingsReloadLoading" @click="handleSettingsReload">
             <template #icon><ReloadOutlined /></template>
             {{ t('memberSettings.actions.reload') }}
@@ -764,55 +734,6 @@ onMounted(() => {
             </span>
           </div>
         </div>
-      </a-spin>
-        </section>
-
-        <section class="settings-panel">
-      <header class="section-header">
-        <div>
-          <h3>{{ t('memberSettings.inviteReward.title') }}</h3>
-          <p>{{ t('memberSettings.inviteReward.subtitle') }}</p>
-        </div>
-        <span class="updated-at">
-          {{ t('memberSettings.inviteReward.updatedAt', { time: formattedInviteRewardUpdatedAt }) }}
-        </span>
-      </header>
-      <a-spin :spinning="inviteRewardLoading">
-        <a-form
-          ref="inviteRewardFormRef"
-          :model="inviteRewardForm"
-          :rules="inviteRewardRules"
-          layout="vertical"
-          @finish="submitMemberInviteRewardConfig"
-        >
-          <div class="invite-reward-fields">
-            <a-form-item
-              v-for="field in inviteRewardFields"
-              :key="field.key"
-              :name="field.key"
-              :label="field.label"
-            >
-              <a-input-number
-                v-model:value="inviteRewardForm[field.key]"
-                class="price-input"
-                :min="0"
-                :precision="2"
-                :addon-after="t('memberSettings.units.flp')"
-              />
-            </a-form-item>
-          </div>
-          <p class="helper-text">{{ t('memberSettings.inviteReward.helper') }}</p>
-          <div class="actions">
-            <a-button type="primary" html-type="submit" :loading="inviteRewardSaving">
-              <template #icon><SaveOutlined /></template>
-              {{ t('memberSettings.inviteReward.actions.save') }}
-            </a-button>
-            <a-button :loading="inviteRewardLoading" @click="loadMemberInviteRewardConfig">
-              <template #icon><ReloadOutlined /></template>
-              {{ t('memberSettings.inviteReward.actions.reload') }}
-            </a-button>
-          </div>
-        </a-form>
       </a-spin>
         </section>
 

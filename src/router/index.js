@@ -9,6 +9,7 @@ const UserManagementView = () => import('../views/dashboard/UserManagementView.v
 const WorkGroupManagementView = () => import('../views/dashboard/WorkGroupManagementView.vue')
 const SettingsView = () => import('../views/dashboard/SettingsView.vue')
 const SubscriptionPushView = () => import('../views/dashboard/SubscriptionPushView.vue')
+const FlpPoolView = () => import('../views/dashboard/FlpPoolView.vue')
 
 const routes = [
   {
@@ -46,6 +47,11 @@ const routes = [
         path: 'subscription-push',
         name: 'subscriptionPush',
         component: SubscriptionPushView,
+      },
+      {
+        path: 'flp-pool',
+        name: 'flpPool',
+        component: FlpPoolView,
       },
       {
         path: 'settings',

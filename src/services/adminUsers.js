@@ -67,8 +67,16 @@ export const fetchAdminUserNewbieTasks = async ({ page = 1, size = 10, sortOrder
 }
 
 export const fetchMemberAircraftModelStats = async () => {
-  const response = await http.get('/admin/users/member/aircraft-model-stats')
-  return response?.data?.data ?? { totalMembers: 0, items: [] }
+  const response = await http.get('/admin/users/aircraft-model-stats')
+  const data = response?.data?.data ?? {}
+  const items = Array.isArray(data?.items) ? data.items : []
+  return {
+    totalUsers: Number(data?.totalUsers ?? data?.totalMembers ?? 0),
+    items: items.map((item) => ({
+      ...item,
+      userCount: Number(item?.userCount ?? item?.memberCount ?? 0),
+    })),
+  }
 }
 
 export const refreshAdminUsersDefaultAvatar = async () => {

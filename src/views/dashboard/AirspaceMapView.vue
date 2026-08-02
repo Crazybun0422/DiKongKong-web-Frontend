@@ -22,8 +22,6 @@ import {
 import { fetchOrderByReference } from '../../services/orders'
 import { repairWechatPaymentOrder } from '../../services/wechatPayments'
 import {
-  fetchPinReviewRewardConfig,
-  savePinReviewRewardConfig,
   fetchPinVideoUploadFlpLimitConfig,
   savePinVideoUploadFlpLimitConfig,
   fetchTencentCosSts,
@@ -110,8 +108,6 @@ const pinRewardConfig = ref(null)
 const pinRewardLoading = ref(false)
 const pinRewardSaving = ref(false)
 const pinRewardForm = reactive({
-  approvedARewardFlp: null,
-  approvedBRewardFlp: null,
   videoUploadFlpLimit: null,
 })
 
@@ -1423,19 +1419,12 @@ const loadPinRewardConfig = async () => {
   if (pinRewardLoading.value) return
   pinRewardLoading.value = true
   try {
-    const [rewardConfig, videoUploadConfig] = await Promise.all([
-      fetchPinReviewRewardConfig(),
-      fetchPinVideoUploadFlpLimitConfig(),
-    ])
+    const videoUploadConfig = await fetchPinVideoUploadFlpLimitConfig()
     pinRewardConfig.value = {
-      ...(rewardConfig || {}),
       videoUploadFlpLimit: Number(videoUploadConfig?.threshold) || 0,
-      rewardUpdatedAt: rewardConfig?.updatedAt || null,
       videoUploadUpdatedAt: videoUploadConfig?.updatedAt || null,
-      updatedAt: resolveLatestUpdatedAt(rewardConfig?.updatedAt, videoUploadConfig?.updatedAt),
+      updatedAt: videoUploadConfig?.updatedAt || null,
     }
-    pinRewardForm.approvedARewardFlp = Number(rewardConfig?.approvedARewardFlp) || 0
-    pinRewardForm.approvedBRewardFlp = Number(rewardConfig?.approvedBRewardFlp) || 0
     pinRewardForm.videoUploadFlpLimit = Number(videoUploadConfig?.threshold) || 0
   } catch (error) {
     console.error('Failed to load pin reward config', error)
@@ -1448,27 +1437,14 @@ const loadPinRewardConfig = async () => {
 const submitPinRewardConfig = async () => {
   pinRewardSaving.value = true
   try {
-    const rewardPayload = {
-      approvedARewardFlp: Number(pinRewardForm.approvedARewardFlp) || 0,
-      approvedBRewardFlp: Number(pinRewardForm.approvedBRewardFlp) || 0,
-    }
     const videoUploadPayload = {
       threshold: Number(pinRewardForm.videoUploadFlpLimit) || 0,
     }
-    const [savedReward, savedVideoUpload] = await Promise.all([
-      savePinReviewRewardConfig(rewardPayload),
-      savePinVideoUploadFlpLimitConfig(videoUploadPayload),
-    ])
+    const savedVideoUpload = await savePinVideoUploadFlpLimitConfig(videoUploadPayload)
     pinRewardConfig.value = {
-      ...(savedReward || rewardPayload),
       videoUploadFlpLimit: Number(savedVideoUpload?.threshold ?? videoUploadPayload.threshold) || 0,
-      rewardUpdatedAt: savedReward?.updatedAt || pinRewardConfig.value?.rewardUpdatedAt || null,
       videoUploadUpdatedAt: savedVideoUpload?.updatedAt || pinRewardConfig.value?.videoUploadUpdatedAt || null,
-      updatedAt: resolveLatestUpdatedAt(
-        savedReward?.updatedAt,
-        savedVideoUpload?.updatedAt,
-        pinRewardConfig.value?.updatedAt,
-      ),
+      updatedAt: savedVideoUpload?.updatedAt || pinRewardConfig.value?.updatedAt || null,
     }
     message.success(t('airspace.pinAudit.reward.saved'))
   } catch (error) {
@@ -2070,19 +2046,7 @@ watch(
           <div class="reward-inputs">
             <a-form layout="vertical">
               <a-row :gutter="[16, 0]">
-                <a-col :xs="24" :sm="8">
-                  <a-form-item :label="t('airspace.pinAudit.reward.approvedB')">
-                    <a-input-number v-model:value="pinRewardForm.approvedBRewardFlp" :min="0" :step="0.01" :precision="2"
-                      :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24" :sm="8">
-                  <a-form-item :label="t('airspace.pinAudit.reward.approvedA')">
-                    <a-input-number v-model:value="pinRewardForm.approvedARewardFlp" :min="0" :step="0.01" :precision="2"
-                      :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24" :sm="8">
+                <a-col :xs="24" :sm="12" :md="8">
                   <a-form-item :label="t('airspace.pinAudit.reward.videoUploadFlpLimit')">
                     <a-input-number v-model:value="pinRewardForm.videoUploadFlpLimit" :min="0" :step="0.01" :precision="2"
                       :placeholder="t('airspace.pinAudit.reward.placeholder')" class="reward-input" />

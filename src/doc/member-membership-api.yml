@@ -37,37 +37,6 @@ paths:
                 $ref: '#/components/schemas/ApiResponseMemberRechargeConfig'
         '401':
           description: 未授权或非管理员
-  /api/config/member-invite-reward:
-    get:
-      tags: [Config]
-      summary: 获取会员邀请奖励配置（客户端读取）
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseMemberInviteRewardConfig'
-    put:
-      tags: [Config]
-      summary: 更新会员邀请奖励配置（仅管理端）
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MemberInviteRewardConfigRequest'
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponseMemberInviteRewardConfig'
-        '401':
-          description: 未授权或非管理员
   /api/user/member/recharge:
     post:
       tags: [User]
@@ -149,17 +118,6 @@ components:
             type: string
         data:
           $ref: '#/components/schemas/MemberRechargeConfigResponse'
-    ApiResponseMemberInviteRewardConfig:
-      type: object
-      properties:
-        success:
-          type: boolean
-        message:
-          type: object
-          additionalProperties:
-            type: string
-        data:
-          $ref: '#/components/schemas/MemberInviteRewardConfigResponse'
     ApiResponseAny:
       type: object
       properties:
@@ -223,27 +181,6 @@ components:
     MemberRechargeConfigResponse:
       allOf:
         - $ref: '#/components/schemas/MemberRechargeConfigRequest'
-        - type: object
-          properties:
-            updatedAt:
-              type: string
-              format: date-time
-              description: 配置更新时间
-    MemberInviteRewardConfigRequest:
-      type: object
-      required: [yearlyRewardFlp, monthlyRewardFlp]
-      properties:
-        yearlyRewardFlp:
-          type: number
-          format: double
-          description: 年度会员邀请奖励（默认30 FLP）
-        monthlyRewardFlp:
-          type: number
-          format: double
-          description: 月度会员邀请奖励（默认3 FLP）
-    MemberInviteRewardConfigResponse:
-      allOf:
-        - $ref: '#/components/schemas/MemberInviteRewardConfigRequest'
         - type: object
           properties:
             updatedAt:

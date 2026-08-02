@@ -1,4 +1,4 @@
-﻿{
+{
   "app": {
     "brandPrimary": "低空星球",
     "brandTag": "管理平台"
@@ -9,6 +9,7 @@
     "user": "用户管理",
     "groups": "小组管理",
     "subscription": "订阅推送",
+    "flpPool": "FLP矿池",
     "settings": "设置"
   },
   "subscriptionPush": {
@@ -1226,14 +1227,12 @@
         },
         "fields": {
           "type": "奖项类型",
-          "flpCount": "FLP 数量",
           "description": "奖项名称",
           "imageUrl": "奖项图片",
           "probability": "中奖概率 (%)"
         },
         "placeholders": {
           "description": "示例：年度会员、优惠券、周边礼包",
-          "flpCount": "请输入 FLP 数量",
           "imageUrl": "上传图片后自动填充",
           "probability": "请输入百分比"
         },
@@ -1503,7 +1502,7 @@
         "skyTypeAvatarPack": "星格图片包",
         "provinceCityKmlZip": "省区域压缩包",
         "countyKmlZip": "县区域压缩包",
-        "memberAircraftModels": "会员机型统计",
+        "memberAircraftModels": "机型统计",
         "ladderLeaderboard": "天梯排行榜"
       },
       "uomLayer": {
@@ -1701,18 +1700,18 @@
         }
       },
       "memberAircraftModels": {
-        "title": "会员机型统计",
-        "subtitle": "统计当前会员用户填写的执飞机型占比，未填写的会员会单独归类。",
-        "totalLabel": "会员用户",
-        "chartHelper": "占比仅基于会员身份统计，不校验会员是否过期。",
+        "title": "执飞机型统计",
+        "subtitle": "统计当前用户填写的执飞机型占比，未填写的用户会单独归类。",
+        "totalLabel": "用户",
+        "chartHelper": "占比基于全部用户统计，执飞机型不再需要会员解锁。",
         "emptyModel": "未填写",
-        "memberCount": "{count} 位会员",
-        "empty": "暂无会员机型统计数据",
+        "memberCount": "{count} 位用户",
+        "empty": "暂无机型统计数据",
         "actions": {
           "reload": "重新加载"
         },
         "messages": {
-          "loadFailed": "会员机型统计加载失败"
+          "loadFailed": "机型统计加载失败"
         }
       },
       "ladderLeaderboard": {
@@ -1953,6 +1952,19 @@
     "subtitle": "维护会员价格配置，并上传会员群二维码、背景包、头像包和语音包。",
     "actions": {
       "reload": "重新加载"
+    },
+    "durationDouble": {
+      "confirmTitle": "确认翻倍有效会员时长？",
+      "confirmContent": "只会处理当前仍在有效期内的会员，并把剩余有效期翻倍。该操作会直接写入用户会员到期日。",
+      "actions": {
+        "trigger": "有效会员时长翻倍",
+        "confirm": "确认翻倍",
+        "cancel": "取消"
+      },
+      "messages": {
+        "success": "已处理 {count} 位有效会员，累计增加 {days} 天",
+        "failed": "有效会员时长翻倍失败"
+      }
     },
     "tabs": {
       "logs": "会员开通日志",

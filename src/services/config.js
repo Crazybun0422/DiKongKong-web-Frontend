@@ -6,16 +6,6 @@ const normalizePagePayload = (response, fallback = {}) => {
   return data
 }
 
-export const fetchInviteConfig = async () => {
-  const response = await http.get('/config/invite')
-  return normalizePagePayload(response, {})
-}
-
-export const saveInviteConfig = async (payload) => {
-  const response = await http.put('/config/invite', payload)
-  return normalizePagePayload(response, {})
-}
-
 export const fetchMapSettlementConfig = async () => {
   const response = await http.get('/config/map-settlement')
   return normalizePagePayload(response, {})
@@ -432,16 +422,6 @@ export const saveUomLayerConfig = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
-export const fetchPinReviewRewardConfig = async () => {
-  const response = await http.get('/config/pin-review-reward')
-  return normalizePagePayload(response, { approvedARewardFlp: 0, approvedBRewardFlp: 0 })
-}
-
-export const savePinReviewRewardConfig = async (payload) => {
-  const response = await http.put('/config/pin-review-reward', payload)
-  return normalizePagePayload(response, {})
-}
-
 export const fetchPinVideoUploadFlpLimitConfig = async () => {
   const response = await http.get('/config/pin-video-upload-flp-limit')
   return normalizePagePayload(response, { threshold: 0, updatedAt: null })
@@ -487,8 +467,6 @@ export const deleteTemplateSetting = async (templateName) => {
 }
 
 export default {
-  fetchInviteConfig,
-  saveInviteConfig,
   fetchMapSettlementConfig,
   saveMapSettlementConfig,
   fetchMerchantIntroLongImageConfig,
@@ -548,8 +526,6 @@ export default {
   saveKmlDecryptAesKeyConfig,
   fetchPosterServiceVersion,
   refreshPosterServiceVersion,
-  fetchPinReviewRewardConfig,
-  savePinReviewRewardConfig,
   fetchPinVideoUploadFlpLimitConfig,
   savePinVideoUploadFlpLimitConfig,
   fetchTemplateSettings,

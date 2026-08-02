@@ -59,16 +59,6 @@ export const saveMemberRechargeConfig = async (payload) => {
   return normalizePagePayload(response, {})
 }
 
-export const fetchMemberInviteRewardConfig = async () => {
-  const response = await http.get('/config/member-invite-reward')
-  return normalizePagePayload(response, {})
-}
-
-export const saveMemberInviteRewardConfig = async (payload) => {
-  const response = await http.put('/config/member-invite-reward', payload)
-  return normalizePagePayload(response, {})
-}
-
 export const fetchMemberGroupQrcode = async () => {
   const response = await http.get('/config/member-group-qrcode')
   return normalizePagePayload(response, { imageUrl: '', updatedAt: null })
@@ -100,6 +90,11 @@ export const fetchMemberOpenLogs = async ({ page = 1, size = 10, featureCode = '
   return toPageResult(payload, { page, size })
 }
 
+export const doubleActiveMemberDuration = async () => {
+  const response = await http.post('/admin/users/member/double-active-duration')
+  return normalizePagePayload(response, {})
+}
+
 export const fetchAvatarPackVersion = async () => fetchPackVersion('/avatar-packs/version')
 
 export const fetchVoicePackVersion = async () => fetchPackVersion('/voice-packs/version')
@@ -119,11 +114,10 @@ export default {
   buildBackgroundImagePackDownloadUrl,
   fetchMemberRechargeConfig,
   saveMemberRechargeConfig,
-  fetchMemberInviteRewardConfig,
-  saveMemberInviteRewardConfig,
   fetchMemberGroupQrcode,
   uploadMemberGroupQrcode,
   fetchMemberOpenLogs,
+  doubleActiveMemberDuration,
   fetchAvatarPackVersion,
   fetchVoicePackVersion,
   fetchBackgroundImagePackVersion,

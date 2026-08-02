@@ -232,7 +232,7 @@ components:
           minItems: 8
           maxItems: 8
           items:
-            $ref: '#/components/schemas/LotteryPrizeConfigEntry'
+            $ref: '#/components/schemas/LotteryPrizeConfigRequestEntry'
     LotteryConfigResponse:
       type: object
       properties:
@@ -277,6 +277,28 @@ components:
           format: decimal
           nullable: true
           description: Required when `flp` is true.
+        description:
+          type: string
+          description: Required when `flp` is false.
+        imageUrl:
+          type: string
+          description: Required when `flp` is false.
+        probability:
+          type: number
+          format: decimal
+      required:
+        - level
+        - flp
+    LotteryPrizeConfigRequestEntry:
+      type: object
+      description: FLP数额由矿池统一配置，此结构只维护奖品类型、素材和概率。
+      properties:
+        level:
+          type: integer
+          description: Prize tier level from 1 to 8.
+        flp:
+          type: boolean
+          description: Whether the prize is an FLP reward.
         description:
           type: string
           description: Required when `flp` is false.

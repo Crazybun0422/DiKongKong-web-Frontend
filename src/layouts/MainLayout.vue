@@ -18,6 +18,7 @@ const menuItems = computed(() => [
   { key: 'users', label: t('navigation.user'), path: { name: 'users' } },
   { key: 'groups', label: t('navigation.groups'), path: { name: 'groups' } },
   { key: 'subscriptionPush', label: t('navigation.subscription'), path: { name: 'subscriptionPush' } },
+  { key: 'flpPool', label: t('navigation.flpPool'), path: { name: 'flpPool' } },
   { key: 'settings', label: t('navigation.settings'), path: { name: 'settings' } },
 ])
 

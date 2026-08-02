@@ -30,7 +30,25 @@ import {
   ringContains,
   normalizedAreaLevel,
 } from '../../utils/airspaceDji'
-import { buildWmsOverlay, createWmsMapType, WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
+import { WMS_MIN_ZOOM, WMS_MAX_ZOOM } from '../../utils/airspaceWms'
+import {
+  buildOfflineLayerTiles,
+  getCachedLayerTileDescriptor,
+  resolveLayerTileDescriptor,
+  DEFAULT_MIN_ZOOM as UOM_LAYER_MIN_ZOOM,
+  DEFAULT_MAX_ZOOM as UOM_LAYER_MAX_ZOOM,
+} from '../../utils/offlineLayerTiles'
+import {
+  UOM_KML_MIN_ZOOM,
+  UOM3_SAFE_STATUS_TEXT,
+  UOM3_RESTRICTED_STATUS_TEXT,
+  UOM3_PENDING_STATUS_TEXT,
+  buildGraphicsFromParsedResource,
+  fetchUomKmlResource,
+  mergeKmlResources,
+  queryUomKmlTiles,
+  resolveUomKmlStatus,
+} from '../../utils/uomKmlLayer'
 import { buildNoFlyZoneGraphics } from '../../utils/airspaceNoFlyZones'
 import { downloadUomTilesRangeZip, downloadUomTilesZip } from '../../utils/uomOfflineTiles'
 import { searchPlaces } from '../../utils/tencentMap'
@@ -48,7 +66,11 @@ const router = useRouter()
 const DEFAULT_CENTER = { latitude: 39.908823, longitude: 116.39747 }
 const DEFAULT_DRONE_INDEX = Math.max(DRONES.findIndex((d) => d.slug === 'dji-mavic-3'), 0)
 const DEFAULT_MAP_ZOOM = 11
-const UOM_SAFE_STATUS_TEXT = '适飞空域（限高120m）'
+const UOM_SAFE_STATUS_TEXT = UOM3_SAFE_STATUS_TEXT
+const UOM_RESTRICTED_STATUS_TEXT = UOM3_RESTRICTED_STATUS_TEXT
+const UOM_PENDING_STATUS_TEXT = UOM3_PENDING_STATUS_TEXT
+const TRANSPARENT_TILE_SRC =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E"
 const DRONE_ICON_PATH = droneIcon
 
 const mapContainer = ref(null)
@@ -66,13 +88,13 @@ const searchResults = ref([])
 const searchLoading = ref(false)
 
 const statusPanel = reactive({
-  djiStatus: '评估中',
+  djiStatus: UOM_PENDING_STATUS_TEXT,
   djiStatusExtra: '',
   djiTone: 'neutral',
   djiColor: '',
-  uomStatus: '评估中',
+  uomStatus: UOM_PENDING_STATUS_TEXT,
   uomTone: 'neutral',
-  temporaryText: '评估中',
+  temporaryText: UOM_PENDING_STATUS_TEXT,
   temporaryTone: 'neutral',
   temporaryZone: null,
 })
@@ -278,8 +300,7 @@ const applyLayerElementChange = (key) => {
       const center = getCurrentCenter()
       const bounds = getCurrentBounds()
       const zoom = typeof mapInstance.value?.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
-      if (zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
-        setUomLayerVisible(true)
+      if (zoom >= UOM_LAYER_MIN_ZOOM) {
         refreshUom(center, zoom, bounds)
       }
     }
@@ -326,8 +347,14 @@ const nfzCircleOverlays = ref([])
 const uomOverlays = ref([])
 const uomTileMasks = new Map()
 const currentWmsTiles = ref([])
-let uomMapType = null
-let uomMapTypeIndex = -1
+const uomLayerDescriptor = ref(null)
+const uomLayerError = ref(null)
+const uomKmlResource = ref(null)
+const uomKmlLoading = ref(false)
+const uomKmlEmpty = ref(false)
+const uomKmlError = ref(null)
+let uomLayerDescriptorPromise = null
+let currentUomOverlayKey = ''
 
 const lastDjiAreas = ref(undefined)
 const noFlyZoneShapes = ref([])
@@ -838,34 +865,139 @@ const renderNoFlyOverlays = (polygons = [], circles = []) => {
 }
 
 const renderUomOverlays = (tiles = []) => {
-  // Deprecated: kept for compatibility with the UOM mask parser. We now rely on
-  // a map type overlay for display, so only clear previously rendered ground
-  // overlays if any remain.
   clearOverlays(uomOverlays)
   currentWmsTiles.value = tiles
+  if (!mapInstance.value || !window.qq?.maps || !mapContainer.value) return
+
+  tiles.forEach((tile) => {
+    if (!tile?.bounds || !tile.src) return
+    const img = document.createElement('img')
+    img.alt = ''
+    img.draggable = false
+    img.className = 'uom-dom-tile'
+    img.onerror = () => {
+      if (img.dataset.fallbackApplied === '1') return
+      img.dataset.fallbackApplied = '1'
+      img.src = TRANSPARENT_TILE_SRC
+    }
+    img.style.position = 'absolute'
+    img.style.pointerEvents = 'none'
+    img.style.userSelect = 'none'
+    img.style.objectFit = 'fill'
+    img.style.opacity = `${tile.opacity ?? tile.alpha ?? 0.65}`
+    img.style.zIndex = `${Math.max(2, Number.isFinite(Number(tile.zIndex)) ? Number(tile.zIndex) : 2)}`
+    img.style.display = 'none'
+    img.src = tile.src
+    mapContainer.value.appendChild(img)
+    uomOverlays.value.push({
+      tile,
+      el: img,
+      setMap: (map) => {
+        if (map === null && img.parentNode) img.parentNode.removeChild(img)
+      },
+    })
+  })
+  updateUomOverlayLayout()
 }
 
-const ensureUomMapType = () => {
-  if (!mapInstance.value || !window.qq?.maps) return null
-  if (!uomMapType) {
-    uomMapType = createWmsMapType(window.qq)
+const renderUomKmlGraphics = (graphics = {}) => {
+  clearOverlays(uomOverlays)
+  currentWmsTiles.value = []
+  currentUomOverlayKey = ''
+  if (!layerForm.uomDivisionEnabled) return
+  if (!mapInstance.value || !window.qq?.maps) return
+
+  ;(Array.isArray(graphics.polygons) ? graphics.polygons : []).forEach((poly) => {
+    if (!Array.isArray(poly.points) || poly.points.length < 3) return
+    const stroke = parseColorWithOpacity(poly.strokeColor, 0.95)
+    const fill = parseColorWithOpacity(poly.fillColor, 0.3)
+    const overlay = new window.qq.maps.Polygon({
+      map: mapInstance.value,
+      path: poly.points.map((pt) => toLatLng(pt)),
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      fillColor: toQqColor(fill.color, fill.opacity),
+      strokeWeight: poly.strokeWidth || 1,
+      strokeOpacity: stroke.opacity,
+      fillOpacity: fill.opacity ?? 0.3,
+      zIndex: 2,
+    })
+    uomOverlays.value.push(overlay)
+  })
+
+  ;(Array.isArray(graphics.polylines) ? graphics.polylines : []).forEach((line) => {
+    if (!Array.isArray(line.points) || line.points.length < 2) return
+    const stroke = parseColorWithOpacity(line.color, 0.95)
+    const overlay = new window.qq.maps.Polyline({
+      map: mapInstance.value,
+      path: line.points.map((pt) => toLatLng(pt)),
+      strokeColor: toQqColor(stroke.color, stroke.opacity),
+      strokeWeight: line.width || 1,
+      strokeOpacity: stroke.opacity,
+      zIndex: 2,
+    })
+    uomOverlays.value.push(overlay)
+  })
+}
+
+const getMapProjection = () => {
+  if (!mapInstance.value || typeof mapInstance.value.getProjection !== 'function') return null
+  const projection = mapInstance.value.getProjection()
+  if (!projection || typeof projection.fromLatLngToPoint !== 'function') return null
+  return projection
+}
+
+const latLngToMapPixel = (point) => {
+  if (!point || !window.qq?.maps?.LatLng || !mapInstance.value || !mapContainer.value) return null
+  const projection = getMapProjection()
+  if (!projection) return null
+  const center = mapInstance.value.getCenter?.()
+  const zoom = mapInstance.value.getZoom?.()
+  if (!center || !Number.isFinite(zoom)) return null
+  const centerPoint = projection.fromLatLngToPoint(center)
+  const targetPoint = projection.fromLatLngToPoint(new window.qq.maps.LatLng(point.latitude, point.longitude))
+  if (!centerPoint || !targetPoint) return null
+  const rect = mapContainer.value.getBoundingClientRect()
+  const scale = Math.pow(2, zoom)
+  return {
+    x: (targetPoint.x - centerPoint.x) * scale + rect.width / 2,
+    y: (targetPoint.y - centerPoint.y) * scale + rect.height / 2,
   }
-  return uomMapType
+}
+
+const updateUomOverlayLayout = () => {
+  if (!Array.isArray(uomOverlays.value) || !uomOverlays.value.length) return
+  uomOverlays.value.forEach((overlay) => {
+    const el = overlay?.el
+    const bounds = overlay?.tile?.bounds
+    if (!el || !bounds?.southwest || !bounds?.northeast) return
+    const sw = latLngToMapPixel(bounds.southwest)
+    const ne = latLngToMapPixel(bounds.northeast)
+    if (!sw || !ne) {
+      el.style.display = 'none'
+      return
+    }
+    const left = Math.min(sw.x, ne.x)
+    const top = Math.min(sw.y, ne.y)
+    const width = Math.abs(ne.x - sw.x)
+    const height = Math.abs(sw.y - ne.y)
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      el.style.display = 'none'
+      return
+    }
+    el.style.left = `${left.toFixed(2)}px`
+    el.style.top = `${top.toFixed(2)}px`
+    el.style.width = `${width.toFixed(2)}px`
+    el.style.height = `${height.toFixed(2)}px`
+    el.style.display = 'block'
+  })
 }
 
 const setUomLayerVisible = (visible) => {
-  if (!mapInstance.value || !window.qq?.maps) return
   if (!visible || !layerForm.uomDivisionEnabled) {
-    if (uomMapTypeIndex > -1) {
-      mapInstance.value.overlayMapTypes.removeAt(uomMapTypeIndex)
-      uomMapTypeIndex = -1
-    }
-    return
-  }
-  const layer = ensureUomMapType()
-  if (!layer) return
-  if (uomMapTypeIndex === -1) {
-    uomMapTypeIndex = mapInstance.value.overlayMapTypes.push(layer) - 1
+    clearOverlays(uomOverlays)
+    currentWmsTiles.value = []
+    currentUomOverlayKey = ''
+    resetUomKmlState()
   }
 }
 
@@ -1204,11 +1336,13 @@ const gcjRectToWgs = (rect) => {
 const ensureUomMask = (tile) => {
   if (!tile || !tile.id) return
   const cached = uomTileMasks.get(tile.id)
-  if (cached && (cached.status === 'ready' || cached.status === 'pending')) return
+  if (cached && (cached.status === 'ready' || cached.status === 'pending' || cached.status === 'unsupported')) return
   const img = new Image()
   const entry = { status: 'pending', bounds: tile.bounds }
   uomTileMasks.set(tile.id, entry)
-  img.crossOrigin = 'anonymous'
+  if (shouldSampleCrossOriginUomTile(tile.src)) {
+    img.crossOrigin = 'anonymous'
+  }
   img.onload = () => {
     try {
       const w = img.width || 256
@@ -1226,14 +1360,16 @@ const ensureUomMask = (tile) => {
       entry.data = imageData.data
       updateStatusPanel()
     } catch (err) {
-      console.error('解析 UOM 瓦片失败', err)
+      console.warn('UOM tile loaded but pixel sampling failed', err)
       entry.status = 'error'
+      updateStatusPanel()
     }
   }
   img.onerror = (err) => {
-    console.error('加载 UOM 瓦片失败', err)
+    console.error('load UOM tile failed', err)
     const current = uomTileMasks.get(tile.id)
     if (current) current.status = 'error'
+    updateStatusPanel()
   }
   img.src = tile.src
 }
@@ -1252,6 +1388,18 @@ const pointInBounds = (point, bounds) => {
   const swLng = typeof sw.longitude === 'number' ? sw.longitude : -180
   const neLng = typeof ne.longitude === 'number' ? ne.longitude : 180
   return point.latitude >= swLat && point.latitude <= neLat && point.longitude >= swLng && point.longitude <= neLng
+}
+
+const shouldSampleCrossOriginUomTile = (src) => {
+  if (typeof window === 'undefined') return false
+  const allowCrossOriginMask = `${import.meta.env.VITE_UOM_TILE_MASK_CORS || 'true'}`.toLowerCase() !== 'false'
+  if (allowCrossOriginMask) return true
+  try {
+    const url = new URL(src, window.location.href)
+    return url.origin === window.location.origin
+  } catch (err) {
+    return false
+  }
 }
 
 const pointCoveredByUomMask = (point, bounds, mask) => {
@@ -1275,18 +1423,56 @@ const pointCoveredByUomMask = (point, bounds, mask) => {
 
 const describeUomStatus = () => {
   const center = statusCenter.value
-  if (!center) return { status: '评估中', tone: 'neutral' }
+  if (!center) return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+
+  const zoom = typeof mapInstance.value?.getZoom === 'function' ? Math.round(mapInstance.value.getZoom()) : DEFAULT_MAP_ZOOM
+  if (Number.isFinite(zoom) && zoom >= UOM_KML_MIN_ZOOM) {
+    if (uomKmlError.value) return { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
+    return resolveUomKmlStatus({
+      center,
+      loading: uomKmlLoading.value,
+      empty: uomKmlEmpty.value,
+      resource: uomKmlResource.value,
+    })
+  }
+  if (Number.isFinite(zoom) && zoom >= UOM_LAYER_MIN_ZOOM) {
+    if (uomKmlLoading.value && !uomKmlResource.value) {
+      return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+    }
+    if (uomKmlResource.value || uomKmlEmpty.value) {
+      return resolveUomKmlStatus({
+        center,
+        loading: false,
+        empty: uomKmlEmpty.value,
+        resource: uomKmlResource.value,
+      })
+    }
+  }
+
+  if (uomLayerError.value) return { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
+  const descriptor = uomLayerDescriptor.value
+  const minZoom = descriptor?.minZoom ?? UOM_LAYER_MIN_ZOOM
+  const maxZoom = descriptor?.maxZoom ?? UOM_LAYER_MAX_ZOOM
+  if (Number.isFinite(zoom) && zoom < minZoom) return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+  if (Number.isFinite(zoom) && zoom > maxZoom) return { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
+  if (uomLayerDescriptorPromise && !currentWmsTiles.value.length) {
+    return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+  }
+
   const tile = findUomTileForPoint(center)
-  if (!tile) return { status: '非适飞空域', tone: 'alert' }
+  if (!tile) return { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
   const mask = uomTileMasks.get(tile.id)
   if (!mask) {
     ensureUomMask(tile)
-    return { status: '评估中', tone: 'neutral' }
+    return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
   }
-  if (mask.status === 'pending') return { status: '评估中', tone: 'neutral' }
-  if (mask.status !== 'ready') return { status: '非适飞空域', tone: 'alert' }
+  if (mask.status === 'pending') return { status: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+  if (mask.status !== 'ready') return { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
+
   const covered = pointCoveredByUomMask(center, tile.bounds, mask)
-  return covered ? { status: UOM_SAFE_STATUS_TEXT, tone: 'safe' } : { status: '非适飞空域', tone: 'alert' }
+  return covered
+    ? { status: UOM_SAFE_STATUS_TEXT, tone: 'safe' }
+    : { status: UOM_RESTRICTED_STATUS_TEXT, tone: 'alert' }
 }
 
 const formatTemporaryZoneLabel = (value, maxLength = 9) => {
@@ -1319,11 +1505,11 @@ const findNoFlyZoneAtPoint = (lng, lat) => {
 }
 
 const describeTemporaryNoFlyStatus = () => {
-  if (!noFlyZonesReady.value) return { zoneInfo: null, text: '评估中', tone: 'neutral' }
-  if (noFlyZonesError.value) return { zoneInfo: null, text: '临时禁飞数据不可用', tone: 'warn' }
+  if (!noFlyZonesReady.value) return { zoneInfo: null, text: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
+  if (noFlyZonesError.value) return { zoneInfo: null, text: 'temporary no-fly data unavailable', tone: 'warn' }
   const center = statusCenter.value
   if (!center || !Number.isFinite(center.longitude) || !Number.isFinite(center.latitude)) {
-    return { zoneInfo: null, text: '评估中', tone: 'neutral' }
+    return { zoneInfo: null, text: UOM_PENDING_STATUS_TEXT, tone: 'neutral' }
   }
   const hit = findNoFlyZoneAtPoint(center.longitude, center.latitude)
   if (!hit) return { zoneInfo: null, text: '无', tone: 'safe' }
@@ -1335,10 +1521,10 @@ const describeTemporaryNoFlyStatus = () => {
 
 const describeDjiStatus = () => {
   const areas = lastDjiAreas.value
-  const fallback = { status: '暂无空域数据', extra: '', tone: 'neutral', color: '' }
-  if (typeof areas === 'undefined') return { status: '评估中', extra: '', tone: 'neutral', color: '' }
-  if (areas === null) return { status: '空域数据加载失败', extra: '', tone: 'warn', color: '' }
-  if (!Array.isArray(areas) || !areas.length) return { status: '不在限制区', extra: '', tone: 'safe', color: '' }
+  const fallback = { status: UOM_PENDING_STATUS_TEXT, extra: '', tone: 'neutral', color: '' }
+  if (typeof areas === 'undefined') return { status: UOM_PENDING_STATUS_TEXT, extra: '', tone: 'neutral', color: '' }
+  if (areas === null) return { status: 'airspace data load failed', extra: '', tone: 'warn', color: '' }
+  if (!Array.isArray(areas) || !areas.length) return { status: 'not in restricted zone', extra: '', tone: 'safe', color: '' }
   const center = statusCenter.value
   if (!center) return fallback
   const wgs = gcj02ToWgs84(center.longitude, center.latitude)
@@ -1354,7 +1540,7 @@ const describeDjiStatus = () => {
     }
   }
   areas.forEach((area) => visitArea(area, null))
-  if (!hits.length) return { status: '不在限制区', extra: '', tone: 'safe', color: '' }
+  if (!hits.length) return { status: 'not in restricted zone', extra: '', tone: 'safe', color: '' }
   hits.sort((a, b) => severityRank(a.area) - severityRank(b.area))
   const target = hits[0]
   const extraParts = []
@@ -1452,7 +1638,7 @@ const loadNoFlyZones = async (center, radiusKm, token) => {
     noFlyZonesError.value = false
     renderNoFlyOverlays(graphics.polygons || [], graphics.circles || [])
   } catch (error) {
-    console.error('加载临时禁飞区失败', error)
+    console.error('load temporary no-fly zones failed', error)
     if (isStaleToken(token)) return
     noFlyZonesReady.value = true
     noFlyZonesError.value = true
@@ -1468,14 +1654,14 @@ const loadDjiAreas = async (center, radiusMeters, region, token) => {
   try {
     const rect = buildBoundsRect(region, center, radiusMeters)
     const wgsRect = gcjRectToWgs(rect)
-    if (!wgsRect) throw new Error('坐标转换失败')
+    if (!wgsRect) throw new Error('coordinate conversion failed')
     const areas = await fetchDjiAreas({ rect: wgsRect, levels: '2,6,1,4,3,7,8,10', drone: selectedDrone.value?.slug })
     if (isStaleToken(token)) return
     lastDjiAreas.value = areas
     const graphics = buildAreaGraphics(areas)
     renderDjiOverlays(graphics.polygons || [], graphics.circles || [])
   } catch (error) {
-    console.error('DJI 空域加载失败', error)
+    console.error('load DJI airspace failed', error)
     if (isStaleToken(token)) return
     lastDjiAreas.value = null
     clearOverlays(djiPolygonOverlays)
@@ -1485,12 +1671,199 @@ const loadDjiAreas = async (center, radiusMeters, region, token) => {
   }
 }
 
-const refreshUom = (center, zoom, region) => {
-  const tiles = buildWmsOverlay(center, Math.round(zoom), region)
-  currentWmsTiles.value = tiles
-  renderUomOverlays(tiles)
-  tiles.forEach((tile) => ensureUomMask(tile))
+const UOM_RENDER_COLOR = 'default'
+const UOM_TILE_MAX_TILES = 36
+const UOM_VIEWPORT_PADDING_PX = 120
+
+const getUomLayerDescriptor = async () => {
+  if (uomLayerDescriptor.value?.urlTemplate) return uomLayerDescriptor.value
+  const cached = getCachedLayerTileDescriptor(UOM_RENDER_COLOR)
+  if (cached?.urlTemplate) {
+    uomLayerDescriptor.value = cached
+    uomLayerError.value = null
+    return cached
+  }
+  if (!uomLayerDescriptorPromise) {
+    uomLayerDescriptorPromise = resolveLayerTileDescriptor(UOM_RENDER_COLOR)
+      .then((descriptor) => {
+        uomLayerDescriptor.value = descriptor
+        uomLayerError.value = null
+        return descriptor
+      })
+      .catch((err) => {
+        uomLayerError.value = err
+        throw err
+      })
+      .finally(() => {
+        uomLayerDescriptorPromise = null
+      })
+  }
+  return uomLayerDescriptorPromise
+}
+
+const getUomViewportSize = () => {
+  const rect = mapContainer.value?.getBoundingClientRect?.()
+  return {
+    width: Number(rect?.width) || window.innerWidth || 375,
+    height: Number(rect?.height) || window.innerHeight || 667,
+  }
+}
+
+const resolveUomTilePadding = (zoom) => {
+  const z = Math.round(Number(zoom) || DEFAULT_MAP_ZOOM)
+  if (z >= 15) return 3
+  return 0
+}
+
+const resolveUomTileSpan = (zoom) => {
+  const z = Math.round(Number(zoom) || DEFAULT_MAP_ZOOM)
+  if (z >= 15) return 16
+  return 6
+}
+
+const buildUomOverlayKey = (tiles = []) =>
+  (Array.isArray(tiles) ? tiles : [])
+    .map((tile) => `${tile?.id || ''}@${tile?.src || ''}`)
+    .sort()
+    .join('|')
+
+const resetUomKmlState = () => {
+  uomKmlResource.value = null
+  uomKmlLoading.value = false
+  uomKmlEmpty.value = false
+  uomKmlError.value = null
+}
+
+const refreshUomKml = async (center, zoom, region, token = refreshToken, options = {}) => {
+  const z = Math.round(Number(zoom))
+  const minZoom = Number.isFinite(Number(options.minZoom)) ? Number(options.minZoom) : UOM_KML_MIN_ZOOM
+  const renderGraphics = options.renderGraphics !== false
+  if (!center || !Number.isFinite(z) || z < minZoom) {
+    resetUomKmlState()
+    return
+  }
+
+  uomLayerError.value = null
+  if (renderGraphics) {
+    currentWmsTiles.value = []
+    currentUomOverlayKey = ''
+  }
+  uomKmlLoading.value = true
+  uomKmlError.value = null
   updateStatusPanel()
+
+  try {
+    const tiles = await queryUomKmlTiles({ center, region: renderGraphics ? region : null })
+    if (isStaleToken(token)) return
+    uomKmlEmpty.value = !tiles.length
+    if (!tiles.length) {
+      uomKmlResource.value = null
+      if (renderGraphics) clearOverlays(uomOverlays)
+      return
+    }
+
+    const resources = (await Promise.all(
+      tiles.map((tile) =>
+        fetchUomKmlResource(tile).catch((error) => {
+          console.error('load UOM KML tile failed', error)
+          return null
+        }),
+      ),
+    )).filter(Boolean)
+    if (isStaleToken(token)) return
+    const resource = mergeKmlResources(resources)
+    uomKmlResource.value = resource
+    uomKmlEmpty.value = !resources.length
+    if (renderGraphics) {
+      const graphics = buildGraphicsFromParsedResource(resource, region || null)
+      renderUomKmlGraphics(graphics)
+    }
+  } catch (error) {
+    if (isStaleToken(token)) return
+    console.error('load UOM KML layer failed', error)
+    uomKmlResource.value = null
+    uomKmlEmpty.value = true
+    uomKmlError.value = error
+    if (renderGraphics) clearOverlays(uomOverlays)
+  } finally {
+    if (!isStaleToken(token)) {
+      uomKmlLoading.value = false
+      updateStatusPanel()
+    }
+  }
+}
+
+const refreshUom = async (center, zoom, region, token = refreshToken) => {
+  const z = Math.round(Number(zoom))
+  if (Number.isFinite(z) && z >= UOM_KML_MIN_ZOOM) {
+    await refreshUomKml(center, zoom, region, token)
+    return
+  }
+  if (!center || !Number.isFinite(z) || z < UOM_LAYER_MIN_ZOOM || z > UOM_LAYER_MAX_ZOOM) {
+    resetUomKmlState()
+    currentWmsTiles.value = []
+    currentUomOverlayKey = ''
+    clearOverlays(uomOverlays)
+    updateStatusPanel()
+    return
+  }
+
+  refreshUomKml(center, zoom, null, token, {
+    minZoom: UOM_LAYER_MIN_ZOOM,
+    renderGraphics: false,
+  })
+
+  try {
+    const descriptor = await getUomLayerDescriptor()
+    if (isStaleToken(token)) return
+    if (z < descriptor.minZoom || z > descriptor.maxZoom) {
+      currentWmsTiles.value = []
+      currentUomOverlayKey = ''
+      clearOverlays(uomOverlays)
+      updateStatusPanel()
+      return
+    }
+    const viewport = getUomViewportSize()
+    const tiles = buildOfflineLayerTiles(
+      { longitude: center.longitude, latitude: center.latitude },
+      z,
+      region || null,
+      {
+        descriptor,
+        tileSize: descriptor.tileSize,
+        maskSize: 256,
+        paddingTiles: resolveUomTilePadding(z),
+        maxSpan: resolveUomTileSpan(z),
+        maxTiles: UOM_TILE_MAX_TILES,
+        viewportWidth: viewport.width,
+        viewportHeight: viewport.height,
+        viewportPaddingPx: UOM_VIEWPORT_PADDING_PX,
+        alpha: 0.65,
+        opacity: 0.65,
+        zIndex: 1,
+      },
+    )
+    if (isStaleToken(token)) return
+    uomLayerError.value = null
+    currentWmsTiles.value = tiles
+    const overlayKey = buildUomOverlayKey(tiles)
+    if (overlayKey !== currentUomOverlayKey) {
+      renderUomOverlays(tiles)
+      currentUomOverlayKey = overlayKey
+    } else {
+      updateUomOverlayLayout()
+    }
+    tiles.forEach((tile) => ensureUomMask(tile))
+    updateStatusPanel()
+  } catch (error) {
+    if (isStaleToken(token)) return
+    console.error('load UOM offline layer failed', error)
+    uomLayerError.value = error
+    currentWmsTiles.value = []
+    currentUomOverlayKey = ''
+    clearOverlays(uomOverlays)
+    updateStatusPanel()
+  }
 }
 
 const refreshData = (force = false, providedToken = null) => {
@@ -1516,19 +1889,20 @@ const refreshData = (force = false, providedToken = null) => {
   loadNearbyPins(center, radiusKm, token)
   loadNoFlyZones(center, radiusKm, token)
   loadDjiAreas(center, radiusMeters, bounds, token)
-  if (layerForm.uomDivisionEnabled && zoom >= WMS_MIN_ZOOM && zoom <= WMS_MAX_ZOOM) {
-    setUomLayerVisible(true)
-    refreshUom(center, zoom, bounds)
+  if (layerForm.uomDivisionEnabled && zoom >= UOM_LAYER_MIN_ZOOM) {
+    refreshUom(center, zoom, bounds, token)
   } else {
     setUomLayerVisible(false)
     clearOverlays(uomOverlays)
     currentWmsTiles.value = []
+    resetUomKmlState()
   }
 }
 
 const scheduleRefresh = () => {
   if (refreshTimer) clearTimeout(refreshTimer)
   refreshScaleBar()
+  updateUomOverlayLayout()
   const token = nextRefreshToken()
   refreshTimer = setTimeout(() => refreshData(false, token), 300)
 }
@@ -1609,7 +1983,7 @@ const locateUser = () => {
     },
     (err) => {
       console.error('定位失败', err)
-      message.error('定位失败，请检查权限')
+      message.error('operation failed')
     },
     { enableHighAccuracy: true, timeout: 8000 },
   )
@@ -1717,7 +2091,7 @@ const loadOrders = async () => {
     orderCount.value = totalElements ?? orderCount.value
   } catch (error) {
     console.error('Failed to load orders', error)
-    message.error(t('orders.messages.loadFailed'))
+    message.error('operation failed')
   } finally {
     ordersLoading.value = false
   }
@@ -1737,7 +2111,7 @@ const handleRepairOrder = async (order) => {
     await loadOrders()
   } catch (error) {
     console.error('Failed to repair wechat payment order', error)
-    message.error(t('orders.messages.repairFailed'))
+    message.error('operation failed')
   } finally {
     orderRepairingId.value = ''
   }
@@ -1774,7 +2148,7 @@ const loadLayerSettings = () => {
     }
   } catch (error) {
     console.error('Failed to load map layer settings from local storage', error)
-    message.error(t('layers.loadFailed'))
+    message.error('operation failed')
   } finally {
     layerLoading.value = false
   }
@@ -1807,7 +2181,7 @@ const saveLayerSettings = () => {
     layerDrawerVisible.value = false
   } catch (error) {
     console.error('Failed to save map layer settings to local storage', error)
-    message.error(t('layers.saveFailed'))
+    message.error('operation failed')
   } finally {
     layerSaving.value = false
   }
@@ -1892,7 +2266,7 @@ const saveUomTiles = async () => {
   const zoomRaw = typeof mapInstance.value.getZoom === 'function' ? mapInstance.value.getZoom() : DEFAULT_MAP_ZOOM
   const zoom = Number.isFinite(zoomRaw) ? Math.round(zoomRaw) : DEFAULT_MAP_ZOOM
   if (zoom < WMS_MIN_ZOOM || zoom > WMS_MAX_ZOOM) {
-    message.warning(`当前缩放等级不支持下载瓦片，请调整到 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+    message.warning('current zoom does not support tile download')
     return
   }
 
@@ -1904,16 +2278,16 @@ const saveUomTiles = async () => {
       concurrency: 6,
     })
     if (summary.truncated) {
-      message.warning(`瓦片数量过多，已按上限导出 ${summary.downloaded} 张`)
+      message.warning('current zoom does not support tile download')
     }
-    message.success(`瓦片包已下载（${summary.downloaded}/${summary.attempted}）`)
+    message.success('tile package downloaded')
   } catch (error) {
     if (error?.code === 'ANCHOR_POLYGON_EMPTY') {
       message.warning('请先绘制锚点区域')
       return
     }
     if (error?.code === 'ZOOM_OUT_OF_RANGE') {
-      message.warning(`当前缩放等级不支持下载瓦片，请调整到 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+      message.warning('current zoom does not support tile download')
       return
     }
     if (error?.code === 'NO_TILES') {
@@ -1925,7 +2299,7 @@ const saveUomTiles = async () => {
       return
     }
     console.error('保存瓦片失败', error)
-    message.error('保存瓦片图失败，请稍后重试')
+    message.error('operation failed')
   } finally {
     saveTilesLoading.value = false
   }
@@ -1974,16 +2348,16 @@ const saveUomTilesRange = async () => {
       },
     })
     if (summary.truncated) {
-      message.warning('瓦片数量过多，部分缩放级别已按上限导出')
+      message.warning('瓦片数量过多，已按上限导出')
     }
-    message.success(`连续保存完成（${summary.startZoom}-${summary.endZoom}，${summary.downloaded}/${summary.attempted}）`)
+    message.success('tile package downloaded')
   } catch (error) {
     if (error?.code === 'ANCHOR_POLYGON_EMPTY') {
       message.warning('请先绘制锚点区域')
       return
     }
     if (error?.code === 'ZOOM_OUT_OF_RANGE') {
-      message.warning(`连续导出仅支持 ${WMS_MIN_ZOOM}-${WMS_MAX_ZOOM} 级`)
+      message.warning('current zoom does not support tile download')
       return
     }
     if (error?.code === 'ALL_TILE_DOWNLOAD_FAILED') {
@@ -2070,7 +2444,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="status-row">
-          <span class="status-label">执飞机型：</span>
+          <span class="status-label">执行机型：</span>
           <a-select v-model:value="selectedDroneIndex" class="picker-select" size="small"
             :options="DRONES.map((item, index) => ({ label: item.name, value: index }))"
             :get-popup-container="(triggerNode) => triggerNode?.parentNode || document.body"

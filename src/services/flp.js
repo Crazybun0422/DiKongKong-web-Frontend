@@ -27,6 +27,18 @@ export const fetchFlpLogs = async ({ page = 1, size = 10, featureCode, logType }
   return toPageResult(data, { page, size })
 }
 
+export const fetchFlpPool = async () => {
+  const response = await http.get('/flp/pool/admin')
+  return response?.data?.data ?? {}
+}
+
+export const saveFlpPool = async (payload) => {
+  const response = await http.put('/flp/pool/admin', payload)
+  return response?.data?.data ?? {}
+}
+
 export default {
   fetchFlpLogs,
+  fetchFlpPool,
+  saveFlpPool,
 }
