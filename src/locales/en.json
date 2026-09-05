@@ -10,6 +10,8 @@
     "groups": "Group Management",
     "subscription": "Subscription Push",
     "flpPool": "FLP Pool",
+    "discoveryPromotions": "Discovery Promotions",
+    "apiAccess": "API Access",
     "settings": "Settings"
   },
   "subscriptionPush": {
@@ -332,9 +334,11 @@
         "name": "Circle name",
         "summary": "Description / requirements",
         "category": "Category",
+        "entryMode": "Entry mode",
         "likeCount": "Likes",
         "memberCount": "Members",
         "status": "Review status",
+        "listingStatus": "Listing status",
         "actions": "Actions"
       },
       "status": {
@@ -355,16 +359,47 @@
         "owner_wechat": "Owner WeChat",
         "unknown": "Not provided"
       },
+      "entryMode": {
+        "free": "Free entry",
+        "paid": "Paid entry"
+      },
+      "listingStatus": {
+        "listed": "Listed",
+        "unlisted": "Unlisted"
+      },
       "actions": {
         "detail": "Details",
+        "receipts": "Receipts",
         "approve": "Approve",
-        "reject": "Reject"
+        "reject": "Reject",
+        "unlist": "Unlist",
+        "relist": "Relist"
       },
       "messages": {
         "loadFailed": "Failed to load low altitude circles.",
         "reviewSuccess": "Circle review submitted.",
         "reviewFailed": "Failed to submit circle review.",
-        "rejectReasonRequired": "Please enter a reject reason."
+        "rejectReasonRequired": "Please enter a reject reason.",
+        "unlistSuccess": "Circle unlisted.",
+        "relistSuccess": "Circle relisted.",
+        "listingFailed": "Failed to update the listing status."
+      },
+      "receipts": {
+        "title": "Circle receipts",
+        "loadFailed": "Failed to load circle receipts.",
+        "memberDiscount": "Member 10% off",
+        "tabs": {
+          "circle": "This circle",
+          "owner": "All circles by this owner"
+        },
+        "columns": {
+          "circle": "Circle",
+          "payer": "Payer",
+          "originalAmount": "Original",
+          "paidAmount": "Paid",
+          "discount": "Discount",
+          "paidAt": "Paid at"
+        }
       },
       "confirm": {
         "approve": {
@@ -376,6 +411,16 @@
           "title": "Reject review",
           "content": "Reject \"{name}\"?",
           "ok": "Reject"
+        },
+        "unlist": {
+          "title": "Unlist circle",
+          "content": "After unlisting, \"{name}\" will no longer appear in the mini program. Continue?",
+          "ok": "Unlist"
+        },
+        "relist": {
+          "title": "Relist circle",
+          "content": "Relist \"{name}\"?",
+          "ok": "Relist"
         },
         "rejectReason": {
           "title": "Reject reason",
@@ -394,12 +439,15 @@
           "name": "Name",
           "category": "Category",
           "status": "Status",
+          "listingStatus": "Listing status",
           "memberCount": "Members",
           "regionLabel": "Region label",
           "summary": "Description / requirements",
           "entryRequirement": "Description / requirements",
           "likeCount": "Likes",
           "joinMethod": "Join method",
+          "entryMode": "Entry mode",
+          "entryPrice": "Entry price",
           "ownerFeatureCode": "Applicant feature code",
           "sortOrder": "Sort order",
           "createdAt": "Created at",

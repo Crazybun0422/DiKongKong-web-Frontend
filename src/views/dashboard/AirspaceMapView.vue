@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Input, Modal, message } from 'ant-design-vue'
 import COS from 'cos-js-sdk-v5'
 import { useI18n } from 'vue-i18n'
@@ -8,7 +8,14 @@ import { EnvironmentOutlined } from '@ant-design/icons-vue'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS, MARKER_SORT_BY } from '../../services/markers'
 import {
   fetchAdminLowAltitudeCircles,
+  fetchAdminLowAltitudeCircleReceipts,
   reviewLowAltitudeCircle,
+  updateLowAltitudeCircleListing,
+  updateAdminLowAltitudeCircle,
+  startLowAltitudeCircleExport,
+  startLowAltitudeCircleImport,
+  subscribeLowAltitudeCircleBatchJob,
+  downloadLowAltitudeCircleExport,
   LOW_ALTITUDE_CIRCLE_REVIEW_STATUS,
 } from '../../services/lowAltitudeCircles'
 import {
@@ -57,6 +64,7 @@ const detailVisible = ref(false)
 const detailRecord = ref(null)
 const circleAuditLoading = ref(false)
 const circleAuditData = ref([])
+const circleListingUpdatingIds = ref(new Set())
 const activeCircleStatus = ref(LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.ALL)
 const circlePagination = reactive({
   current: 1,
@@ -65,6 +73,29 @@ const circlePagination = reactive({
 })
 const circleDetailVisible = ref(false)
 const circleDetailRecord = ref(null)
+const circleEditVisible = ref(false)
+const circleEditSaving = ref(false)
+const circleEditId = ref('')
+const circleEditForm = reactive({
+  category: 'REGIONAL_PILOTS', coverImage: '', showcaseImagesText: '', name: '', summary: '',
+  description: '', entryRequirement: '', joinMethod: 'GROUP_QR', entryMode: 'FREE', entryPrice: 0,
+  groupQrImage: '', groupLiveCodeUrl: '', ownerQrImage: '', memberCount: 0,
+})
+const circleSelectedIds = ref(new Set())
+const circleSelectingAll = ref(false)
+const circleBatchVisible = ref(false)
+const circleBatchJob = ref(null)
+let circleBatchAbortController = null
+const circleReceiptVisible = ref(false)
+const circleReceiptLoading = ref(false)
+const circleReceiptData = ref([])
+const circleReceiptRecord = ref(null)
+const circleReceiptScope = ref('CIRCLE')
+const circleReceiptPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
 const orderDetailVisible = ref(false)
 const orderDetailLoading = ref(false)
 const orderRepairing = ref(false)
@@ -445,8 +476,21 @@ const circleOverviewText = (record = {}) =>
   record.description || record.entryRequirement || record.summary || t('airspace.table.placeholders.notProvided')
 
 const circleJoinMethodText = (joinMethod) => {
+  if (joinMethod === 'GROUP_LIVE_CODE') return '群活码按钮'
   if (!joinMethod) return t('airspace.circle.joinMethod.unknown')
   return t(`airspace.circle.joinMethod.${String(joinMethod).toLowerCase()}`, joinMethod)
+}
+
+const circleEntryModeText = (entryMode) =>
+  String(entryMode || 'FREE').toUpperCase() === 'PAID'
+    ? t('airspace.circle.entryMode.paid')
+    : t('airspace.circle.entryMode.free')
+
+const isPaidCircle = (record = {}) => String(record.entryMode || 'FREE').toUpperCase() === 'PAID'
+
+const formatCircleAmount = (value) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? `¥${amount.toFixed(2)}` : '-'
 }
 
 const pinVisibilityText = (visibility) => {
@@ -1052,6 +1096,10 @@ const canReviewRecord = (record) => record?.reviewStatus === MARKER_REVIEW_STATU
 const isMarkerRejected = (record) => record?.reviewStatus === MARKER_REVIEW_STATUS.REJECTED
 const isPinRejected = (pin) => pin?.reviewStatus === PIN_REVIEW_STATUS.REJECTED
 const canReviewLowAltitudeCircle = (record) => record?.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.PENDING
+const canUpdateLowAltitudeCircleListing = (record) =>
+  record?.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED
+const isLowAltitudeCircleListingUpdating = (record) =>
+  Boolean(record?.id && circleListingUpdatingIds.value.has(record.id))
 const canSubmitMarkerReview = (record, status) =>
   status === MARKER_REVIEW_STATUS.REJECTED && isMarkerRejected(record)
     ? !!record?.id
@@ -1190,9 +1238,20 @@ const circleColumns = computed(() => [
   { title: t('airspace.circle.columns.name'), dataIndex: 'name', key: 'name', width: 220 },
   { title: t('airspace.circle.columns.summary'), dataIndex: 'summary', key: 'summary', width: 520 },
   { title: t('airspace.circle.columns.category'), dataIndex: 'category', key: 'category', width: 150 },
+  { title: t('airspace.circle.columns.entryMode'), dataIndex: 'entryMode', key: 'entryMode', width: 120 },
   { title: t('airspace.circle.columns.likeCount'), dataIndex: 'likeCount', key: 'likeCount', width: 90 },
   { title: t('airspace.circle.columns.status'), dataIndex: 'status', key: 'status', width: 120 },
-  { title: t('airspace.circle.columns.actions'), key: 'actions', width: 150 },
+  { title: t('airspace.circle.columns.listingStatus'), dataIndex: 'listed', key: 'listed', width: 110 },
+  { title: t('airspace.circle.columns.actions'), key: 'actions', width: 330 },
+])
+
+const circleReceiptColumns = computed(() => [
+  { title: t('airspace.circle.receipts.columns.circle'), dataIndex: 'circleName', key: 'circleName', width: 180 },
+  { title: t('airspace.circle.receipts.columns.payer'), dataIndex: 'payerNickname', key: 'payer', width: 170 },
+  { title: t('airspace.circle.receipts.columns.originalAmount'), dataIndex: 'originalAmount', key: 'originalAmount', width: 110 },
+  { title: t('airspace.circle.receipts.columns.paidAmount'), dataIndex: 'paidAmount', key: 'paidAmount', width: 110 },
+  { title: t('airspace.circle.receipts.columns.discount'), dataIndex: 'memberDiscountApplied', key: 'discount', width: 110 },
+  { title: t('airspace.circle.receipts.columns.paidAt'), dataIndex: 'paidAt', key: 'paidAt', width: 180 },
 ])
 
 const pinAuditPaginationConfig = computed(() => ({
@@ -1214,7 +1273,29 @@ const circlePaginationConfig = computed(() => ({
   pageSize: circlePagination.pageSize,
   total: circlePagination.total,
   showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50', '100'],
+  pageSizeOptions: ['10', '20', '50', '100', '500', '1000'],
+  showTotal: (total, range) =>
+    t('airspace.pagination.showTotal', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
+const circleRowSelection = computed(() => ({
+  selectedRowKeys: Array.from(circleSelectedIds.value),
+  preserveSelectedRowKeys: true,
+  onChange: (keys) => { circleSelectedIds.value = new Set(keys.map(String)) },
+}))
+
+const circleSelectedCount = computed(() => circleSelectedIds.value.size)
+
+const circleReceiptPaginationConfig = computed(() => ({
+  current: circleReceiptPagination.current,
+  pageSize: circleReceiptPagination.pageSize,
+  total: circleReceiptPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
   showTotal: (total, range) =>
     t('airspace.pagination.showTotal', {
       total,
@@ -1547,9 +1628,201 @@ const openCircleDetail = (record) => {
   circleDetailVisible.value = true
 }
 
+const openCircleEdit = (record) => {
+  circleEditId.value = record?.id || ''
+  Object.assign(circleEditForm, {
+    category: record?.category || 'REGIONAL_PILOTS',
+    coverImage: record?.coverImage || '',
+    showcaseImagesText: Array.isArray(record?.showcaseImages) ? record.showcaseImages.join('\n') : '',
+    name: record?.name || '',
+    summary: record?.summary || '',
+    description: record?.description || record?.entryRequirement || '',
+    entryRequirement: record?.entryRequirement || record?.description || '',
+    joinMethod: record?.joinMethod || 'GROUP_QR',
+    entryMode: record?.entryMode || 'FREE',
+    entryPrice: Number(record?.originalPrice || 0),
+    groupQrImage: record?.groupQrImage || '',
+    groupLiveCodeUrl: record?.groupLiveCodeUrl || '',
+    ownerQrImage: record?.ownerQrImage || '',
+    memberCount: Number(record?.memberCount || 0),
+  })
+  circleEditVisible.value = true
+}
+
+const submitCircleEdit = async () => {
+  if (!circleEditId.value || !circleEditForm.name.trim() || !circleEditForm.summary.trim()
+    || !circleEditForm.description.trim() || !circleEditForm.coverImage.trim()) {
+    message.warning('请完整填写社群名称、简介、详情和封面')
+    return
+  }
+  if (circleEditForm.joinMethod === 'GROUP_LIVE_CODE'
+    && !/^https:\/\//i.test(circleEditForm.groupLiveCodeUrl.trim())) {
+    message.warning('请填写企业微信群活码 HTTPS 链接')
+    return
+  }
+  circleEditSaving.value = true
+  try {
+    const updated = await updateAdminLowAltitudeCircle(circleEditId.value, {
+      category: circleEditForm.category,
+      coverImage: circleEditForm.coverImage.trim(),
+      showcaseImages: circleEditForm.showcaseImagesText.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+      name: circleEditForm.name.trim(),
+      summary: circleEditForm.summary.trim(),
+      description: circleEditForm.description.trim(),
+      entryRequirement: circleEditForm.entryRequirement.trim() || circleEditForm.description.trim(),
+      joinMethod: circleEditForm.joinMethod,
+      entryMode: circleEditForm.entryMode,
+      entryPrice: circleEditForm.entryMode === 'PAID' ? Number(circleEditForm.entryPrice) : 0,
+      groupQrImage: circleEditForm.groupQrImage.trim(),
+      groupLiveCodeUrl: circleEditForm.groupLiveCodeUrl.trim(),
+      ownerQrImage: circleEditForm.ownerQrImage.trim(),
+      memberCount: Math.max(0, Number(circleEditForm.memberCount) || 0),
+    })
+    circleAuditData.value = circleAuditData.value.map((item) => item.id === updated.id ? { ...item, ...updated } : item)
+    if (circleDetailRecord.value?.id === updated.id) circleDetailRecord.value = { ...circleDetailRecord.value, ...updated }
+    circleEditVisible.value = false
+    message.success('社群信息已保存')
+  } catch (error) {
+    console.error('Failed to update low altitude circle', error)
+    message.error('社群信息保存失败，请检查入群资料')
+  } finally {
+    circleEditSaving.value = false
+  }
+}
+
+const selectAllLowAltitudeCircles = async () => {
+  if (circlePagination.total > 1000) {
+    message.warning('单次最多选择 1000 条，请先按审核状态筛选后再操作')
+    return
+  }
+  circleSelectingAll.value = true
+  try {
+    const result = await fetchAdminLowAltitudeCircles({
+      page: 1,
+      size: Math.max(1, Math.min(1000, circlePagination.total || 1000)),
+      status: activeCircleStatus.value,
+    })
+    circleSelectedIds.value = new Set(result.content.map((item) => String(item.id)).filter(Boolean))
+  } catch (error) {
+    message.error('全选社群失败')
+  } finally {
+    circleSelectingAll.value = false
+  }
+}
+
+const clearLowAltitudeCircleSelection = () => {
+  circleSelectedIds.value = new Set()
+}
+
+const watchCircleBatchJob = async (job) => {
+  circleBatchAbortController?.abort()
+  circleBatchAbortController = new AbortController()
+  circleBatchJob.value = job
+  circleBatchVisible.value = true
+  try {
+    await subscribeLowAltitudeCircleBatchJob(job.jobId, async (progress) => {
+      circleBatchJob.value = progress
+      if (progress.status === 'COMPLETED' && progress.type === 'IMPORT') {
+        await loadLowAltitudeCircleData()
+      }
+    }, circleBatchAbortController.signal)
+  } catch (error) {
+    if (error?.name !== 'AbortError') console.error('Low altitude circle batch stream failed', error)
+  }
+}
+
+const exportLowAltitudeCircles = async (all) => {
+  if (!all && !circleSelectedCount.value) {
+    message.warning('请先选择需要导出的社群')
+    return
+  }
+  try {
+    const job = await startLowAltitudeCircleExport({
+      all,
+      ids: all ? [] : Array.from(circleSelectedIds.value),
+      status: activeCircleStatus.value,
+    })
+    watchCircleBatchJob(job)
+  } catch (error) {
+    message.error('导出任务启动失败')
+  }
+}
+
+const importLowAltitudeCircles = async ({ file, onSuccess, onError }) => {
+  try {
+    const job = await startLowAltitudeCircleImport(file)
+    onSuccess?.(job)
+    watchCircleBatchJob(job)
+  } catch (error) {
+    onError?.(error)
+    message.error('导入任务启动失败，请上传由本页面导出的 XLSX 文件')
+  }
+}
+
+const downloadCircleBatchFile = async () => {
+  const job = circleBatchJob.value
+  if (!job?.jobId || job.status !== 'COMPLETED' || job.type !== 'EXPORT') return
+  try {
+    await downloadLowAltitudeCircleExport(job.jobId, job.fileName)
+  } catch (error) {
+    message.error('导出文件下载失败')
+  }
+}
+
+onBeforeUnmount(() => circleBatchAbortController?.abort())
+
 const closeCircleDetail = () => {
   circleDetailVisible.value = false
   circleDetailRecord.value = null
+}
+
+const loadCircleReceipts = async () => {
+  const circleId = circleReceiptRecord.value?.id
+  if (!circleId) return
+  circleReceiptLoading.value = true
+  try {
+    const result = await fetchAdminLowAltitudeCircleReceipts(circleId, {
+      scope: circleReceiptScope.value,
+      page: circleReceiptPagination.current,
+      size: circleReceiptPagination.pageSize,
+    })
+    circleReceiptData.value = result.content
+    circleReceiptPagination.current = result.page
+    circleReceiptPagination.pageSize = result.size
+    circleReceiptPagination.total = result.totalElements
+  } catch (error) {
+    console.error('Failed to load low altitude circle receipts', error)
+    message.error(t('airspace.circle.receipts.loadFailed'))
+  } finally {
+    circleReceiptLoading.value = false
+  }
+}
+
+const openCircleReceipts = (record) => {
+  circleReceiptRecord.value = { ...record }
+  circleReceiptScope.value = 'CIRCLE'
+  circleReceiptPagination.current = 1
+  circleReceiptData.value = []
+  circleReceiptVisible.value = true
+  loadCircleReceipts()
+}
+
+const closeCircleReceipts = () => {
+  circleReceiptVisible.value = false
+  circleReceiptRecord.value = null
+  circleReceiptData.value = []
+}
+
+const handleCircleReceiptScopeChange = (scope) => {
+  circleReceiptScope.value = scope
+  circleReceiptPagination.current = 1
+  loadCircleReceipts()
+}
+
+const handleCircleReceiptTableChange = (nextPagination) => {
+  circleReceiptPagination.current = nextPagination.current || 1
+  circleReceiptPagination.pageSize = nextPagination.pageSize || circleReceiptPagination.pageSize
+  loadCircleReceipts()
 }
 
 const openPinDetail = (record) => {
@@ -1787,6 +2060,40 @@ const handleLowAltitudeCircleReview = (record, status) => {
   })
 }
 
+const executeLowAltitudeCircleListingUpdate = async (record, listed) => {
+  if (!record?.id || !canUpdateLowAltitudeCircleListing(record) || isLowAltitudeCircleListingUpdating(record)) return
+  circleListingUpdatingIds.value = new Set([...circleListingUpdatingIds.value, record.id])
+  try {
+    const updated = await updateLowAltitudeCircleListing(record.id, listed)
+    circleAuditData.value = circleAuditData.value.map((item) => item.id === record.id ? { ...item, ...updated } : item)
+    if (circleDetailRecord.value?.id === record.id) {
+      circleDetailRecord.value = { ...circleDetailRecord.value, ...updated }
+    }
+    message.success(t(listed ? 'airspace.circle.messages.relistSuccess' : 'airspace.circle.messages.unlistSuccess'))
+  } catch (error) {
+    console.error('Failed to update low altitude circle listing', error)
+    message.error(t('airspace.circle.messages.listingFailed'))
+  } finally {
+    const next = new Set(circleListingUpdatingIds.value)
+    next.delete(record.id)
+    circleListingUpdatingIds.value = next
+  }
+}
+
+const handleLowAltitudeCircleListing = (record) => {
+  if (!canUpdateLowAltitudeCircleListing(record)) return
+  const nextListed = record.listed === false
+  const action = nextListed ? 'relist' : 'unlist'
+  Modal.confirm({
+    title: t(`airspace.circle.confirm.${action}.title`),
+    content: t(`airspace.circle.confirm.${action}.content`, { name: record.name || '' }),
+    okText: t(`airspace.circle.confirm.${action}.ok`),
+    cancelText: t('airspace.confirm.cancel'),
+    okButtonProps: { danger: !nextListed },
+    onOk: () => executeLowAltitudeCircleListingUpdate(record, nextListed),
+  })
+}
+
 const submitPinReview = async (pin, status, rejectDetail) => {
   if (!canSubmitPinReview(pin, status)) {
     message.info(t('airspace.pinAudit.messages.onlyPublicReview'))
@@ -1971,7 +2278,21 @@ watch(
       </template>
       <template v-else-if="activeMainTab === 'lowAltitudeCircles'">
         <div class="circle-audit-panel">
-          <div class="circle-audit-subtitle">{{ t('airspace.circle.subtitle') }}</div>
+          <div class="circle-audit-toolbar">
+            <div>
+              <div class="circle-audit-subtitle">{{ t('airspace.circle.subtitle') }}</div>
+              <span class="circle-selection-summary">已选择 {{ circleSelectedCount }} 条，跨页选择会保留</span>
+            </div>
+            <div class="circle-batch-actions">
+              <a-button :loading="circleSelectingAll" @click="selectAllLowAltitudeCircles">全选当前筛选</a-button>
+              <a-button :disabled="!circleSelectedCount" @click="clearLowAltitudeCircleSelection">清空选择</a-button>
+              <a-button :disabled="!circleSelectedCount" @click="exportLowAltitudeCircles(false)">导出已选</a-button>
+              <a-button @click="exportLowAltitudeCircles(true)">导出当前筛选</a-button>
+              <a-upload accept=".xls,.xlsx" :show-upload-list="false" :custom-request="importLowAltitudeCircles">
+                <a-button type="primary">导入新增 / 修改</a-button>
+              </a-upload>
+            </div>
+          </div>
           <a-tabs :active-key="activeCircleStatus" @change="handleLowAltitudeCircleStatusChange" class="status-tabs">
             <a-tab-pane v-for="tab in circleStatusTabs" :key="tab.key" :tab="tab.label" />
           </a-tabs>
@@ -1980,9 +2301,10 @@ watch(
             :data-source="circleAuditData"
             :loading="circleAuditLoading"
             :pagination="circlePaginationConfig"
+            :row-selection="circleRowSelection"
             row-key="id"
             class="markers-table circle-audit-table"
-            :scroll="{ x: 1250 }"
+            :scroll="{ x: 1490 }"
             @change="handleLowAltitudeCircleTableChange"
           >
             <template #bodyCell="{ column, record }">
@@ -2004,6 +2326,11 @@ watch(
               <template v-else-if="column.key === 'category'">
                 {{ circleCategoryText(record.category) }}
               </template>
+              <template v-else-if="column.key === 'entryMode'">
+                <a-tag :color="isPaidCircle(record) ? 'gold' : 'default'">
+                  {{ circleEntryModeText(record.entryMode) }}
+                </a-tag>
+              </template>
               <template v-else-if="column.key === 'likeCount'">
                 {{ record.likeCount ?? 0 }}
               </template>
@@ -2012,10 +2339,35 @@ watch(
                   {{ getCircleStatusDisplay(record).text }}
                 </a-tag>
               </template>
+              <template v-else-if="column.key === 'listed'">
+                <a-tag v-if="record.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED" :color="record.listed === false ? 'default' : 'green'">
+                  {{ t(record.listed === false ? 'airspace.circle.listingStatus.unlisted' : 'airspace.circle.listingStatus.listed') }}
+                </a-tag>
+                <span v-else>-</span>
+              </template>
               <template v-else-if="column.key === 'actions'">
                 <div class="circle-action-group">
+                  <a-button type="link" size="small" @click="openCircleEdit(record)">编辑</a-button>
                   <a-button type="link" size="small" @click="openCircleDetail(record)">
                     {{ t('airspace.circle.actions.detail') }}
+                  </a-button>
+                  <a-button
+                    v-if="isPaidCircle(record)"
+                    type="link"
+                    size="small"
+                    @click="openCircleReceipts(record)"
+                  >
+                    {{ t('airspace.circle.actions.receipts') }}
+                  </a-button>
+                  <a-button
+                    v-if="canUpdateLowAltitudeCircleListing(record)"
+                    type="link"
+                    size="small"
+                    :danger="record.listed !== false"
+                    :loading="isLowAltitudeCircleListingUpdating(record)"
+                    @click="handleLowAltitudeCircleListing(record)"
+                  >
+                    {{ t(record.listed === false ? 'airspace.circle.actions.relist' : 'airspace.circle.actions.unlist') }}
                   </a-button>
                   <a-button
                     v-if="canReviewLowAltitudeCircle(record)"
@@ -2464,6 +2816,80 @@ watch(
       <a-empty v-else />
     </a-modal>
     <a-modal
+      v-model:open="circleEditVisible"
+      title="编辑低空有圈"
+      width="760px"
+      :confirm-loading="circleEditSaving"
+      ok-text="保存"
+      cancel-text="取消"
+      @ok="submitCircleEdit"
+    >
+      <a-form layout="vertical" class="circle-edit-form">
+        <a-row :gutter="16">
+          <a-col :span="12"><a-form-item label="社群名称" required><a-input v-model:value="circleEditForm.name" :maxlength="20" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item label="社群类型" required><a-select v-model:value="circleEditForm.category" :options="[
+            { label: '地区飞友群', value: 'REGIONAL_PILOTS' }, { label: '行业交流群', value: 'INDUSTRY_EXCHANGE' }, { label: '协会组织', value: 'ASSOCIATION_ORG' },
+          ]" /></a-form-item></a-col>
+        </a-row>
+        <a-form-item label="社群简介" required><a-input v-model:value="circleEditForm.summary" :maxlength="120" /></a-form-item>
+        <a-form-item label="社群详情 / 入群要求" required><a-textarea v-model:value="circleEditForm.description" :rows="4" /></a-form-item>
+        <a-row :gutter="16">
+          <a-col :span="12"><a-form-item label="入群收费"><a-select v-model:value="circleEditForm.entryMode" :options="[
+            { label: '免费群', value: 'FREE' }, { label: '付费群', value: 'PAID' },
+          ]" /></a-form-item></a-col>
+          <a-col :span="12"><a-form-item v-if="circleEditForm.entryMode === 'PAID'" label="普通用户价格（元）" required><a-input-number v-model:value="circleEditForm.entryPrice" :min="0.01" :precision="2" style="width:100%" /></a-form-item></a-col>
+        </a-row>
+        <a-form-item label="入群资料展示" required>
+          <a-segmented v-model:value="circleEditForm.joinMethod" :options="[
+            { label: '群二维码', value: 'GROUP_QR' }, { label: '群主二维码', value: 'OWNER_QR' }, { label: '群活码按钮', value: 'GROUP_LIVE_CODE' },
+          ]" />
+        </a-form-item>
+        <a-form-item v-if="circleEditForm.joinMethod === 'GROUP_LIVE_CODE'" label="企业微信群活码链接" required>
+          <a-input v-model:value="circleEditForm.groupLiveCodeUrl" placeholder="填写配置客户群进群方式接口返回的 qr_code URL" />
+        </a-form-item>
+        <a-form-item v-else-if="circleEditForm.joinMethod === 'GROUP_QR'" label="群二维码图片对象名" required><a-input v-model:value="circleEditForm.groupQrImage" /></a-form-item>
+        <a-form-item v-else label="群主二维码图片对象名" required><a-input v-model:value="circleEditForm.ownerQrImage" /></a-form-item>
+        <a-form-item label="封面图片对象名" required><a-input v-model:value="circleEditForm.coverImage" /></a-form-item>
+        <a-form-item label="风采图片对象名（每行一张）"><a-textarea v-model:value="circleEditForm.showcaseImagesText" :rows="3" /></a-form-item>
+        <a-form-item label="社群人数"><a-input-number v-model:value="circleEditForm.memberCount" :min="0" style="width:100%" /></a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal
+      v-model:open="circleBatchVisible"
+      :title="circleBatchJob?.type === 'IMPORT' ? '低空有圈批量导入' : '低空有圈导出任务'"
+      width="620px"
+      :mask-closable="false"
+    >
+      <div v-if="circleBatchJob" class="circle-batch-progress">
+        <a-progress
+          :percent="Math.round(Number(circleBatchJob.progress) || 0)"
+          :status="circleBatchJob.status === 'FAILED' ? 'exception' : circleBatchJob.status === 'COMPLETED' ? 'success' : 'active'"
+        />
+        <div class="circle-batch-stats">
+          <span>{{ circleBatchJob.message }}</span>
+          <span>处理 {{ circleBatchJob.processed || 0 }} / {{ circleBatchJob.total || 0 }}</span>
+          <span>成功 {{ circleBatchJob.succeeded || 0 }}</span>
+          <span v-if="circleBatchJob.failed">失败 {{ circleBatchJob.failed }}</span>
+        </div>
+        <a-alert
+          v-if="circleBatchJob.errors?.length"
+          type="warning"
+          show-icon
+          :message="circleBatchJob.errors.slice(0, 5).join('；')"
+        />
+      </div>
+      <template #footer>
+        <a-button
+          v-if="circleBatchJob?.type === 'EXPORT' && circleBatchJob?.status === 'COMPLETED'"
+          type="primary"
+          @click="downloadCircleBatchFile"
+        >下载 XLSX</a-button>
+        <a-button @click="circleBatchVisible = false">关闭</a-button>
+      </template>
+    </a-modal>
+
+    <a-modal
       :open="circleDetailVisible"
       :title="t('airspace.circle.modal.title')"
       width="760px"
@@ -2504,6 +2930,11 @@ watch(
                 {{ getCircleStatusDisplay(circleDetailRecord).text }}
               </a-tag>
             </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.listingStatus')">
+              {{ circleDetailRecord.status === LOW_ALTITUDE_CIRCLE_REVIEW_STATUS.APPROVED
+                ? t(circleDetailRecord.listed === false ? 'airspace.circle.listingStatus.unlisted' : 'airspace.circle.listingStatus.listed')
+                : '-' }}
+            </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.circle.modal.fields.sortOrder')">
               {{ circleDetailRecord.sortOrder ?? 0 }}
             </a-descriptions-item>
@@ -2515,6 +2946,15 @@ watch(
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.circle.modal.fields.joinMethod')">
               {{ circleJoinMethodText(circleDetailRecord.joinMethod) }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="circleDetailRecord.groupLiveCodeUrl" label="群活码链接" :span="2">
+              <a :href="circleDetailRecord.groupLiveCodeUrl" target="_blank" rel="noreferrer">{{ circleDetailRecord.groupLiveCodeUrl }}</a>
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('airspace.circle.modal.fields.entryMode')">
+              {{ circleEntryModeText(circleDetailRecord.entryMode) }}
+            </a-descriptions-item>
+            <a-descriptions-item v-if="isPaidCircle(circleDetailRecord)" :label="t('airspace.circle.modal.fields.entryPrice')">
+              {{ formatCircleAmount(circleDetailRecord.originalPrice) }}
             </a-descriptions-item>
             <a-descriptions-item :label="t('airspace.circle.modal.fields.createdAt')">
               {{ formatDateTime(circleDetailRecord.createdAt) }}
@@ -2583,6 +3023,63 @@ watch(
         </section>
       </div>
       <a-empty v-else />
+    </a-modal>
+    <a-modal
+      :open="circleReceiptVisible"
+      :title="t('airspace.circle.receipts.title')"
+      width="900px"
+      :destroy-on-close="true"
+      @cancel="closeCircleReceipts"
+    >
+      <template #footer>
+        <a-button @click="closeCircleReceipts">{{ t('airspace.modal.actions.close') }}</a-button>
+      </template>
+      <div class="circle-receipt-heading">
+        <div>
+          <strong>{{ circleReceiptRecord?.name || '-' }}</strong>
+          <span>{{ circleReceiptRecord?.ownerNickname || circleReceiptRecord?.ownerFeatureCode || '-' }}</span>
+        </div>
+        <a-tabs :active-key="circleReceiptScope" @change="handleCircleReceiptScopeChange">
+          <a-tab-pane key="CIRCLE" :tab="t('airspace.circle.receipts.tabs.circle')" />
+          <a-tab-pane key="OWNER" :tab="t('airspace.circle.receipts.tabs.owner')" />
+        </a-tabs>
+      </div>
+      <a-table
+        :columns="circleReceiptColumns"
+        :data-source="circleReceiptData"
+        :loading="circleReceiptLoading"
+        :pagination="circleReceiptPaginationConfig"
+        :scroll="{ x: 860 }"
+        row-key="id"
+        size="small"
+        @change="handleCircleReceiptTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'payer'">
+            <div class="circle-receipt-payer">
+              <a-avatar :src="resolveCircleAssetUrl(record.payerAvatarUrl)" :size="28" />
+              <div>
+                <div>{{ record.payerNickname || '-' }}</div>
+                <small>{{ record.payerFeatureCode || '-' }}</small>
+              </div>
+            </div>
+          </template>
+          <template v-else-if="column.key === 'originalAmount'">
+            {{ formatCircleAmount(record.originalAmount) }}
+          </template>
+          <template v-else-if="column.key === 'paidAmount'">
+            <strong>{{ formatCircleAmount(record.paidAmount) }}</strong>
+          </template>
+          <template v-else-if="column.key === 'discount'">
+            <a-tag :color="record.memberDiscountApplied ? 'gold' : 'default'">
+              {{ record.memberDiscountApplied ? t('airspace.circle.receipts.memberDiscount') : '-' }}
+            </a-tag>
+          </template>
+          <template v-else-if="column.key === 'paidAt'">
+            {{ formatDateTime(record.paidAt) }}
+          </template>
+        </template>
+      </a-table>
     </a-modal>
     <a-modal :open="orderDetailVisible" :title="t('airspace.orderModal.title')" width="720px" :destroy-on-close="true"
       @cancel="closeOrderDetail">
@@ -2740,6 +3237,37 @@ watch(
 .circle-audit-subtitle {
   color: #64748b;
   font-size: 0.95rem;
+}
+
+.circle-audit-toolbar,
+.circle-batch-actions,
+.circle-batch-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.circle-audit-toolbar {
+  justify-content: space-between;
+}
+
+.circle-selection-summary {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.circle-batch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.circle-batch-stats {
+  color: #475569;
+  font-size: 13px;
 }
 
 .pin-reward-form {
@@ -3003,6 +3531,45 @@ watch(
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 12px;
+}
+
+.circle-receipt-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.circle-receipt-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.circle-receipt-heading strong {
+  color: #111827;
+  font-size: 16px;
+}
+
+.circle-receipt-heading span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.circle-receipt-heading :deep(.ant-tabs-nav) {
+  margin-bottom: 0;
+}
+
+.circle-receipt-payer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.circle-receipt-payer small {
+  color: #94a3b8;
 }
 
 .link-list {

@@ -19,6 +19,8 @@ const menuItems = computed(() => [
   { key: 'groups', label: t('navigation.groups'), path: { name: 'groups' } },
   { key: 'subscriptionPush', label: t('navigation.subscription'), path: { name: 'subscriptionPush' } },
   { key: 'flpPool', label: t('navigation.flpPool'), path: { name: 'flpPool' } },
+  { key: 'discoveryPromotions', label: t('navigation.discoveryPromotions'), path: { name: 'discoveryPromotions' } },
+  { key: 'apiAccess', label: t('navigation.apiAccess'), path: { name: 'apiAccess' } },
   { key: 'settings', label: t('navigation.settings'), path: { name: 'settings' } },
 ])
 
@@ -208,11 +210,12 @@ onMounted(() => {
 
 .main-nav {
   display: flex;
-  gap: 2.5rem;
+  gap: clamp(0.75rem, 1.6vw, 2.5rem);
   align-items: center;
 }
 
 .nav-link {
+  flex: 0 0 auto;
   background: transparent;
   border: none;
   color: #f2f2f2;
@@ -222,6 +225,7 @@ onMounted(() => {
   cursor: pointer;
   padding: 0.5rem 0;
   position: relative;
+  white-space: nowrap;
   transition: color 0.2s ease;
 }
 
@@ -316,7 +320,10 @@ onMounted(() => {
   .main-nav {
     order: 3;
     width: 100%;
-    justify-content: space-around;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    overflow-x: auto;
+    padding-bottom: 0.35rem;
   }
 
   .content-card {

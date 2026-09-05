@@ -10,6 +10,8 @@
     "groups": "小组管理",
     "subscription": "订阅推送",
     "flpPool": "FLP矿池",
+    "discoveryPromotions": "发现页推广",
+    "apiAccess": "API接入管理",
     "settings": "设置"
   },
   "subscriptionPush": {
@@ -332,9 +334,11 @@
         "name": "社群名称",
         "summary": "社群简介/入群要求",
         "category": "社群类型",
+        "entryMode": "入群方式",
         "likeCount": "点赞量",
         "memberCount": "成员数",
         "status": "审核状态",
+        "listingStatus": "上架状态",
         "actions": "操作"
       },
       "status": {
@@ -355,16 +359,47 @@
         "owner_wechat": "群主微信号",
         "unknown": "未提供"
       },
+      "entryMode": {
+        "free": "免费入圈",
+        "paid": "付费入圈"
+      },
+      "listingStatus": {
+        "listed": "已上架",
+        "unlisted": "已下架"
+      },
       "actions": {
         "detail": "查看详情",
+        "receipts": "收款记录",
         "approve": "通过",
-        "reject": "驳回"
+        "reject": "驳回",
+        "unlist": "下架",
+        "relist": "重新上架"
       },
       "messages": {
         "loadFailed": "低空有圈数据加载失败，请稍后重试。",
         "reviewSuccess": "圈审核结果已提交。",
         "reviewFailed": "圈审核提交失败，请稍后重试。",
-        "rejectReasonRequired": "请填写驳回理由。"
+        "rejectReasonRequired": "请填写驳回理由。",
+        "unlistSuccess": "社群已下架。",
+        "relistSuccess": "社群已重新上架。",
+        "listingFailed": "上下架操作失败，请稍后重试。"
+      },
+      "receipts": {
+        "title": "社群收款记录",
+        "loadFailed": "收款记录加载失败，请稍后重试。",
+        "memberDiscount": "会员 9 折",
+        "tabs": {
+          "circle": "本社群",
+          "owner": "该账户所有社群"
+        },
+        "columns": {
+          "circle": "社群",
+          "payer": "付款用户",
+          "originalAmount": "原价",
+          "paidAmount": "实付",
+          "discount": "优惠",
+          "paidAt": "付款时间"
+        }
       },
       "confirm": {
         "approve": {
@@ -376,6 +411,16 @@
           "title": "确认驳回",
           "content": "确定驳回“{name}”吗？",
           "ok": "确认驳回"
+        },
+        "unlist": {
+          "title": "确认下架",
+          "content": "下架后，“{name}”将不再在小程序展示，确定继续吗？",
+          "ok": "确认下架"
+        },
+        "relist": {
+          "title": "确认重新上架",
+          "content": "确定重新上架“{name}”吗？",
+          "ok": "重新上架"
         },
         "rejectReason": {
           "title": "填写驳回理由",
@@ -394,12 +439,15 @@
           "name": "社群名称",
           "category": "社群类型",
           "status": "审核状态",
+          "listingStatus": "上架状态",
           "memberCount": "成员数",
           "regionLabel": "地区标签",
           "summary": "社群简介/入群要求",
           "entryRequirement": "社群简介/入群要求",
           "likeCount": "点赞量",
-          "joinMethod": "入群方式",
+          "joinMethod": "入群资料",
+          "entryMode": "入群方式",
+          "entryPrice": "付费金额",
           "ownerFeatureCode": "申请人低空号",
           "sortOrder": "排序值",
           "createdAt": "创建时间",

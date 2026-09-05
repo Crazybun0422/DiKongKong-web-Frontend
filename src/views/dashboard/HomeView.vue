@@ -57,6 +57,7 @@ import { clampRadius, gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '../../
 import { fetchPendingMarkersCount, MARKER_REVIEW_STATUS } from '../../services/markers'
 import { fetchOrders } from '../../services/orders'
 import { repairWechatPaymentOrder } from '../../services/wechatPayments'
+import { fetchApiAccessServiceSummary } from '../../services/apiAccessServices'
 // Layer settings are stored locally in the browser to avoid backend dependency
 
 
@@ -226,6 +227,9 @@ const pendingLoading = ref(false)
 
 const orderCount = ref(0)
 const orderSummaryLoading = ref(false)
+const apiAccessSummaryLoading = ref(false)
+const apiAccessExpiredCount = ref(0)
+const apiAccessExpiredCompanies = ref([])
 
 const ordersVisible = ref(false)
 const ordersLoading = ref(false)
@@ -2077,6 +2081,19 @@ const loadOrderSummary = async () => {
   }
 }
 
+const loadApiAccessSummary = async () => {
+  apiAccessSummaryLoading.value = true
+  try {
+    const summary = await fetchApiAccessServiceSummary()
+    apiAccessExpiredCount.value = summary.expiredCount
+    apiAccessExpiredCompanies.value = summary.expiredCompanies
+  } catch (error) {
+    console.error('Failed to load API access expiry summary', error)
+  } finally {
+    apiAccessSummaryLoading.value = false
+  }
+}
+
 const loadOrders = async () => {
   ordersLoading.value = true
   try {
@@ -2200,6 +2217,10 @@ const goToPendingMarkers = () => {
       query: { status: MARKER_REVIEW_STATUS.PENDING },
     })
     .catch(() => { })
+}
+
+const goToExpiredApiAccess = () => {
+  router.push({ name: 'apiAccess', query: { status: 'EXPIRED' } }).catch(() => {})
 }
 
 const handleAnchorPolygonChange = (points = []) => {
@@ -2377,6 +2398,7 @@ onMounted(() => {
   waitForMap()
   loadPendingCount()
   loadOrderSummary()
+  loadApiAccessSummary()
 })
 
 onBeforeUnmount(() => {
@@ -2486,6 +2508,17 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+
+      <button
+        v-if="apiAccessExpiredCount > 0"
+        class="api-expiry-alert"
+        type="button"
+        :title="apiAccessExpiredCompanies.join('、')"
+        @click="goToExpiredApiAccess"
+      >
+        <span>API服务到期提醒</span>
+        <strong>{{ apiAccessExpiredCount }} 项已到期 ></strong>
+      </button>
 
       <div class="summary-board summary-board--standalone">
         <button class="board-item board-item--pending" type="button" @click="goToPendingMarkers">
@@ -3130,6 +3163,38 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.36);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
+}
+
+.api-expiry-alert {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 112, 112, 0.78);
+  border-radius: 12px;
+  background: rgba(127, 29, 29, 0.9);
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(127, 29, 29, 0.34);
+  cursor: pointer;
+  text-align: left;
+}
+
+.api-expiry-alert span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.api-expiry-alert strong {
+  color: #fecaca;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.api-expiry-alert:hover {
+  background: rgba(153, 27, 27, 0.94);
 }
 
 .summary-board--standalone {

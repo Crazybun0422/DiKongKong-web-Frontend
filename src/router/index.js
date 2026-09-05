@@ -10,6 +10,8 @@ const WorkGroupManagementView = () => import('../views/dashboard/WorkGroupManage
 const SettingsView = () => import('../views/dashboard/SettingsView.vue')
 const SubscriptionPushView = () => import('../views/dashboard/SubscriptionPushView.vue')
 const FlpPoolView = () => import('../views/dashboard/FlpPoolView.vue')
+const ApiAccessManagementView = () => import('../views/dashboard/ApiAccessManagementView.vue')
+const DiscoveryPromotionView = () => import('../views/dashboard/DiscoveryPromotionView.vue')
 
 const routes = [
   {
@@ -52,6 +54,16 @@ const routes = [
         path: 'flp-pool',
         name: 'flpPool',
         component: FlpPoolView,
+      },
+      {
+        path: 'discovery-promotions',
+        name: 'discoveryPromotions',
+        component: DiscoveryPromotionView,
+      },
+      {
+        path: 'api-access',
+        name: 'apiAccess',
+        component: ApiAccessManagementView,
       },
       {
         path: 'settings',
