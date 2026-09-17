@@ -1,9 +1,43 @@
 {
+  "androidPushTab": "Android 消息推送",
+  "androidServer": {
+    "title": "Android / 小程序服务环境（共用）",
+    "description": "Android Debug 和小程序开发版使用开发环境；Android Release 和小程序体验版、正式版使用发布环境。填写后覆盖内置默认地址，留空恢复该项默认值。两端下次冷启动时读取，网络异常沿用缓存。请保持内置服务器的配置接口可访问，并在微信公众平台配置新域名的 request、downloadFile、uploadFile 等合法域名。Android 手动调试地址优先，恢复默认后使用此配置。",
+    "debug": "开发环境 · Android Debug / 小程序开发版",
+    "release": "发布环境 · Android Release / 小程序体验版、正式版",
+    "apiBase": "接口地址",
+    "assetBase": "资源地址",
+    "defaultValue": "内置默认：{value}",
+    "invalid": "请填写 HTTPS 域名地址，可包含端口，不要包含路径、参数、账号或密码。留空使用默认值。",
+    "loadFailed": "读取服务环境失败，请重试。",
+    "saveFailed": "保存失败，请重试。",
+    "saved": "服务环境已保存，Android 和小程序下次冷启动时生效。"
+  },
+  "socialSettings": {
+    "title": "社交设置",
+    "closed": "是否关闭社交设置",
+    "help": "开启此开关后，个人主页隐藏私信和通话按钮，消息页隐藏暂无私信的引导文案。",
+    "loadFailed": "社交设置加载失败，请重试",
+    "saveFailed": "保存失败，请重试",
+    "saved": "社交设置已保存"
+  },
+  "androidMap": {
+    "title": "Android 地图配置",
+    "description": "在腾讯位置服务开通 Android 地图 SDK，绑定包名 cn.llplanet.lowlatitudeplanet 和应用签名。保存后，安卓端下次启动时自动读取。",
+    "label": "腾讯地图 Android SDK Key",
+    "placeholder": "请输入 Android SDK Key",
+    "invalid": "请输入有效的地图 Key（字母、数字和短横线，最多128字符）",
+    "loadFailed": "Android 地图配置加载失败，请重试",
+    "saved": "Android 地图配置已保存",
+    "savedAt": "保存成功（{time}），Android 地图 Key 已更新",
+    "saveFailed": "Android 地图配置保存失败，请重试"
+  },
   "app": {
     "brandPrimary": "低空星球",
     "brandTag": "管理平台"
   },
   "navigation": {
+    "onlineUsers": "当前在线人数",
     "home": "首页",
     "airspace": "空域地图",
     "user": "用户管理",
@@ -13,6 +47,47 @@
     "discoveryPromotions": "发现页推广",
     "apiAccess": "API接入管理",
     "settings": "设置"
+  },
+  "onlineUsers": {
+    "title": "当前在线人数",
+    "description": "统计已登录且在线心跳有效的用户，同一账号多个连接只计一人。",
+    "rule": "连续 {seconds} 秒没有有效心跳即视为离线；本页每 15 秒自动刷新，后台标签页暂停刷新。",
+    "updatedAt": "更新于 {time}（北京时间）",
+    "refresh": "刷新",
+    "search": "搜索昵称、低空号、手机号或邮箱",
+    "total": "共 {total} 位用户",
+    "empty": "暂无符合条件的在线用户",
+    "loadFailed": "在线数据刷新失败，请重试。已展示的数据为上次成功获取的结果。",
+    "detailFailed": "用户详情加载失败，请刷新重试；用户可能已被删除。",
+    "detail": "用户详情",
+    "view": "查看详情",
+    "nickname": "昵称",
+    "featureCode": "低空号",
+    "phone": "手机号",
+    "email": "邮箱",
+    "member": "会员状态",
+    "vip": "会员",
+    "ordinary": "非会员",
+    "memberExpireDate": "会员到期日期",
+    "unlimited": "长期",
+    "balance": "FLP 余额",
+    "createdAt": "注册时间",
+    "heartbeat": "最近心跳",
+    "connections": "在线连接数",
+    "online": "在线中",
+    "offline": "已离线",
+    "presence": "在线状态",
+    "accountStatus": "账号状态",
+    "gender": "性别",
+    "male": "男",
+    "female": "女",
+    "unknown": "未知",
+    "age": "年龄",
+    "birthday": "生日",
+    "signature": "签名",
+    "xingGe": "星格",
+    "aircraft": "执飞机型",
+    "likes": "获赞数"
   },
   "subscriptionPush": {
     "eyebrow": "订阅推送",
@@ -33,10 +108,10 @@
       "kvHint": "按模板字段填写键和值，支持多个条目。",
       "detailTags": "详情字段：",
       "pageLabel": "跳转页面",
-        "registrationRange": "发送范围",
-        "registrationDateRange": "注册时间段",
-        "flpRange": "按 FLP 数量",
-        "likeRange": "按获赞数",
+      "registrationRange": "发送范围",
+      "registrationDateRange": "注册时间段",
+      "flpRange": "按 FLP 数量",
+      "likeRange": "按获赞数",
       "hint": {
         "maxLength": "最多 {max} 个字符",
         "characterString": "仅限字母、数字、下划线、中划线、点号（不支持中文字符）",
@@ -443,7 +518,6 @@
           "memberCount": "成员数",
           "regionLabel": "地区标签",
           "summary": "社群简介/入群要求",
-          "entryRequirement": "社群简介/入群要求",
           "likeCount": "点赞量",
           "joinMethod": "入群资料",
           "entryMode": "入群方式",
@@ -879,11 +953,11 @@
         "jwtSecret": "请填写 JWT 密钥"
       },
       "messages": {
-      "loadFailed": "小程序配置加载失败",
-      "saveSuccess": "小程序配置已保存",
-      "saveFailed": "小程序配置保存失败"
-    }
-  },
+        "loadFailed": "小程序配置加载失败",
+        "saveSuccess": "小程序配置已保存",
+        "saveFailed": "小程序配置保存失败"
+      }
+    },
     "templateSettings": {
       "title": "模板配置",
       "subtitle": "维护小程序商业化场景的模板名称与模板ID映射。",
@@ -937,7 +1011,12 @@
         }
       },
       "actions": {
-        "reload": "重新加载"
+        "reload": "重新加载",
+        "edit": "编辑",
+        "delete": "删除",
+        "deleteConfirm": "确认删除？",
+        "addDetail": "新增字段",
+        "removeDetail": "移除"
       },
       "bulk": {
         "title": "批量添加模板",
@@ -973,14 +1052,6 @@
         "detailsHelper": "每行一个字段名，将作为模板详情数组存储。",
         "ok": "保存",
         "cancel": "取消"
-      },
-      "actions": {
-        "reload": "重新加载",
-        "edit": "编辑",
-        "delete": "删除",
-        "deleteConfirm": "确认删除？",
-        "addDetail": "新增字段",
-        "removeDetail": "移除"
       },
       "emptyDetails": "未配置详情字段",
       "emptyPage": "未配置页面"
@@ -1079,6 +1150,7 @@
       "memberSettings": "会员设置",
       "payment": "支付设置",
       "weapp": "小程序设置",
+      "android": "Android 设置",
       "newbieTasks": "新人任务设置",
       "lottery": "抽奖设置",
       "reportEntry": "报备设置",
@@ -1426,7 +1498,7 @@
       "guide": {
         "title": "引导页设置",
         "subtitle": "上传引导页面展示的 GIF 动图，并为每张设置引导标题。",
-        "hint": "仅支持 GIF，建议尺寸与小程序引导页一致。",
+        "hint": "支持 GIF、MP4/WebM 视频、Base64 和内嵌视频 HTML；添加后点击保存。",
         "empty": "暂无引导动图",
         "fields": {
           "title": "引导标题"
@@ -1439,7 +1511,7 @@
           "emptyUpdatedAt": "尚未同步"
         },
         "actions": {
-          "upload": "上传 GIF",
+          "upload": "导入图片 / 视频 / HTML",
           "addMore": "继续添加",
           "remove": "移除",
           "save": "保存配置",
@@ -1454,7 +1526,11 @@
           "uploadEmpty": "未识别到可用的 GIF",
           "empty": "请先上传至少一张引导 GIF",
           "noTitle": "请填写每张引导图的标题"
-        }
+        },
+        "inlinePlaceholder": "粘贴纯 Base64、data:video/mp4;base64,... 或含内嵌媒体的 HTML（自动识别格式）",
+        "addInline": "添加 Base64 媒体",
+        "inlineMedia": "内嵌 Base64 媒体",
+        "invalidMedia": "媒体格式无效，请使用 MP4/WebM 视频或 GIF/PNG/JPEG/WebP 图片的 Base64（单条不超过 3MB）"
       },
       "userAgreement": {
         "title": "用户协议设置",
@@ -2360,5 +2436,16 @@
     "pagination": {
       "total": "共 {total} 个小组 · 显示第 {start}-{end} 个"
     }
+  },
+  "androidWechat": {
+    "title": "Android 微信登录",
+    "description": "填写微信开放平台已审核通过的移动应用配置。请将移动应用与低空星球小程序绑定在同一微信开放平台账号下，以便共用用户身份。",
+    "secretHelp": "已保存的密钥会回显，点击眼睛图标显示或隐藏。留空保留已保存的密钥；更换 AppID 时必须填写对应的新密钥。",
+    "secretSaved": "已配置，留空保留现有密钥",
+    "secretPlaceholder": "请输入 32 位 AppSecret",
+    "invalid": "请填写正确的 AppID 和 AppSecret；首次配置或更换 AppID 时必须填写密钥。",
+    "saved": "Android 微信登录配置保存成功",
+    "loadFailed": "配置加载失败，请重试",
+    "saveFailed": "配置保存失败，请重试"
   }
 }

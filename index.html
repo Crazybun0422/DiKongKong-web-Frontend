@@ -1,19 +1,60 @@
 <!doctype html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/logo_full_hollow_square.ico" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>低空星球</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111413"><meta name="description" content="低空星球：探索适飞区、结识飞行同好、分享航拍。微信扫码体验小程序，Android、iOS 与鸿蒙 App 正在筹备中。">
+<title>低空星球 — 把热爱，飞成日常</title>
+<link rel="icon" href="/src/landing/assets/logo.png" type="image/png"><link rel="stylesheet" href="/src/landing/style.css">
 </head>
-
 <body>
-  <div id="app"></div>
-  <!-- Load Tencent Maps 2D JS API (qq.maps) for simpler, stable drawing -->
-  <script id="qqmaps-2d-script"
-    src="https://map.qq.com/api/js?v=2.exp&key=BSTBZ-7EECN-MQEFW-S4VWD-SDM3J-GVBQW&libraries=geometry"></script>
-  <script type="module" src="/src/main.js"></script>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="icon-android" viewBox="0 0 24 24"><path d="m6 3 2 3m10-3-2 3M4 12a8 8 0 0 1 16 0Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8.5" cy="9" r="1" fill="currentColor"/><circle cx="15.5" cy="9" r="1" fill="currentColor"/><path d="M4 15h16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" fill="currentColor"/></symbol>
+</defs></svg>
+<header class="header wrap">
+<a class="brand" href="#top" aria-label="低空星球首页"><span class="brand-mark"><img src="/src/landing/assets/logo.png" alt="低空星球 Logo" width="1232" height="1232"></span><span>低空星球</span></a>
+<nav aria-label="主导航"><a class="admin-entry" id="admin-entry" href="/admin/">管理端登录 <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a></nav>
+</header>
+<main id="top">
+<section class="hero wrap" aria-labelledby="hero-title">
+<div class="hero-copy"><h1 id="hero-title">把热爱，<br><span>飞成日常。</span></h1><p>找到适飞的天空，<br>也找到一起起飞的人。</p></div>
+<div class="space-scene" id="space-scene" aria-label="自动循环：旋转的低空星球、独立环绕飞行的无人机，接近后融入真实横向地图">
+<img class="flight-fallback" src="/src/landing/assets/orbit-and-map-fallback-v4.webp" alt="无人机环绕旋转星球，再进入铺满画面的真实地图" width="720" height="540" fetchpriority="high">
+<video class="flight-video" id="flight-video" autoplay loop muted playsinline webkit-playsinline preload="auto" disablepictureinpicture aria-label="星球自转、无人机环绕与地图实录，自动静音循环播放" width="1080" height="810">
+<source src="/src/landing/assets/orbit-and-map-v4.mp4" type="video/mp4">
+</video>
+</div>
+</section>
+<section class="products wrap" aria-label="体验低空星球">
+<article class="product-card mini-card" id="mini"><div class="mini-copy"><h2>微信小程序</h2><p>探索适飞区，约上同好，分享航拍。<br>不用安装，微信扫码即刻体验。</p><span class="scan-hint">微信扫一扫 <svg><use href="#icon-arrow"/></svg></span></div><button class="qr-button" id="show-code" aria-label="放大低空星球小程序码"><img src="/src/landing/assets/miniprogram-code.jpg" alt="低空星球微信小程序码，可用微信扫一扫识别" width="430" height="430"><span>点击放大</span></button></article>
+<article class="product-card app-card" aria-label="低空星球 App">
+  <div class="app-tabs" role="tablist" aria-label="选择 App 平台">
+    <button class="app-tab" type="button" role="tab" id="tab-android" aria-controls="panel-android" aria-selected="true">Android</button>
+    <button class="app-tab" type="button" role="tab" id="tab-ios" aria-controls="panel-ios" aria-selected="false" tabindex="-1">iOS</button>
+    <button class="app-tab" type="button" role="tab" id="tab-harmony" aria-controls="panel-harmony" aria-selected="false" tabindex="-1">鸿蒙</button>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-android" aria-labelledby="tab-android">
+    <div class="product-heading"><h2><svg aria-hidden="true"><use href="#icon-android"/></svg>Android App</h2><span class="badge">筹备中</span></div>
+    <p>地图探索、同好连接与飞行分享。<br>更顺手的原生体验，正在打磨。</p>
+    <button class="button black" id="download-app" data-app="Android App">下载 App <svg aria-hidden="true"><use href="#icon-download"/></svg></button>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-ios" aria-labelledby="tab-ios" hidden>
+    <div class="product-heading"><h2>iOS App</h2><span class="badge">筹备中</span></div>
+    <p>在 iPhone 上，发现更多飞行乐趣。<br>iOS 体验正在筹备，敬请期待。</p>
+    <button class="button black" data-app="iOS App">下载 App <svg aria-hidden="true"><use href="#icon-download"/></svg></button>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-harmony" aria-labelledby="tab-harmony" hidden>
+    <div class="product-heading"><h2>鸿蒙 App</h2><span class="badge">筹备中</span></div>
+    <p>探索适飞的天空，连接飞行同好。<br>鸿蒙体验正在筹备，敬请期待。</p>
+    <button class="button black" data-app="鸿蒙 App">下载 App <svg aria-hidden="true"><use href="#icon-download"/></svg></button>
+  </div>
+</article>
+</section>
+</main>
+<footer class="footer wrap"><span>© <span id="year">2026</span> 低空星球</span><a class="icp-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025183953号-2</a><span>让每一次起飞，都有所相遇。</span></footer>
+<dialog id="download-dialog" aria-labelledby="download-title"><button class="dialog-close" aria-label="关闭提示">×</button><h2 id="download-title">即将起飞</h2><p>app正在紧锣密鼓的筹备中。</p><button class="button primary dialog-dismiss">好的，期待</button></dialog>
+<dialog id="code-dialog" class="code-dialog" aria-labelledby="code-title"><button class="dialog-close" aria-label="关闭小程序码">×</button><h2 id="code-title">微信扫一扫，进入低空星球</h2><img src="/src/landing/assets/miniprogram-code.jpg" alt="低空星球微信小程序码" width="430" height="430"><a class="button primary" id="download-code" href="#code-dialog" download="低空星球-小程序码.jpg">保存小程序码 <svg><use href="#icon-download"/></svg></a></dialog>
+<script type="module" src="/src/landing/app.js"></script>
 </body>
-
 </html>

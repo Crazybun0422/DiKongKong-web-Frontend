@@ -7,6 +7,7 @@ import { fetchFlpLogs } from '../../services/flp'
 import { resolveProfileAsset } from '../../services/profile'
 import { API_BASE_URL, AUTH_TOKEN_KEY } from '../../services/http'
 import detailIcon from '../../assets/img/detail.png'
+import AccountDeletionMonitor from '../../components/AccountDeletionMonitor.vue'
 
 const { t } = useI18n()
 
@@ -490,6 +491,7 @@ onBeforeUnmount(() => {
           <p class="card-subtitle">{{ t('users.subtitle') }}</p>
         </div>
         <div class="search-bar">
+          <AccountDeletionMonitor />
           <a-button
             type="default"
             :loading="avatarRefreshRunning"

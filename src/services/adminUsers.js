@@ -42,6 +42,22 @@ export const fetchAdminUsers = async ({
   return toPageResult(data, { page, size })
 }
 
+export const fetchAdminOnlineUsers = async ({ page = 1, size = 20, keyword = '', signal } = {}) => {
+  const response = await http.get('/admin/users/online', {
+    params: { page: Math.max(page - 1, 0), size, keyword: keyword.trim() },
+    signal,
+  })
+  const payload = response?.data?.data
+  if (!response?.data?.success || !payload) throw new Error('Online users response unavailable')
+  return { ...payload, ...toPageResult(payload, { page, size }) }
+}
+
+export const fetchAdminOnlineUserDetail = async (featureCode, signal) => {
+  const response = await http.get(`/admin/users/online/${encodeURIComponent(featureCode)}`, { signal })
+  if (!response?.data?.success || !response?.data?.data) throw new Error('Online user detail unavailable')
+  return response.data.data
+}
+
 export const fetchAdminUserCheckins = async ({ page = 1, size = 10, sortOrder } = {}) => {
   const params = {
     page: Math.max(page - 1, 0),
@@ -85,6 +101,8 @@ export const refreshAdminUsersDefaultAvatar = async () => {
 }
 
 export default {
+  fetchAdminOnlineUsers,
+  fetchAdminOnlineUserDetail,
   fetchAdminUsers,
   fetchAdminUserCheckins,
   fetchAdminUserNewbieTasks,

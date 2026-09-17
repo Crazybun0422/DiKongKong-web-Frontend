@@ -16,6 +16,7 @@ import pointAerialIcon from '../../assets/img/aerial.png'
 import pointDockIcon from '../../assets/img/dock.png'
 import pointElevationIcon from '../../assets/img/elevation.png'
 import MapAnchorDrawControl from '../../components/MapAnchorDrawControl.vue'
+import PassphraseStockNotice from '../../components/PassphraseStockNotice.vue'
 import { fetchNearbyMarkers, fetchMarkerDetail, fetchNearbyNoFlyZones, fetchNearbyPins } from '../../services/airspaceMap'
 import { buildDownloadUrl, extractObjectName, normalizeFileList } from '../../services/files'
 import {
@@ -2419,6 +2420,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <PassphraseStockNotice />
   <div class="map-outside-tools-wrap">
     <div class="map-outside-tools">
       <MapAnchorDrawControl :map="mapInstance" :map-ready="mapReady" @anchors-change="handleAnchorPolygonChange" />

@@ -16,6 +16,7 @@ const menuItems = computed(() => [
   { key: 'home', label: t('navigation.home'), path: { name: 'home' } },
   { key: 'airspace', label: t('navigation.airspace'), path: { name: 'airspace' } },
   { key: 'users', label: t('navigation.user'), path: { name: 'users' } },
+  { key: 'onlineUsers', label: t('navigation.onlineUsers'), path: { name: 'onlineUsers' } },
   { key: 'groups', label: t('navigation.groups'), path: { name: 'groups' } },
   { key: 'subscriptionPush', label: t('navigation.subscription'), path: { name: 'subscriptionPush' } },
   { key: 'flpPool', label: t('navigation.flpPool'), path: { name: 'flpPool' } },
@@ -210,6 +211,8 @@ onMounted(() => {
 
 .main-nav {
   display: flex;
+  min-width: 0;
+  overflow-x: auto;
   gap: clamp(0.75rem, 1.6vw, 2.5rem);
   align-items: center;
 }
@@ -250,6 +253,8 @@ onMounted(() => {
 
 .profile-chip {
   display: flex;
+  flex-shrink: 0;
+  margin-left: 1rem;
   align-items: center;
   gap: 0.6rem;
   cursor: pointer;

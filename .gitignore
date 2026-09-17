@@ -5,3 +5,4 @@ dist/
 *.kml
 !demo/offline-tile-demo/province-kml/*.kml
 *.png
+!src/landing/assets/*.png

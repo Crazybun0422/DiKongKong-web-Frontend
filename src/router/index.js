@@ -6,6 +6,7 @@ const MainLayout = () => import('../layouts/MainLayout.vue')
 const HomeView = () => import('../views/dashboard/HomeView.vue')
 const AirspaceMapView = () => import('../views/dashboard/AirspaceMapView.vue')
 const UserManagementView = () => import('../views/dashboard/UserManagementView.vue')
+const OnlineUsersView = () => import('../views/dashboard/OnlineUsersView.vue')
 const WorkGroupManagementView = () => import('../views/dashboard/WorkGroupManagementView.vue')
 const SettingsView = () => import('../views/dashboard/SettingsView.vue')
 const SubscriptionPushView = () => import('../views/dashboard/SubscriptionPushView.vue')
@@ -39,6 +40,11 @@ const routes = [
         path: 'users',
         name: 'users',
         component: UserManagementView,
+      },
+      {
+        path: 'online-users',
+        name: 'onlineUsers',
+        component: OnlineUsersView,
       },
       {
         path: 'groups',
@@ -75,7 +81,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/admin/'),
   routes,
 })
 

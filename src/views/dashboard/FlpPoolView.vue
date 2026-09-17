@@ -10,6 +10,7 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons-vue'
 import { fetchFlpPool, saveFlpPool } from '../../services/flp'
+import CommunityPassphraseSettings from '../../components/CommunityPassphraseSettings.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -247,6 +248,7 @@ onMounted(loadPool)
         </div>
       </section>
     </a-spin>
+    <CommunityPassphraseSettings />
   </div>
 </template>
 

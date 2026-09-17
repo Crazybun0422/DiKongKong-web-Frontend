@@ -1,9 +1,43 @@
 {
+  "androidPushTab": "Android notifications",
+  "androidServer": {
+    "title": "Android / Mini program server environments (shared)",
+    "description": "Android Debug and mini program develop use development; Android Release and mini program trial/release use production. Filled fields override bundled defaults; empty fields restore defaults. Both clients read settings at cold start and retain cached settings when offline. Keep bundled configuration endpoints accessible and register new request/downloadFile/uploadFile domains in the WeChat console. Explicit Android debug addresses take precedence until reset.",
+    "debug": "Development · Android Debug / Mini program develop",
+    "release": "Production · Android Release / Mini program trial and release",
+    "apiBase": "API origin",
+    "assetBase": "Asset origin",
+    "defaultValue": "Bundled default: {value}",
+    "invalid": "Enter an HTTPS origin with an optional port, without paths, parameters or credentials. Leave blank for the default.",
+    "loadFailed": "Unable to load server environments. Please retry.",
+    "saveFailed": "Unable to save. Please retry.",
+    "saved": "Shared server environments saved. Changes apply on the next Android or mini program cold start."
+  },
+  "socialSettings": {
+    "title": "Social settings",
+    "closed": "Disable social entry points",
+    "help": "When enabled, hide private message and call buttons on profiles and the empty conversation prompt in Messages.",
+    "loadFailed": "Unable to load social settings. Please retry.",
+    "saveFailed": "Unable to save. Please retry.",
+    "saved": "Social settings saved"
+  },
+  "androidMap": {
+    "title": "Android map configuration",
+    "description": "Enable Tencent Android Map SDK and bind cn.llplanet.lowlatitudeplanet and the app signing certificate. Android reads this key on the next launch.",
+    "label": "Tencent Android Map SDK Key",
+    "placeholder": "Enter the Android SDK key",
+    "invalid": "Enter a valid key (letters, numbers and hyphens; up to 128 characters)",
+    "loadFailed": "Could not load Android map configuration. Please retry.",
+    "saved": "Android map configuration saved",
+    "savedAt": "Saved successfully at {time}. Android map key updated.",
+    "saveFailed": "Could not save Android map configuration. Please retry."
+  },
   "app": {
     "brandPrimary": "DiKong Planet",
     "brandTag": "Admin Console"
   },
   "navigation": {
+    "onlineUsers": "Online Users",
     "home": "Home",
     "airspace": "Airspace Map",
     "user": "User Management",
@@ -13,6 +47,47 @@
     "discoveryPromotions": "Discovery Promotions",
     "apiAccess": "API Access",
     "settings": "Settings"
+  },
+  "onlineUsers": {
+    "title": "Online Users",
+    "description": "Signed-in users with a valid heartbeat. Multiple connections count as one user.",
+    "rule": "Users go offline after {seconds} seconds without a heartbeat. Refreshes every 15 seconds; paused in background tabs.",
+    "updatedAt": "Updated {time} (Beijing time)",
+    "refresh": "Refresh",
+    "search": "Search nickname, user code, phone or email",
+    "total": "{total} users",
+    "empty": "No matching online users",
+    "loadFailed": "Refresh failed. Retry to update; any displayed data is from the last successful request.",
+    "detailFailed": "Unable to load user details. Please retry; the account may have been deleted.",
+    "detail": "User Details",
+    "view": "View details",
+    "nickname": "Nickname",
+    "featureCode": "User code",
+    "phone": "Phone",
+    "email": "Email",
+    "member": "Membership",
+    "vip": "Member",
+    "ordinary": "Non-member",
+    "memberExpireDate": "Membership expires",
+    "unlimited": "No expiry",
+    "balance": "FLP balance",
+    "createdAt": "Registered at",
+    "heartbeat": "Last heartbeat",
+    "connections": "Active connections",
+    "online": "Online",
+    "offline": "Offline",
+    "presence": "Presence",
+    "accountStatus": "Account status",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "unknown": "Unknown",
+    "age": "Age",
+    "birthday": "Birthday",
+    "signature": "Signature",
+    "xingGe": "Star title",
+    "aircraft": "Aircraft model",
+    "likes": "Likes received"
   },
   "subscriptionPush": {
     "eyebrow": "Subscription",
@@ -33,10 +108,10 @@
       "kvHint": "Fill key-value pairs that match the template fields.",
       "detailTags": "Detail fields:",
       "pageLabel": "Page path",
-        "registrationRange": "Send to users",
-        "registrationDateRange": "Registration date range",
-        "flpRange": "FLP balance",
-        "likeRange": "Likes",
+      "registrationRange": "Send to users",
+      "registrationDateRange": "Registration date range",
+      "flpRange": "FLP balance",
+      "likeRange": "Likes",
       "hint": {
         "maxLength": "Max {max} chars",
         "characterString": "Letters, numbers, underscore, hyphen, dot (no Chinese characters)",
@@ -1049,6 +1124,7 @@
       "memberSettings": "Member settings",
       "payment": "Payment settings",
       "weapp": "Mini program",
+      "android": "Android settings",
       "newbieTasks": "Newbie task settings",
       "lottery": "Lottery settings",
       "reportEntry": "Report entry",
@@ -1396,7 +1472,7 @@
       "guide": {
         "title": "Guide page settings",
         "subtitle": "Upload GIFs for the onboarding guide screen and set a guide title for each.",
-        "hint": "GIF only. Match the onboarding screen size for best results.",
+        "hint": "Supports GIF, MP4/WebM, Base64 and embedded video HTML. Save after adding.",
         "empty": "No guide GIFs yet",
         "fields": {
           "title": "Guide title"
@@ -1409,7 +1485,7 @@
           "emptyUpdatedAt": "Not synced yet"
         },
         "actions": {
-          "upload": "Upload GIF",
+          "upload": "Import image / video / HTML",
           "addMore": "Add more",
           "remove": "Remove",
           "save": "Save",
@@ -1424,7 +1500,11 @@
           "uploadEmpty": "No usable GIF found",
           "empty": "Please upload at least one guide GIF",
           "noTitle": "Please enter a guide title for each image"
-        }
+        },
+        "inlinePlaceholder": "Paste raw Base64, data:video/mp4;base64,... or HTML with embedded media (format detected automatically)",
+        "addInline": "Add Base64 media",
+        "inlineMedia": "Embedded Base64 media",
+        "invalidMedia": "Invalid media. Use Base64 MP4/WebM or GIF/PNG/JPEG/WebP (up to 3MB per item)."
       },
       "userAgreement": {
         "title": "User agreement settings",
@@ -2330,5 +2410,16 @@
     "pagination": {
       "total": "Total {total} groups · Showing {start}-{end}"
     }
+  },
+  "androidWechat": {
+    "title": "Android WeChat login",
+    "description": "Configure the approved mobile application from WeChat Open Platform. Bind the mobile app and mini program to the same Open Platform account to share user identities.",
+    "secretHelp": "The saved secret is prefilled. Click the eye icon to show or hide it. Leave blank to retain it; changing AppID requires its new secret.",
+    "secretSaved": "Configured; leave blank to keep",
+    "secretPlaceholder": "Enter the 32-character AppSecret",
+    "invalid": "Enter a valid AppID and AppSecret. A secret is required for initial setup or an AppID change.",
+    "saved": "Android WeChat configuration saved",
+    "loadFailed": "Could not load configuration. Please retry.",
+    "saveFailed": "Could not save configuration. Please retry."
   }
 }

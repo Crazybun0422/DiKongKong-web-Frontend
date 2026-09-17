@@ -1,9 +1,31 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 const devApiTarget = process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:7010'
+const projectRoot = fileURLToPath(new URL('.', import.meta.url))
+
+// Both development and preview must serve the admin HTML for history routes.
+function adminPagePlugin() {
+  const configure = (server) => {
+    server.middlewares.use((req, _res, next) => {
+      const [pathname, query] = (req.url || '').split('?')
+      if ((req.method === 'GET' || req.method === 'HEAD') &&
+          (pathname === '/admin' || pathname.startsWith('/admin/')) &&
+          !path.posix.extname(pathname)) {
+        req.url = `/admin/index.html${query ? `?${query}` : ''}`
+      }
+      next()
+    })
+  }
+  return {
+    name: 'admin-page',
+    configureServer: configure,
+    configurePreviewServer: configure,
+  }
+}
 const LOCAL_UOM_LAYER_DIRS = Object.freeze({
   current: 'D:/低空空/UOM/uom_demo/_layer/20260517/collected_exact_geojson_merged_geojson_tiles_current',
   green: 'D:/低空空/UOM/uom_demo/_layer/20260517/collected_exact_geojson_merged_geojson_tiles_green',
@@ -62,7 +84,16 @@ function localUomLayerPlugin() {
 }
 
 export default defineConfig({
-  plugins: [vue(), localUomLayerPlugin()],
+  appType: 'mpa',
+  plugins: [vue(), adminPagePlugin(), localUomLayerPlugin()],
+  build: {
+    rollupOptions: {
+      input: {
+        home: path.resolve(projectRoot, 'index.html'),
+        admin: path.resolve(projectRoot, 'admin/index.html'),
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,

@@ -4,7 +4,7 @@ import { Input, Modal, message } from 'ant-design-vue'
 import COS from 'cos-js-sdk-v5'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { EnvironmentOutlined } from '@ant-design/icons-vue'
+import { DeleteOutlined, EnvironmentOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { fetchMarkers, reviewMarker, MARKER_REVIEW_STATUS, MARKER_SORT_BY } from '../../services/markers'
 import {
   fetchAdminLowAltitudeCircles,
@@ -40,7 +40,7 @@ import pointAerialIcon from '../../assets/img/aerial.png'
 import pointDockIcon from '../../assets/img/dock.png'
 import pointElevationIcon from '../../assets/img/elevation.png'
 import TemporaryNoFlyZoneManager from '../../components/noFlyZones/TemporaryNoFlyZoneManager.vue'
-import { buildDownloadUrl, extractObjectName } from '../../services/files'
+import { buildDownloadUrl, extractObjectName, uploadPublicFile } from '../../services/files'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -77,10 +77,10 @@ const circleEditVisible = ref(false)
 const circleEditSaving = ref(false)
 const circleEditId = ref('')
 const circleEditForm = reactive({
-  category: 'REGIONAL_PILOTS', coverImage: '', showcaseImagesText: '', name: '', summary: '',
-  description: '', entryRequirement: '', joinMethod: 'GROUP_QR', entryMode: 'FREE', entryPrice: 0,
-  groupQrImage: '', groupLiveCodeUrl: '', ownerQrImage: '', memberCount: 0,
+  category: 'REGIONAL_PILOTS', coverImage: '', showcaseImages: [], name: '', overview: '',
+  joinMethod: 'GROUP_QR', entryMode: 'FREE', entryPrice: 0, qrImage: '', groupLiveCodeUrl: '', memberCount: 0,
 })
+const circleImageUploading = reactive({ cover: false, showcase: false, qr: false })
 const circleSelectedIds = ref(new Set())
 const circleSelectingAll = ref(false)
 const circleBatchVisible = ref(false)
@@ -1004,9 +1004,55 @@ const getCircleStatusDisplay = (record) => {
 }
 
 const resolveCircleAssetUrl = (value) => {
+  if (/^https?:\/\//i.test(String(value || '').trim())) return String(value).trim()
   const objectName = extractObjectName(value || '')
   return objectName ? buildDownloadUrl(objectName) : value || ''
 }
+
+const resolveCircleOverview = (record = {}) =>
+  String(record.description || record.entryRequirement || record.summary || '').trim()
+
+const resolveCircleQrImage = (record = {}) =>
+  String(record.groupQrImage || record.ownerQrImage || '').trim()
+
+const uploadCircleImage = async (options, type) => {
+  const file = options?.file
+  if (!file || (file.type && !file.type.startsWith('image/'))) {
+    message.warning('请选择图片文件')
+    options?.onError?.(new Error('INVALID_IMAGE'))
+    return
+  }
+  if (Number(file.size || 0) > 10 * 1024 * 1024) {
+    message.warning('图片不能超过 10MB')
+    options?.onError?.(new Error('IMAGE_TOO_LARGE'))
+    return
+  }
+
+  circleImageUploading[type] = true
+  try {
+    const uploaded = await uploadPublicFile(file)
+    if (!uploaded?.objectName) throw new Error('UPLOAD_EMPTY')
+    if (type === 'cover') circleEditForm.coverImage = uploaded.objectName
+    if (type === 'qr') circleEditForm.qrImage = uploaded.objectName
+    if (type === 'showcase') {
+      const nextImages = [...circleEditForm.showcaseImages, uploaded.objectName]
+      circleEditForm.showcaseImages = [...new Set(nextImages)].slice(0, 9)
+    }
+    options?.onSuccess?.(uploaded)
+    message.success('图片已上传')
+  } catch (error) {
+    console.error('Failed to upload low altitude circle image', error)
+    options?.onError?.(error)
+    message.error('图片上传失败，请稍后重试')
+  } finally {
+    circleImageUploading[type] = false
+  }
+}
+
+const uploadCircleCover = (options) => uploadCircleImage(options, 'cover')
+const uploadCircleShowcase = (options) => uploadCircleImage(options, 'showcase')
+const uploadCircleQr = (options) => uploadCircleImage(options, 'qr')
+const removeCircleShowcaseImage = (index) => circleEditForm.showcaseImages.splice(index, 1)
 
 const resolveCircleImageList = (record) => {
   const seen = new Set()
@@ -1633,49 +1679,56 @@ const openCircleEdit = (record) => {
   Object.assign(circleEditForm, {
     category: record?.category || 'REGIONAL_PILOTS',
     coverImage: record?.coverImage || '',
-    showcaseImagesText: Array.isArray(record?.showcaseImages) ? record.showcaseImages.join('\n') : '',
+    showcaseImages: Array.isArray(record?.showcaseImages) ? [...record.showcaseImages] : [],
     name: record?.name || '',
-    summary: record?.summary || '',
-    description: record?.description || record?.entryRequirement || '',
-    entryRequirement: record?.entryRequirement || record?.description || '',
-    joinMethod: record?.joinMethod || 'GROUP_QR',
+    overview: resolveCircleOverview(record),
+    joinMethod: record?.joinMethod === 'GROUP_LIVE_CODE' ? 'GROUP_LIVE_CODE' : 'GROUP_QR',
     entryMode: record?.entryMode || 'FREE',
     entryPrice: Number(record?.originalPrice || 0),
-    groupQrImage: record?.groupQrImage || '',
+    qrImage: resolveCircleQrImage(record),
     groupLiveCodeUrl: record?.groupLiveCodeUrl || '',
-    ownerQrImage: record?.ownerQrImage || '',
     memberCount: Number(record?.memberCount || 0),
   })
   circleEditVisible.value = true
 }
 
 const submitCircleEdit = async () => {
-  if (!circleEditId.value || !circleEditForm.name.trim() || !circleEditForm.summary.trim()
-    || !circleEditForm.description.trim() || !circleEditForm.coverImage.trim()) {
-    message.warning('请完整填写社群名称、简介、详情和封面')
+  if (!circleEditId.value || !circleEditForm.name.trim() || !circleEditForm.overview.trim()
+    || !circleEditForm.coverImage.trim()) {
+    message.warning('请完整填写社群名称、简介/入群要求和封面')
     return
   }
-  if (circleEditForm.joinMethod === 'GROUP_LIVE_CODE'
-    && !/^https:\/\//i.test(circleEditForm.groupLiveCodeUrl.trim())) {
+  const qrImage = circleEditForm.qrImage.trim()
+  const groupLiveCodeUrl = circleEditForm.groupLiveCodeUrl.trim()
+  if (!qrImage && !groupLiveCodeUrl) {
+    message.warning('群或微信二维码、群活码链接请选择一种填写')
+    return
+  }
+  if (groupLiveCodeUrl && !/^https:\/\//i.test(groupLiveCodeUrl)) {
     message.warning('请填写企业微信群活码 HTTPS 链接')
     return
   }
+  const joinMethod = !qrImage && groupLiveCodeUrl
+    ? 'GROUP_LIVE_CODE'
+    : qrImage && !groupLiveCodeUrl
+      ? 'GROUP_QR'
+      : circleEditForm.joinMethod
   circleEditSaving.value = true
   try {
     const updated = await updateAdminLowAltitudeCircle(circleEditId.value, {
       category: circleEditForm.category,
       coverImage: circleEditForm.coverImage.trim(),
-      showcaseImages: circleEditForm.showcaseImagesText.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+      showcaseImages: circleEditForm.showcaseImages.map((item) => String(item || '').trim()).filter(Boolean),
       name: circleEditForm.name.trim(),
-      summary: circleEditForm.summary.trim(),
-      description: circleEditForm.description.trim(),
-      entryRequirement: circleEditForm.entryRequirement.trim() || circleEditForm.description.trim(),
-      joinMethod: circleEditForm.joinMethod,
+      summary: circleEditForm.overview.trim(),
+      description: circleEditForm.overview.trim(),
+      entryRequirement: circleEditForm.overview.trim(),
+      joinMethod,
       entryMode: circleEditForm.entryMode,
       entryPrice: circleEditForm.entryMode === 'PAID' ? Number(circleEditForm.entryPrice) : 0,
-      groupQrImage: circleEditForm.groupQrImage.trim(),
-      groupLiveCodeUrl: circleEditForm.groupLiveCodeUrl.trim(),
-      ownerQrImage: circleEditForm.ownerQrImage.trim(),
+      groupQrImage: qrImage,
+      groupLiveCodeUrl,
+      ownerQrImage: qrImage,
       memberCount: Math.max(0, Number(circleEditForm.memberCount) || 0),
     })
     circleAuditData.value = circleAuditData.value.map((item) => item.id === updated.id ? { ...item, ...updated } : item)
@@ -2831,8 +2884,9 @@ watch(
             { label: '地区飞友群', value: 'REGIONAL_PILOTS' }, { label: '行业交流群', value: 'INDUSTRY_EXCHANGE' }, { label: '协会组织', value: 'ASSOCIATION_ORG' },
           ]" /></a-form-item></a-col>
         </a-row>
-        <a-form-item label="社群简介" required><a-input v-model:value="circleEditForm.summary" :maxlength="120" /></a-form-item>
-        <a-form-item label="社群详情 / 入群要求" required><a-textarea v-model:value="circleEditForm.description" :rows="4" /></a-form-item>
+        <a-form-item label="社群简介 / 入群要求" required>
+          <a-textarea v-model:value="circleEditForm.overview" :rows="5" :maxlength="500" show-count />
+        </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12"><a-form-item label="入群收费"><a-select v-model:value="circleEditForm.entryMode" :options="[
             { label: '免费群', value: 'FREE' }, { label: '付费群', value: 'PAID' },
@@ -2841,16 +2895,49 @@ watch(
         </a-row>
         <a-form-item label="入群资料展示" required>
           <a-segmented v-model:value="circleEditForm.joinMethod" :options="[
-            { label: '群二维码', value: 'GROUP_QR' }, { label: '群主二维码', value: 'OWNER_QR' }, { label: '群活码按钮', value: 'GROUP_LIVE_CODE' },
+            { label: '群或微信二维码', value: 'GROUP_QR' }, { label: '群活码按钮', value: 'GROUP_LIVE_CODE' },
           ]" />
         </a-form-item>
-        <a-form-item v-if="circleEditForm.joinMethod === 'GROUP_LIVE_CODE'" label="企业微信群活码链接" required>
+        <a-form-item v-if="circleEditForm.joinMethod === 'GROUP_LIVE_CODE'" label="企业微信群活码链接">
           <a-input v-model:value="circleEditForm.groupLiveCodeUrl" placeholder="填写配置客户群进群方式接口返回的 qr_code URL" />
         </a-form-item>
-        <a-form-item v-else-if="circleEditForm.joinMethod === 'GROUP_QR'" label="群二维码图片对象名" required><a-input v-model:value="circleEditForm.groupQrImage" /></a-form-item>
-        <a-form-item v-else label="群主二维码图片对象名" required><a-input v-model:value="circleEditForm.ownerQrImage" /></a-form-item>
-        <a-form-item label="封面图片对象名" required><a-input v-model:value="circleEditForm.coverImage" /></a-form-item>
-        <a-form-item label="风采图片对象名（每行一张）"><a-textarea v-model:value="circleEditForm.showcaseImagesText" :rows="3" /></a-form-item>
+        <a-form-item v-else label="群或微信二维码">
+          <div class="circle-image-editor">
+            <a-image v-if="circleEditForm.qrImage" :src="resolveCircleAssetUrl(circleEditForm.qrImage)" width="112" height="112" />
+            <div v-else class="circle-image-placeholder">暂无图片</div>
+            <div class="circle-image-actions">
+              <a-upload accept="image/*" :show-upload-list="false" :custom-request="uploadCircleQr">
+                <a-button :loading="circleImageUploading.qr"><UploadOutlined />上传或替换</a-button>
+              </a-upload>
+              <a-button v-if="circleEditForm.qrImage" danger @click="circleEditForm.qrImage = ''"><DeleteOutlined />删除</a-button>
+            </div>
+          </div>
+        </a-form-item>
+        <a-form-item label="封面图片" required>
+          <div class="circle-image-editor">
+            <a-image v-if="circleEditForm.coverImage" :src="resolveCircleAssetUrl(circleEditForm.coverImage)" width="160" height="100" />
+            <div v-else class="circle-image-placeholder circle-image-placeholder--cover">暂无图片</div>
+            <div class="circle-image-actions">
+              <a-upload accept="image/*" :show-upload-list="false" :custom-request="uploadCircleCover">
+                <a-button :loading="circleImageUploading.cover"><UploadOutlined />上传或替换</a-button>
+              </a-upload>
+              <a-button v-if="circleEditForm.coverImage" danger @click="circleEditForm.coverImage = ''"><DeleteOutlined />删除</a-button>
+            </div>
+          </div>
+        </a-form-item>
+        <a-form-item label="社群风采图片（最多 9 张）">
+          <div class="circle-showcase-editor">
+            <div v-for="(image, index) in circleEditForm.showcaseImages" :key="`${image}-${index}`" class="circle-showcase-item">
+              <a-image :src="resolveCircleAssetUrl(image)" width="96" height="96" />
+              <a-button class="circle-showcase-remove" danger shape="circle" size="small" title="删除图片" @click="removeCircleShowcaseImage(index)">
+                <DeleteOutlined />
+              </a-button>
+            </div>
+            <a-upload v-if="circleEditForm.showcaseImages.length < 9" accept="image/*" :show-upload-list="false" :custom-request="uploadCircleShowcase">
+              <a-button class="circle-showcase-upload" :loading="circleImageUploading.showcase"><UploadOutlined />上传图片</a-button>
+            </a-upload>
+          </div>
+        </a-form-item>
         <a-form-item label="社群人数"><a-input-number v-model:value="circleEditForm.memberCount" :min="0" style="width:100%" /></a-form-item>
       </a-form>
     </a-modal>
@@ -2944,9 +3031,6 @@ watch(
             <a-descriptions-item :label="t('airspace.circle.modal.fields.ownerFeatureCode')">
               {{ circleDetailRecord.ownerFeatureCode || t('airspace.table.placeholders.notProvided') }}
             </a-descriptions-item>
-            <a-descriptions-item :label="t('airspace.circle.modal.fields.joinMethod')">
-              {{ circleJoinMethodText(circleDetailRecord.joinMethod) }}
-            </a-descriptions-item>
             <a-descriptions-item v-if="circleDetailRecord.groupLiveCodeUrl" label="群活码链接" :span="2">
               <a :href="circleDetailRecord.groupLiveCodeUrl" target="_blank" rel="noreferrer">{{ circleDetailRecord.groupLiveCodeUrl }}</a>
             </a-descriptions-item>
@@ -2993,14 +3077,8 @@ watch(
           </a-descriptions>
           <div class="circle-image-grid">
             <a-image
-              v-if="circleDetailRecord.groupQrImage"
-              :src="resolveCircleAssetUrl(circleDetailRecord.groupQrImage)"
-              width="120"
-              height="120"
-            />
-            <a-image
-              v-if="circleDetailRecord.ownerQrImage"
-              :src="resolveCircleAssetUrl(circleDetailRecord.ownerQrImage)"
+              v-if="circleDetailRecord.joinMethod !== 'GROUP_LIVE_CODE' && resolveCircleQrImage(circleDetailRecord)"
+              :src="resolveCircleAssetUrl(resolveCircleQrImage(circleDetailRecord))"
               width="120"
               height="120"
             />
@@ -3531,6 +3609,67 @@ watch(
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 12px;
+}
+
+.circle-image-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.circle-image-editor :deep(.ant-image-img),
+.circle-showcase-item :deep(.ant-image-img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.circle-image-placeholder {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.circle-image-placeholder--cover {
+  width: 160px;
+  height: 100px;
+}
+
+.circle-image-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.circle-showcase-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.circle-showcase-item {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.circle-showcase-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.circle-showcase-upload {
+  width: 96px;
+  height: 96px;
+  white-space: normal;
 }
 
 .circle-receipt-heading {

@@ -1,4 +1,10 @@
 <script setup>
+import { extractGuideMedia, isGuideVideo } from '../../utils/guideMedia'
+import AndroidMapConfig from '../../components/AndroidMapConfig.vue'
+import AndroidServerConfig from '../../components/AndroidServerConfig.vue'
+import AndroidWechatConfig from '../../components/AndroidWechatConfig.vue'
+import AndroidPushConfig from '../../components/AndroidPushConfig.vue'
+import SocialSettingsConfig from '../../components/SocialSettingsConfig.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
@@ -624,6 +630,16 @@ const newbieTaskResetProgress = reactive({
 const newbieTaskResetTerminalSignature = ref('')
 
 const guideUrls = ref([])
+const guideMediaFileInput = ref(null)
+const guideInlineMedia = ref('')
+const guideInlineTitle = ref('')
+const addGuideInline = () => {
+  try {
+    if (!guideInlineTitle.value.trim()) {message.warning(t('settings.system.guide.messages.noTitle'));return}
+    guideUrls.value.push({url:extractGuideMedia(guideInlineMedia.value),title:guideInlineTitle.value.trim()})
+    guideInlineMedia.value='';guideInlineTitle.value=''
+  } catch {message.error(t('settings.system.guide.invalidMedia'))}
+}
 const guideLoading = ref(false)
 const guideSaving = ref(false)
 const guideUploadLoading = ref(false)
@@ -2625,6 +2641,11 @@ const handleGuideGifUpload = async (event) => {
   try {
     const uploaded = []
     for (const file of files) {
+      if (/\.(html?|mp4|webm)$/i.test(file.name)) {
+        const raw = /\.html?$/i.test(file.name) ? await file.text() : await new Promise((resolve,reject) => {const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})
+        uploaded.push(createGuideEntry(extractGuideMedia(raw),deriveGuideTitle(file,'')))
+        continue
+      }
       const result = await uploadPublicFile(file)
       const url = result?.url || (result?.objectName ? buildDownloadUrl(result.objectName) : '')
       if (url) {
@@ -4459,6 +4480,15 @@ onBeforeUnmount(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="android" :tab="t('settings.tabs.android')">
+          <div class="tab-section">
+            <AndroidMapConfig />
+            <AndroidServerConfig />
+            <AndroidWechatConfig />
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="androidPush" :tab="t('androidPushTab')"><AndroidPushConfig /></a-tab-pane>
         <a-tab-pane key="weapp" :tab="t('settings.tabs.weapp')">
           <div class="tab-section">
             <a-spin :spinning="weappLoading">
@@ -5265,9 +5295,9 @@ onBeforeUnmount(() => {
                   <a-spin :spinning="guideLoading">
                     <div class="guide-upload">
                       <label class="guide-upload__trigger">
-                        <input class="guide-upload__input" type="file" accept="image/gif" multiple
+                        <input ref="guideMediaFileInput" class="guide-upload__input" type="file" accept="image/gif,image/png,image/jpeg,image/webp,video/mp4,video/webm,.html,.htm" multiple
                           :disabled="guideUploadLoading" @change="handleGuideGifUpload" />
-                        <a-button type="dashed" :loading="guideUploadLoading">
+                        <a-button type="dashed" :loading="guideUploadLoading" @click="guideMediaFileInput?.click()">
                           {{
                             guideUrls.length
                               ? t('settings.system.guide.actions.addMore')
@@ -5277,10 +5307,14 @@ onBeforeUnmount(() => {
                       </label>
                       <span class="guide-upload__hint">{{ t('settings.system.guide.hint') }}</span>
                     </div>
+                    <a-input v-model:value="guideInlineTitle" :placeholder="t('settings.system.guide.placeholders.title')" />
+                    <a-textarea v-model:value="guideInlineMedia" :rows="3" :placeholder="t('settings.system.guide.inlinePlaceholder')" />
+                    <a-button @click="addGuideInline">{{ t('settings.system.guide.addInline') }}</a-button>
                     <div v-if="guideUrls.length" class="guide-list">
-                      <div v-for="(item, index) in guideUrls" :key="`${item.url}-${index}`" class="guide-card">
+                      <div v-for="(item, index) in guideUrls" :key="index" class="guide-card">
                         <div class="guide-card__preview">
-                          <img :src="resolveStorageUrl(item.url)" alt="guide-gif" />
+                          <video v-if="isGuideVideo(item.url)" :src="item.url.startsWith('data:') ? item.url : resolveStorageUrl(item.url)" autoplay muted loop playsinline controls style="width:100%;height:100%;object-fit:contain" />
+                          <img v-else :src="item.url.startsWith('data:') ? item.url : resolveStorageUrl(item.url)" alt="guide-media" />
                         </div>
                         <div class="guide-card__body">
                           <div class="guide-card__label">{{ t('settings.system.guide.fields.title') }}</div>
@@ -5288,7 +5322,7 @@ onBeforeUnmount(() => {
                             :placeholder="t('settings.system.guide.placeholders.title')" allow-clear />
                         </div>
                         <div class="guide-card__footer">
-                          <span class="guide-card__name">{{ getDisplayFileName(item.url) }}</span>
+                          <span class="guide-card__name">{{ item.url.startsWith('data:') ? t('settings.system.guide.inlineMedia') : getDisplayFileName(item.url) }}</span>
                           <a-button type="link" danger size="small" @click="removeGuideUrl(index)">
                             {{ t('settings.system.guide.actions.remove') }}
                           </a-button>
@@ -5590,6 +5624,9 @@ onBeforeUnmount(() => {
         <a-tab-pane key="system" :tab="t('settings.tabs.system')">
           <div class="tab-section">
             <a-tabs v-model:activeKey="systemSettingsTab" class="system-settings-tabs">
+              <a-tab-pane key="social" :tab="t('socialSettings.title')">
+                <SocialSettingsConfig />
+              </a-tab-pane>
               <a-tab-pane key="uom-layer" :tab="t('settings.system.tabs.uomLayer')">
                 <section class="system-settings">
                   <header class="section-header">
