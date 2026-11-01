@@ -1,0 +1,115 @@
+vite v7.1.12 building for production...
+transforming...
+node_modules/sonner/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "node_modules/sonner/dist/index.mjs" was ignored.
+✓ 5039 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/favicon-wz5Pwcuk.svg                          0.40 kB │ gzip:   0.23 kB
+dist/admin/index.html                                     0.88 kB │ gzip:   0.56 kB
+dist/games/drone-race/index.html                          1.00 kB │ gzip:   0.62 kB
+dist/assets/black-hole-worker-WtwzrLjJ.js                 2.62 kB
+dist/assets/position-BYzcKXC4.png                         4.44 kB
+dist/assets/search-DXgLpf1T.png                           4.64 kB
+dist/assets/detail-NL7lstjx.png                           5.06 kB
+dist/assets/countdown-C2B7Wqjd.mp3                        5.27 kB
+dist/assets/location-37l6tSL7.png                         5.55 kB
+dist/assets/layer-De-SzLxM.png                            6.45 kB
+dist/assets/gate-pass-Db_kOdsY.mp3                        8.40 kB
+dist/index.html                                           9.17 kB │ gzip:   3.48 kB
+dist/docs/api/suitable-fly-zone.md                        9.42 kB
+dist/assets/map-standard-B5wOOi0P.png                    11.67 kB
+dist/assets/elevation-BD38pNIG.png                       12.33 kB
+dist/assets/map-satellite-WPjOgaO3.png                   12.51 kB
+dist/assets/launch-CDbRCs7E.mp3                          12.58 kB
+dist/assets/crash-DuC-o6aG.mp3                           13.11 kB
+dist/assets/drone-DKVUcvAA.png                           13.57 kB
+dist/docs/api/index.html                                 15.41 kB │ gzip:   5.15 kB
+dist/assets/dock-CMpcOveH.png                            17.07 kB
+dist/assets/aerial-Q8lCmOZj.png                          21.03 kB
+dist/assets/default-Cgk_G-on.png                         22.49 kB
+dist/assets/finish-D1jG2FPL.mp3                          25.12 kB
+dist/assets/drone-warning-Cn6tadYh.png                   26.26 kB
+dist/assets/impact-obstacle-DEimQXG9.mp3                 40.94 kB
+dist/assets/impact-ground-B616N3No.mp3                   42.09 kB
+dist/assets/impact-gate-Difxn0X2.mp3                     46.13 kB
+dist/assets/miniprogram-code-BAxrARQf.jpg               106.84 kB
+dist/assets/dkk-C2MSDqd2.png                            235.22 kB
+dist/assets/trees-sooAFQTt.webp                         413.31 kB
+dist/assets/obstacle-materials-Bu8OMIQ9.webp            467.26 kB
+dist/assets/music-canyon-DPdO2Kjw.mp3                   557.81 kB
+dist/assets/music-alien-DVxPdyXB.mp3                    565.97 kB
+dist/assets/music-valley-DZizkSIZ.mp3                   583.25 kB
+dist/assets/music-coast-DeoVmxTB.mp3                    601.01 kB
+dist/assets/music-snow-Duw4Ucjv.mp3                     620.69 kB
+dist/assets/music-city-C_VE-Ucp.mp3                     686.93 kB
+dist/assets/music-race-FBgdy-LX.mp3                   1,130.62 kB
+dist/assets/bg-CdABvAEg.png                           2,039.02 kB
+dist/assets/orbit-and-map-fallback-v4-amjEajXR.webp   7,085.38 kB
+dist/assets/orbit-and-map-v4-CSjcpiIo.mp4             8,098.97 kB
+dist/assets/NS-Bpeugd8C.ttf                          10,549.74 kB
+dist/assets/DroneLeaderboardView-BBkOaB_H.css             0.51 kB │ gzip:   0.28 kB
+dist/assets/WorkGroupManagementView-C7xLUjr4.css          0.75 kB │ gzip:   0.33 kB
+dist/assets/PlanetMarketView-DJSJ-DVB.css                 1.36 kB │ gzip:   0.53 kB
+dist/assets/FlightMeetupView-noB-ebJm.css                 1.51 kB │ gzip:   0.51 kB
+dist/assets/OnlineUsersView-rZJrVj-4.css                  1.93 kB │ gzip:   0.67 kB
+dist/assets/ApiAccessManagementView-DxlGfTyz.css          1.96 kB │ gzip:   0.71 kB
+dist/assets/DiscoveryPromotionView-CPmNrj8J.css           2.60 kB │ gzip:   0.84 kB
+dist/assets/OpenPlatformEditor-D6hGcREW.css               2.63 kB │ gzip:   0.74 kB
+dist/assets/apiDocs-D3LgR4AN.css                          3.00 kB │ gzip:   1.01 kB
+dist/assets/SubscriptionPushView-DdfBOMKN.css             3.09 kB │ gzip:   0.89 kB
+dist/assets/UserManagementView-CaU5pue1.css               3.59 kB │ gzip:   1.14 kB
+dist/assets/admin-BAp5GGCD.css                            3.78 kB │ gzip:   1.54 kB
+dist/assets/FlpPoolView-DeQHbC6w.css                      5.06 kB │ gzip:   1.31 kB
+dist/assets/LoginView-CGmlyK-l.css                        6.03 kB │ gzip:   1.70 kB
+dist/assets/MainLayout-6Jwts0co.css                       7.65 kB │ gzip:   2.08 kB
+dist/assets/style-gr67QHCn.css                           11.24 kB │ gzip:   3.23 kB
+dist/assets/HomeView-DY49BJr8.css                        15.34 kB │ gzip:   3.47 kB
+dist/assets/AirspaceMapView-Dgbuoqcn.css                 19.38 kB │ gzip:   4.10 kB
+dist/assets/SettingsView-FXYVdiZU.css                    37.00 kB │ gzip:   6.06 kB
+dist/assets/droneRace-DYTSv8fw.css                       66.49 kB │ gzip:  13.88 kB
+dist/assets/dkk-B-PALBMl.js                               0.05 kB │ gzip:   0.07 kB
+dist/assets/detail-Csv8qwGC.js                            0.05 kB │ gzip:   0.07 kB
+dist/assets/_commonjsHelpers-Cpj98o6Y.js                  0.24 kB │ gzip:   0.18 kB
+dist/assets/droneGame-7qVZpShr.js                         0.43 kB │ gzip:   0.30 kB
+dist/assets/flp-CdaJ9YEx.js                               0.64 kB │ gzip:   0.35 kB
+dist/assets/modulepreload-polyfill-B5Qt9EMX.js            0.71 kB │ gzip:   0.40 kB
+dist/assets/apiAccessServices-Bbgaf5r8.js                 0.87 kB │ gzip:   0.46 kB
+dist/assets/profile-BKUX25K0.js                           0.99 kB │ gzip:   0.52 kB
+dist/assets/UploadOutlined-BWS3PbUS.js                    1.08 kB │ gzip:   0.66 kB
+dist/assets/weappSubscriptions-PqQzwcjv.js                1.11 kB │ gzip:   0.45 kB
+dist/assets/SaveOutlined-OmnFL_wS.js                      1.21 kB │ gzip:   0.72 kB
+dist/assets/files-DzzsLjR3.js                             1.62 kB │ gzip:   0.79 kB
+dist/assets/adminUsers-Ck953VdH.js                        1.94 kB │ gzip:   0.78 kB
+dist/assets/DroneLeaderboardView-CleP-Cxy.js              3.14 kB │ gzip:   1.70 kB
+dist/assets/home-DRAyu4Wn.js                              4.65 kB │ gzip:   2.15 kB
+dist/assets/WorkGroupManagementView-C0Vmj3fQ.js           5.12 kB │ gzip:   2.11 kB
+dist/assets/OnlineUsersView-PZ_PJbkQ.js                   7.25 kB │ gzip:   2.98 kB
+dist/assets/ApiAccessManagementView-bk9ZrlGg.js           8.87 kB │ gzip:   3.73 kB
+dist/assets/FlightMeetupView-BtSyuMBc.js                  9.16 kB │ gzip:   3.94 kB
+dist/assets/DiscoveryPromotionView-DHdUSjFY.js           10.30 kB │ gzip:   4.03 kB
+dist/assets/LoginView-BLzw7Pmn.js                        10.54 kB │ gzip:   4.41 kB
+dist/assets/PlanetMarketView-CTofr9mf.js                 11.83 kB │ gzip:   4.54 kB
+dist/assets/wechatPayments-D9FLHbdg.js                   11.96 kB │ gzip:   4.60 kB
+dist/assets/MainLayout-BF6z2C4S.js                       13.40 kB │ gzip:   4.98 kB
+dist/assets/UserManagementView-D6hiqskk.js               17.53 kB │ gzip:   6.28 kB
+dist/assets/SubscriptionPushView-ZiV03pzr.js             21.58 kB │ gzip:   6.47 kB
+dist/assets/FlpPoolView-BoAnFgD3.js                      23.49 kB │ gzip:   8.77 kB
+dist/assets/OpenPlatformEditor-DFyHybnp.js               34.58 kB │ gzip:   9.52 kB
+dist/assets/jszip.min-6ElcsTIH.js                        97.26 kB │ gzip:  30.20 kB
+dist/assets/townRegions-DtJl5K5h.js                     169.26 kB │ gzip:  49.63 kB
+dist/assets/AirspaceMapView-IObdajlz.js                 209.78 kB │ gzip:  62.31 kB
+dist/assets/SettingsView-DmWIuXfM.js                    470.14 kB │ gzip: 121.36 kB
+dist/assets/droneRace-COMHUyMC.js                       494.02 kB │ gzip: 156.17 kB
+dist/assets/HomeView-Bp2CsShM.js                        676.51 kB │ gzip: 230.24 kB
+dist/assets/admin-obJ5fEkL.js                         1,758.38 kB │ gzip: 547.26 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 14.14s
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

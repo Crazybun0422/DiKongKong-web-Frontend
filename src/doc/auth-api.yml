@@ -893,7 +893,7 @@ components:
         selectedXingGe:
           type: string
           nullable: true
-          description: 当前选择的星格标识；传空字符串或 null 表示清空
+          description: 已废弃：非空值返回 409；空值不修改新版答卷。请使用 /api/user/xingge/assessment。
     UserProfileKvRequest:
       type: object
       required: [enabled]
@@ -1004,7 +1004,7 @@ components:
         selectedXingGe:
           type: string
           nullable: true
-          description: 当前用户选择的星格标识。
+          description: 当前有效新版答卷派生的主角色 ID；无有效记录为 null。同时返回 xingGeStatus 与 xingGeTestVersion。
     CheckinQuotaResponse:
       type: object
       properties:

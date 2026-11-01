@@ -1,0 +1,13 @@
+[
+  "packages/aircraft-scan/index/index.js",
+  "packages/flight-meetups/index/index.js",
+  "packages/flight-meetups/online-people.js",
+  "packages/location-sharing/utils/meetup-map.js",
+  "packages/location-sharing/utils/sharing.js",
+  "packages/planet-broadcast/compose/index.js",
+  "packages/planet-broadcast/placeholder/index.js",
+  "pages/map/utils/center-pin-follow.js",
+  "pages/map/utils/location.js",
+  "pages/markers/location-picker/index.js",
+  "pages/markers/pin-picker/index.js"
+]

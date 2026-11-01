@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { apiDocumentPlugin } from './scripts/api-document-plugin.mjs'
 
 const devApiTarget = process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:7010'
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
@@ -85,12 +86,15 @@ function localUomLayerPlugin() {
 
 export default defineConfig({
   appType: 'mpa',
-  plugins: [vue(), adminPagePlugin(), localUomLayerPlugin()],
+  esbuild: { jsx: 'automatic', jsxImportSource: 'react' },
+  plugins: [vue(), adminPagePlugin(), localUomLayerPlugin(), apiDocumentPlugin()],
   build: {
     rollupOptions: {
       input: {
         home: path.resolve(projectRoot, 'index.html'),
+        apiDocs: path.resolve(projectRoot, 'docs/api/index.html'),
         admin: path.resolve(projectRoot, 'admin/index.html'),
+        droneRace: path.resolve(projectRoot, 'games/drone-race/index.html'),
       },
     },
   },

@@ -1150,7 +1150,7 @@ onBeforeUnmount(() => {
 
 .broadcast-admin-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .header-actions {
@@ -1160,7 +1160,7 @@ onBeforeUnmount(() => {
 }
 
 .quota-switch-label {
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -1181,7 +1181,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   min-height: 24px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
@@ -1197,9 +1197,9 @@ onBeforeUnmount(() => {
   width: 76px;
   height: 76px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--admin-raised);
 }
 
 .publish-image-item img {
@@ -1225,15 +1225,15 @@ onBeforeUnmount(() => {
 
 .broadcast-reward-panel {
   padding: 14px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--admin-surface);
 }
 
 .reward-panel-title {
   margin-bottom: 12px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .reward-form-row {
@@ -1249,7 +1249,7 @@ onBeforeUnmount(() => {
 
 .reward-updated {
   margin-top: 10px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
@@ -1297,13 +1297,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .detail-meta {
   margin-top: 2px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .detail-section {
@@ -1315,15 +1315,15 @@ onBeforeUnmount(() => {
 .detail-section-title {
   font-size: 13px;
   font-weight: 700;
-  color: #475569;
+  color: var(--admin-muted);
 }
 
 .detail-content {
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--admin-raised);
+  color: var(--admin-text);
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1338,21 +1338,21 @@ onBeforeUnmount(() => {
 .governance-detail-item {
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--admin-raised);
 }
 
 .governance-detail-item span {
   display: block;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
 .governance-detail-item strong {
   display: block;
   margin-top: 4px;
-  color: #0f172a;
+  color: var(--admin-text);
   font-size: 15px;
   line-height: 1.35;
   word-break: break-word;
@@ -1388,9 +1388,9 @@ onBeforeUnmount(() => {
 
 .media-row {
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--admin-raised);
 }
 
 .media-title {
@@ -1398,12 +1398,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
 .media-duration {
-  color: #94a3b8;
+  color: var(--admin-muted);
 }
 
 .media-audio {
@@ -1422,7 +1422,7 @@ onBeforeUnmount(() => {
   height: 96px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   background: #eef2f7;
 }
 
@@ -1437,7 +1437,7 @@ onBeforeUnmount(() => {
   max-width: 100%;
   height: 124px;
   border-radius: 6px;
-  background: #0f172a;
+  background: var(--admin-bg);
 }
 
 .media-video--detail {
@@ -1454,13 +1454,13 @@ onBeforeUnmount(() => {
 }
 
 .media-link {
-  color: #2563eb;
+  color: var(--admin-lime);
   font-size: 13px;
 }
 
 .comment-empty {
   padding: 24px 0;
-  color: #64748b;
+  color: var(--admin-muted);
   text-align: center;
 }
 
@@ -1475,7 +1475,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-line);
 }
 
 .comment-main {
@@ -1485,18 +1485,18 @@ onBeforeUnmount(() => {
 
 .comment-author {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .comment-content {
   margin-top: 4px;
-  color: #0f172a;
+  color: var(--admin-text);
   word-break: break-word;
 }
 
 .comment-time {
   margin-top: 4px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--admin-muted);
 }
 </style>

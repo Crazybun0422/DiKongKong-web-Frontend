@@ -1,3 +1,9 @@
+<script setup>
+import { adminTheme } from './theme/adminAppearance'
+</script>
+
 <template>
-  <router-view />
+  <a-config-provider :theme="adminTheme">
+    <router-view />
+  </a-config-provider>
 </template>

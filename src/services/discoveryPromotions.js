@@ -1,6 +1,10 @@
 import http from './http'
 
-const unwrap = (response, fallback = null) => response?.data?.data ?? response?.data ?? fallback
+const unwrap = (response, fallback = null) => {
+  const body = response?.data
+  if (body?.success === false) throw new Error(body.message?.zh || (typeof body.message === 'string' ? body.message : '') || '配置保存失败，请稍后重试')
+  return body?.data ?? body ?? fallback
+}
 
 export const fetchDiscoveryPromotions = async () => {
   const response = await http.get('/admin/discovery-promotions')

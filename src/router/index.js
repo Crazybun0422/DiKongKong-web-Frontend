@@ -26,6 +26,9 @@ const routes = [
     component: MainLayout,
     meta: { requiresAuth: true },
     children: [
+      { path: 'planet-market', name: 'planetMarket', component: () => import('../views/dashboard/PlanetMarketView.vue') },
+      { path: 'flight-meetups', name: 'flightMeetups', component: () => import('../views/dashboard/FlightMeetupView.vue') },
+      { path: 'drone-leaderboard', name: 'droneLeaderboard', component: () => import('../views/dashboard/DroneLeaderboardView.vue') },
       {
         path: '',
         name: 'home',

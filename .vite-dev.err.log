@@ -1,0 +1,2 @@
+[33mYou are using Node.js 20.14.0. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version.[39m
+[31mError: ENOTEMPTY: directory not empty, rmdir 'E:\source_code\wechat\DiKongKong-web-Frontend\node_modules\.vite\deps'[39m

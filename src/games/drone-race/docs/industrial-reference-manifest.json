@@ -1,0 +1,93 @@
+[
+  {
+    "model": "matrice300",
+    "sourcePage": "https://www.dji.com/downloads/products/matrice-300",
+    "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ce99f35351080727ba6a52514b5007fb.png",
+    "viewed": true,
+    "structureNote": "Front elevated product render; four arm-under rotors, tall fuselage, long splayed center-mounted landing legs."
+  },
+  {
+    "model": "matrice350",
+    "sourcePage": "https://enterprise.dji.com/matrice-350-rtk",
+    "imageUrl": "https://www-cdn.djiits.com/cms/uploads/3f33b79fc054eaf64bd357bf287069f9.png",
+    "viewed": true,
+    "structureNote": "Front elevated product render; same major topology as M300, gold/orange blade tip accents."
+  },
+  {
+    "model": "matrice350",
+    "sourcePage": "https://enterprise.dji.com/matrice-350-rtk",
+    "imageUrl": "https://www-cdn.djiits.com/dps/e10e0fedfa0c30d3b861dbc829bebef8.jpg",
+    "viewed": true,
+    "structureNote": "Clear three-quarter flight view; long camera suspension stalk and T-ended landing legs."
+  },
+  {
+    "model": "matrice350",
+    "sourcePage": "https://enterprise.dji.com/matrice-350-rtk",
+    "imageUrl": "https://www-cdn.djiits.com/dps/1046cbd5726506480342aa26e89b6947.jpg",
+    "viewed": true,
+    "structureNote": "Front flight view showing thin tubular arms and tall body/landing gear."
+  },
+  {
+    "model": "matrice30",
+    "sourcePage": "https://enterprise.dji.com/matrice-30",
+    "imageUrl": "https://www-cdn.djiits.com/cms/uploads/9b2f470e276f39877ba9881d2a82e915.png",
+    "viewed": true,
+    "structureNote": "Clean three-quarter product render; front props ABOVE arms, rear props BELOW arms; compact longitudinal body; square camera tight below nose; short front motor feet."
+  },
+  {
+    "model": "matrice30",
+    "sourcePage": "https://enterprise.dji.com/matrice-30",
+    "imageUrl": "https://www-cdn.djiits.com/dps/925012e7d4aa1c6e775514d5f51f015e.jpg",
+    "viewed": true,
+    "structureNote": "Three-quarter studio image, low lighting; orange blade tips and compact body visible."
+  },
+  {
+    "model": "matrice30",
+    "sourcePage": "https://enterprise.dji.com/matrice-30",
+    "imageUrl": "https://www-cdn.djiits.com/dps/fb1f1fdca33a42f95b24219cda74067a.jpg",
+    "viewed": true,
+    "structureNote": "Close detail of M30 vs M30T integrated multisensor block; M30T extra lower-right thermal aperture."
+  },
+  {
+    "model": "agras-t50",
+    "sourcePage": "https://ag.dji.com/t50",
+    "imageUrl": "https://www-cdn.djiits.com/cms/uploads/01a263d016fe2160032808e7d5fbbf0d.png",
+    "viewed": true,
+    "structureNote": "Clear elevated front product render; four arms and eight stacked coaxial rotors; white central tank, round filler cap, front cylindrical tower, long center skids, rear downward spray assemblies."
+  },
+  {
+    "model": "agras-t50",
+    "sourcePage": "https://ag.dji.com/t50",
+    "imageUrl": "https://www-cdn.djiits.com/dps/84d2d57f07db03885ad1d05017010cf3.jpg",
+    "viewed": true,
+    "structureNote": "Three-quarter render of spreading configuration with taller lidded hopper; do not mistake hopper for standard spray tank."
+  },
+  {
+    "model": "agras-t50",
+    "sourcePage": "https://ag.dji.com/t50",
+    "imageUrl": "https://www-cdn.djiits.com/dps/9cde85428946dc76e0a156598799fa10.jpg",
+    "viewed": true,
+    "structureNote": "Close three-quarter view of angular white spray tank, black filler cap, forward gray cylindrical tower and binocular apertures."
+  },
+  {
+    "model": "flycart30",
+    "sourcePage": "https://www.dji.com/flycart-30",
+    "imageUrl": "https://www-cdn.djiits.com/dps/85a0f2ed8efe8e5083ecce1d83bee9b7.jpg",
+    "viewed": true,
+    "structureNote": "Clear full three-quarter render; four arms eight stacked coaxial rotors, large lower cargo case, cage-like U landing rails, shallow gray top body and white top cylinder."
+  },
+  {
+    "model": "flycart30",
+    "sourcePage": "https://www.dji.com/flycart-30",
+    "imageUrl": "https://www-cdn.djiits.com/dps/7517f35c0cf27468bf9f1fef776d0510.jpg",
+    "viewed": true,
+    "structureNote": "Three-quarter front flight photo; cargo box nearly as tall as fuselage+motor assembly, surrounded by tubular landing structure."
+  },
+  {
+    "model": "flycart30",
+    "sourcePage": "https://www.dji.com/flycart-30",
+    "imageUrl": "https://www-cdn.djiits.com/dps/bfd208e624438a3cedbb172a7ecc6fa5.jpg",
+    "viewed": true,
+    "structureNote": "Folded top product view showing long fore/aft body architecture and paired battery blocks."
+  }
+]

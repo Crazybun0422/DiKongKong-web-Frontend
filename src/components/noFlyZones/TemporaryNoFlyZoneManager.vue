@@ -1,5 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import AnnouncementEditor from './AnnouncementEditor.vue'
+import { createDjiReferenceLayer } from '../../utils/djiReferenceLayer'
+import { DRONES } from '../../utils/drones'
+import TownRegionPicker from './TownRegionPicker.vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { createPolygonVertexEditor } from '../../utils/polygonVertexEditor'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import {
@@ -19,6 +24,12 @@ import { wgs84ToGcj02 } from '../../utils/coords'
 import { loadCountyKmlZipIndex } from '../../utils/countyKmlZipCache'
 import { parseKmlRegion } from '../../utils/kmlRegion'
 import MapImageOverlayControl from './MapImageOverlayControl.vue'
+import GeoJsonAssetLibrary from './GeoJsonAssetLibrary.vue'
+import { publishGeoJsonAsset } from '../../services/noFlyZoneGeoJson'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+dayjs.extend(utc)
+dayjs.extend(timezone)
 import {
   createNoFlyZone,
   deleteNoFlyZone,
@@ -74,6 +85,11 @@ const zoneCircleLayer = ref(null)
 const zonePolylineLayer = ref(null)
 const currentDrawingMode = ref('POLYGON')
 const isDrawing = ref(false)
+let polygonVertexEditor = null
+const clearPolygonVertexEditor = () => {
+  polygonVertexEditor?.destroy()
+  polygonVertexEditor = null
+}
 const drawingPoints = ref([])
 const drawingStartPoint = ref(null)
 const drawingCenter = ref(null)
@@ -213,6 +229,19 @@ const searchPlaces = async (keyword, location) => {
 }
 
 const zoneList = ref([])
+const geoJsonLibrary = ref(null)
+const geoJsonDraftTitle = ref('')
+const geoJsonMaterialId = ref(null)
+const loadGeoJsonDraft = (detail) => {
+  // A library selection is a local draft only. Never call a persistence endpoint here.
+  editZone({ ...detail.draft, announcement: detail.announcement || detail.draft.announcement, id: detail.publication?.zoneId || null })
+  geoJsonDraftTitle.value = detail.title
+  geoJsonMaterialId.value = detail.id
+  const format = value => value == null ? null : dayjs.unix(value).tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')
+  formState.timeRange = [format(detail.draft.effectiveFrom), format(detail.draft.effectiveTo)]
+  formState.additionalTimeRanges = detail.draft.effectivePeriods.map(p => [format(p.effectiveFrom), format(p.effectiveTo)])
+  message.info(detail.publication?.zoneId ? '已加载已发布素材，保存将更新对应禁飞区' : '已加载到当前编辑区，尚未保存为临时禁飞区')
+}
 const listLoading = ref(false)
 const pagination = reactive({
   current: 1,
@@ -224,6 +253,7 @@ const formState = reactive({
   id: null,
   name: '',
   wechatLink: '',
+  announcement: null,
   timeRange: [],
   additionalTimeRanges: [],
   areas: [],
@@ -235,6 +265,7 @@ const formState = reactive({
 })
 
 const formSubmitting = ref(false)
+const announcementBusy = ref(false)
 const syncingAreaDraft = ref(false)
 const richTextLoading = ref(false)
 const richTextSaving = ref(false)
@@ -312,7 +343,7 @@ const syncDraftFromArea = (index = formState.activeAreaIndex) => {
     : PATH_DEFAULT_DISTANCE
   drawingRadius.value =
     formState.type === 'CIRCLE'
-      ? Math.max(Number(formState.circle?.radiusMeters) || CIRCLE_MIN_RADIUS, CIRCLE_MIN_RADIUS)
+      ? (Number(formState.circle?.radiusMeters) > 0 ? Number(formState.circle.radiusMeters) : CIRCLE_MIN_RADIUS)
       : CIRCLE_MIN_RADIUS
   syncingAreaDraft.value = false
 }
@@ -331,6 +362,76 @@ const canRemoveArea = computed(() => formState.areas.length > 1)
 ensureAreaList()
 syncActiveAreaFromDraft()
 
+// Store committed geometry only: a whole drag is one undo step, never each mousemove.
+const geometryHistory = ref([])
+let historySuspended = false
+const geometrySnapshot = () => {
+  const areas = formState.areas.map(cloneArea)
+  areas[formState.activeAreaIndex] = cloneArea(formState)
+  return JSON.stringify({ areas, activeAreaIndex: formState.activeAreaIndex })
+}
+const recordGeometry = () => {
+  if (historySuspended || isDrawing.value) return
+  const snapshot = geometrySnapshot()
+  const previous = geometryHistory.value.at(-1)
+  if (previous && JSON.stringify(JSON.parse(previous).areas) === JSON.stringify(JSON.parse(snapshot).areas)) {
+    geometryHistory.value[geometryHistory.value.length - 1] = snapshot
+    return
+  }
+  if (previous !== snapshot) {
+    geometryHistory.value.push(snapshot)
+    if (geometryHistory.value.length > 100) geometryHistory.value.shift()
+  }
+}
+const resetGeometryHistory = () => {
+  historySuspended = true
+  nextTick(() => {
+    geometryHistory.value = [geometrySnapshot()]
+    historySuspended = false
+  })
+}
+const restoreGeometry = async (snapshot) => {
+  historySuspended = true
+  clearDrawing()
+  const state = JSON.parse(snapshot)
+  formState.areas = state.areas.map(cloneArea)
+  syncDraftFromArea(state.activeAreaIndex)
+  renderFormGeometryOnMap()
+  await nextTick()
+  historySuspended = false
+}
+const undoGeometry = () => {
+  if (formSubmitting.value || historySuspended) return
+  if (isDrawing.value) {
+    if (['POLYGON', PATH_TYPE].includes(currentDrawingMode.value) && drawingPoints.value.length) {
+      drawingPoints.value.pop()
+      drawingStartPoint.value = drawingPoints.value[0] || null
+      updatePolylinePreview()
+      updateVertexMarkers()
+      hidePolygonCloseHint()
+      if (currentDrawingMode.value === 'POLYGON' && drawingPoints.value.length) showPolygonCloseHint()
+    } else if (geometryHistory.value.length) restoreGeometry(geometryHistory.value.at(-1))
+    return
+  }
+  recordGeometry()
+  if (geometryHistory.value.length < 2) return
+  geometryHistory.value.pop()
+  restoreGeometry(geometryHistory.value.at(-1))
+}
+const onMapUndoKey = event => {
+  if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.key.toLowerCase() !== 'z') return
+  if (event.target.closest?.('input, textarea, [contenteditable="true"]')) return
+  event.preventDefault()
+  event.stopPropagation()
+  undoGeometry()
+}
+const focusMapEditor = event => {
+  if (event.target.closest?.('input, textarea, button, [contenteditable="true"]')) return
+  mapContainer.value?.focus({ preventScroll: true })
+}
+watch(geometrySnapshot, recordGeometry, { flush: 'post' })
+resetGeometryHistory()
+
 const typeOptions = computed(() => [
   { label: t('noFlyZone.types.polygon'), value: 'POLYGON' },
   { label: t('noFlyZone.types.path'), value: PATH_TYPE },
@@ -340,6 +441,12 @@ const typeOptions = computed(() => [
 
 const mapReady = computed(() => !!mapInstance.value)
 const mapType = ref('STANDARD')
+const djiEnabled = ref(true)
+const djiDrone = ref('dji-mavic-3')
+const djiState = ref('loading')
+const djiDroneOptions = DRONES.map(item => ({ label: item.name, value: item.slug }))
+let djiReferenceLayer = null
+watch([djiEnabled, djiDrone], ([enabled, drone]) => djiReferenceLayer?.configure(enabled, drone))
 
 const hasDrawnGeometry = computed(() => {
   if (formState.type === 'CIRCLE') {
@@ -715,7 +822,7 @@ const updatePathPreview = (points = drawingPoints.value) => {
           highlightStyle.polygon.fillColor,
           highlightStyle.polygon.fillOpacity ?? 1,
         ),
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       drawingPolygon.value.setPath(latLngs)
@@ -902,10 +1009,9 @@ const syncCirclePreviewFromForm = () => {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return
   }
-  const resolvedRadius = Math.max(
-    Number(formState.circle.radiusMeters) || drawingRadius.value || CIRCLE_MIN_RADIUS,
-    CIRCLE_MIN_RADIUS,
-  )
+  // Existing/imported radii must not be enlarged to the interactive drawing minimum.
+  const resolvedRadius = Number(formState.circle.radiusMeters) > 0
+    ? Number(formState.circle.radiusMeters) : (drawingRadius.value || CIRCLE_MIN_RADIUS)
   drawingRadius.value = resolvedRadius
   if (window.qq && window.qq.maps) {
     drawingCenter.value = new window.qq.maps.LatLng(latitude, longitude)
@@ -949,7 +1055,7 @@ const renderInactiveAreasOnMap = () => {
             inactiveAreaStyle.circle.fillColor,
             inactiveAreaStyle.circle.fillOpacity ?? 1,
           ),
-          clickable: false,
+          clickable: false, zIndex: 10,
         })
         formAreaCircleOverlays.value.push(circle)
         return
@@ -969,7 +1075,7 @@ const renderInactiveAreasOnMap = () => {
             inactiveAreaStyle.polygon.fillColor,
             inactiveAreaStyle.polygon.fillOpacity ?? 1,
           ),
-          clickable: false,
+          clickable: false, zIndex: 10,
         })
         formAreaPolygonOverlays.value.push(polygon)
         return
@@ -984,7 +1090,7 @@ const renderInactiveAreasOnMap = () => {
           inactiveAreaStyle.polygon.fillColor,
           inactiveAreaStyle.polygon.fillOpacity ?? 1,
         ),
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
       formAreaPolygonOverlays.value.push(polygon)
     })
@@ -1049,6 +1155,7 @@ const renderFormGeometryOnMap = () => {
         drawingPolyline.value = new window.qq.maps.Polyline({
           map: mapInstance.value,
           path: paths,
+          clickable: false, zIndex: 10,
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.dashed.width,
           strokeDashStyle: 'dash',
@@ -1072,6 +1179,7 @@ const renderFormGeometryOnMap = () => {
         drawingPolygon.value = new window.qq.maps.Polygon({
           map: mapInstance.value,
           path: paths,
+          clickable: false, zIndex: 10,
           strokeColor: '#ff4d4f',
           strokeWeight: highlightStyle.polygon.strokeWidth,
           fillColor: toQqColor(
@@ -1445,6 +1553,7 @@ const hidePolygonCloseHint = () => {
 }
 
 const clearDrawingOverlays = () => {
+  clearPolygonVertexEditor()
   try {
     if (drawingPolyline.value && drawingPolyline.value.setMap) drawingPolyline.value.setMap(null)
   } catch (_) { }
@@ -1475,6 +1584,7 @@ const stopDrawing = () => {
   isDrawing.value = false
   currentDrawingMode.value = formState.type
   hidePolygonCloseHint()
+  updateVertexMarkers()
 }
 
 const resetFormGeometry = ({ persist = true } = {}) => {
@@ -1595,7 +1705,7 @@ const syncPolygonCloseHintOverlay = () => {
         strokeDashStyle: polygonCloseHintStyle.strokeDashStyle,
         fillColor: toQqColor(polygonCloseHintStyle.fillColor, polygonCloseHintStyle.fillOpacity ?? 1),
         fillOpacity: polygonCloseHintStyle.fillOpacity ?? 0.18,
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       try { polygonCloseHintCircle.value.setCenter(latLng) } catch (_) { }
@@ -1651,12 +1761,39 @@ const showPolygonCloseHint = () => {
 }
 
 const updateVertexMarkers = (points = drawingPoints.value) => {
+  clearPolygonVertexEditor()
+  // Finished circles keep their center in circle, not in polygon drawingPoints.
+  if (formState.type === 'CIRCLE' && !isDrawing.value && formState.circle) points = [formState.circle]
   if (!Array.isArray(points)) return
   // try 2D path
   if (window.qq && window.qq.maps) {
     if (!Array.isArray(drawingMarkerLayer.value)) drawingMarkerLayer.value = []
     drawingMarkerLayer.value.forEach((m) => m.setMap && m.setMap(null))
     drawingMarkerLayer.value = []
+    if (['POLYGON', 'RECTANGLE', PATH_TYPE, 'CIRCLE'].includes(formState.type) && !isDrawing.value && points.length >= (formState.type === 'CIRCLE' ? 1 : isPathType(formState.type) ? 2 : POLYGON_MIN_POINTS) && !formSubmitting.value) {
+      polygonVertexEditor = createPolygonVertexEditor({
+        maps: window.qq.maps, map: mapInstance.value, points, mode: formState.type,
+        vertexTitle: t(formState.type === 'CIRCLE' ? 'noFlyZone.form.circleCenterDragTitle' : 'noFlyZone.form.vertexDragTitle'),
+        midpointTitle: t('noFlyZone.form.midpointInsertTitle'),
+        onPreview(coordinates) {
+          const path = coordinates.map(p => new window.qq.maps.LatLng(p.latitude, p.longitude))
+          if (formState.type === 'CIRCLE') {
+            drawingCircle.value?.setCenter(path[0])
+          } else if (isPathType(formState.type)) {
+            drawingPolyline.value?.setPath(path)
+            updatePathPreview(path)
+          } else drawingPolygon.value?.setPath(path)
+        },
+        onCommit(coordinates) {
+          if (formSubmitting.value || isDrawing.value) return
+          if (formState.type === 'CIRCLE') formState.circle = { ...formState.circle, ...coordinates[0] }
+          else formState.coordinates = coordinates
+          syncActiveAreaFromDraft()
+          // The coordinate watcher rebuilds handles after dragend, not during dragging.
+        },
+      })
+      return
+    }
     const seen = new Set()
     const vertexIcon = getVertexMarkerIcon()
     points.forEach((point) => {
@@ -1862,7 +1999,7 @@ const finalizePolygonDrawing = (TMap) => {
           highlightStyle.polygon.fillColor,
           highlightStyle.polygon.fillOpacity ?? 1,
         ),
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       drawingPolygon.value.setPath(drawingPoints.value)
@@ -1897,7 +2034,7 @@ const finalizePathDrawing = (TMap) => {
         strokeColor: '#ff4d4f',
         strokeWeight: highlightStyle.dashed.width,
         strokeDashStyle: 'dash',
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       drawingPolyline.value.setPath(drawingPoints.value)
@@ -1940,7 +2077,7 @@ const updatePolylinePreview = (cursorPoint = null) => {
         strokeColor: '#ff4d4f',
         strokeWeight: highlightStyle.dashed.width,
         strokeDashStyle: 'dash',
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       drawingPolyline.value.setPath(points)
@@ -1987,7 +2124,7 @@ const setupRectangleDrawing = (TMap) => {
             highlightStyle.polygon.fillColor,
             highlightStyle.polygon.fillOpacity ?? 1,
           ),
-          clickable: false,
+          clickable: false, zIndex: 10,
         })
       } else {
         drawingPolygon.value.setPath(bounds)
@@ -2103,7 +2240,7 @@ const updateCirclePreview = (TMap = window.TMap) => {
           highlightStyle.circle.fillColor,
           highlightStyle.circle.fillOpacity ?? 1,
         ),
-        clickable: false,
+        clickable: false, zIndex: 10,
       })
     } else {
       drawingCircle.value.setCenter(drawingCenter.value)
@@ -2138,6 +2275,7 @@ const applyCircleDrawing = () => {
 
 const startDrawing = async () => {
   if (!mapReady.value) return
+  recordGeometry()
   detachMapListeners()
   clearDrawingOverlays()
   resetFormGeometry()
@@ -2189,6 +2327,10 @@ const clearDrawing = () => {
 
 const parseTimeToSeconds = (value) => {
   if (!value) return null
+  if (geoJsonDraftTitle.value && typeof value === 'string') {
+    const time = dayjs.tz(value, 'Asia/Shanghai')
+    return time.isValid() ? time.unix() : null
+  }
   const normalized = typeof value === 'string' ? value.replace(' ', 'T') : value
   const date = new Date(normalized)
   if (Number.isNaN(date.getTime())) return null
@@ -2390,6 +2532,20 @@ const applyCountyRegionToForm = (nodeTitle, polygons = []) => {
   ])
 }
 
+const applyTownRegion = (geo) => {
+  if (isDrawing.value || formSubmitting.value) return
+  const areas = (geo.parts || geo.polygons.map(poly => poly.points)).map(points => createEmptyArea({ type: 'POLYGON', coordinates: points.map(p => ({ ...p })) }))
+  if (!areas.length) return
+  ensureAreaList()
+  const index = Number(formState.activeAreaIndex) || 0
+  formState.areas.splice(index, 1, ...areas)
+  syncDraftFromArea(index)
+  countyRegionSelectedTitle.value = geo.name
+  clearDrawingOverlays()
+  renderFormGeometryOnMap()
+  focusAreasOnMap(areas)
+}
+
 const handleCountyRegionSelect = async (selectedKeys, event) => {
   const selectedKey = Array.isArray(selectedKeys) ? selectedKeys[0] : selectedKeys
   const node = event?.node
@@ -2498,6 +2654,7 @@ const buildAreaPayload = (area, index) => {
 }
 
 const buildZonePayload = () => {
+  if (announcementBusy.value) { message.warning('请等待公告附件上传完成'); return null }
   if (!formState.name.trim()) {
     message.warning(t('noFlyZone.messages.nameRequired'))
     return null
@@ -2523,6 +2680,7 @@ const buildZonePayload = () => {
     effectiveFrom: effectiveFrom ?? undefined,
     effectiveTo: effectiveTo ?? undefined,
     effectivePeriods: buildEffectivePeriodsPayload(),
+    announcement: formState.announcement,
   }
 
   const trimmedWechatLink = formState.wechatLink.trim()
@@ -2590,6 +2748,7 @@ const loadZoneList = async () => {
 }
 
 const handleSubmit = async () => {
+  if (formSubmitting.value) return
   const payload = buildZonePayload()
   if (!payload) return
   formSubmitting.value = true
@@ -2598,23 +2757,28 @@ const handleSubmit = async () => {
       await updateNoFlyZone(formState.id, payload)
       message.success(t('noFlyZone.messages.updateSuccess'))
     } else {
-      await createNoFlyZone(payload)
+      if (geoJsonMaterialId.value) await publishGeoJsonAsset(geoJsonMaterialId.value, payload)
+      else await createNoFlyZone(payload)
       message.success(t('noFlyZone.messages.createSuccess'))
     }
     await loadZoneList()
     resetForm()
   } catch (error) {
     console.error('Failed to submit no-fly zone', error)
-    message.error(t('noFlyZone.messages.submitFailed'))
+    message.error(error?.response?.data?.message?.zh || t('noFlyZone.messages.submitFailed'))
   } finally {
     formSubmitting.value = false
   }
 }
 
 const resetForm = () => {
+  resetGeometryHistory()
+  geoJsonDraftTitle.value = ''
+  geoJsonMaterialId.value = null
   formState.id = null
   formState.name = ''
   formState.wechatLink = ''
+  formState.announcement = null
   formState.timeRange = []
   formState.additionalTimeRanges = []
   formState.areas = [createEmptyArea()]
@@ -2664,6 +2828,7 @@ const editZone = (zone) => {
   formState.id = zone.id
   formState.name = zone.name || ''
   formState.wechatLink = zone.wechatLink || ''
+  formState.announcement = zone.announcement ? JSON.parse(JSON.stringify(zone.announcement)) : null
   const range = formatRangeFromZone(zone)
   formState.timeRange = range.every((value) => value === null) ? [] : range
   formState.additionalTimeRanges = formatAdditionalRangesFromZone(zone)
@@ -2800,7 +2965,7 @@ const renderZonesOnMap = () => {
               highlightStyle.circle.fillColor,
               highlightStyle.circle.fillOpacity ?? 1,
             ),
-            clickable: false,
+            clickable: false, zIndex: 10,
           })
           zoneCircleOverlays.value.push(circle)
         }
@@ -2816,7 +2981,7 @@ const renderZonesOnMap = () => {
               highlightStyle.polygon.fillColor,
               highlightStyle.polygon.fillOpacity ?? 1,
             ),
-            clickable: false,
+            clickable: false, zIndex: 10,
           })
           zonePolygonOverlays.value.push(polygon)
         }
@@ -2831,7 +2996,7 @@ const renderZonesOnMap = () => {
               highlightStyle.polygon.fillColor,
               highlightStyle.polygon.fillOpacity ?? 1,
             ),
-            clickable: false,
+            clickable: false, zIndex: 10,
           })
           zonePolygonOverlays.value.push(polygon)
         }
@@ -2954,9 +3119,12 @@ const typeLabel = (type) => {
 const effectiveTimeText = (zone) => {
   const periods = collectEffectivePeriods(zone)
   if (!periods.length) return ['-']
+  const format = (seconds) => zone.geoJsonAvailable && seconds != null
+    ? new Date(seconds * 1000).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    : formatTimeFromSeconds(seconds, false)
   return periods.map((period) => {
-    const start = formatTimeFromSeconds(period.effectiveFrom, false) || '-'
-    const end = formatTimeFromSeconds(period.effectiveTo, false) || '-'
+    const start = format(period.effectiveFrom) || '-'
+    const end = format(period.effectiveTo) || '-'
     if (start === '-' && end === '-') return '-'
     return `${start} ~ ${end}`
   })
@@ -3082,10 +3250,13 @@ watch(mapReady, (ready) => {
 
 onMounted(() => {
   loadRichTextConfig()
+  loadZoneList()
   initializeMap2D()
 })
 
 onBeforeUnmount(() => {
+  djiReferenceLayer?.destroy()
+  clearPolygonVertexEditor()
   detachMapListeners()
   if (mapInstance.value) {
     if (typeof mapInstance.value.destroy === 'function') {
@@ -3110,14 +3281,21 @@ const initializeMap2D = async () => {
       zoomControl: true,
       mapTypeControl: false,
     })
+    djiReferenceLayer = createDjiReferenceLayer({ maps, map: mapInstance.value, onState: state => { djiState.value = state } })
+    djiReferenceLayer.configure(djiEnabled.value, djiDrone.value)
     applyMapTypeToMap()
+    renderZonesOnMap()
+    renderFormGeometryOnMap()
     await loadMerchantMarkers()
-    await loadZoneList()
   } catch (error) {
     console.error('Failed to initialize 2D map', error)
     message.error(t('noFlyZone.messages.mapLoadFailed'))
   }
 }
+
+watch(formSubmitting, () => {
+  if (mapReady.value && !isDrawing.value) updateVertexMarkers()
+})
 
 watch(drawingRadius, (radius) => {
   if (!mapReady.value || formState.type !== 'CIRCLE') return
@@ -3306,6 +3484,16 @@ const handleSearchClear = () => {
 
 <template>
   <div class="no-fly-zone-manager">
+    <a-card :bordered="false">
+      <a-space wrap>
+        <a-button type="primary" :disabled="isDrawing || formSubmitting" @click="geoJsonLibrary?.open()">GeoJSON 素材库</a-button>
+        <a-button :loading="listLoading" :disabled="isDrawing" @click="loadZoneList">刷新禁飞区列表</a-button>
+        <span>AI 素材核验后自动发布；素材库显示发布状态，已发布内容可继续编辑。</span>
+      </a-space>
+    </a-card>
+    <GeoJsonAssetLibrary ref="geoJsonLibrary" @load="loadGeoJsonDraft" @published="loadZoneList()" />
+    <a-alert v-if="geoJsonDraftTitle" type="warning" show-icon :message="'未保存的 GeoJSON 草稿：' + geoJsonDraftTitle"
+      description="当前仅在本页编辑和预览，坐标已为 GCJ-02，时间为北京时间（UTC+8）。点击保存后才进入临时禁飞区列表；重置或离开页面会丢弃草稿。" />
     <a-card class="rich-text-card" :bordered="false">
       <section class="rich-text-settings">
         <header class="section-header">
@@ -3346,6 +3534,7 @@ const handleSearchClear = () => {
         <a-form layout="vertical" class="zone-form">
           <MapImageOverlayControl :map="mapInstance" :map-ready="mapReady" :map-container="mapContainer"
             :disabled="isDrawing" />
+          <a-form-item label="镇级区域库"><TownRegionPicker :disabled="isDrawing || formSubmitting" @select="applyTownRegion" /></a-form-item>
           <a-form-item :label="t('noFlyZone.regionLibrary.title')">
             <div class="county-region-library">
               <div class="county-region-library__header county-region-library__header--compact">
@@ -3484,6 +3673,7 @@ const handleSearchClear = () => {
           </a-form-item>
           <div class="drawing-actions">
             <a-space>
+              <a-button :disabled="formSubmitting || (!isDrawing && geometryHistory.length < 2)" @click="undoGeometry">{{ t('noFlyZone.actions.undoGeometry') }}</a-button>
               <a-button type="primary" :disabled="drawButtonDisabled" @click="startDrawing">
                 {{ isDrawing ? t('noFlyZone.actions.drawing') : t('noFlyZone.actions.startDrawing') }}
               </a-button>
@@ -3498,6 +3688,8 @@ const handleSearchClear = () => {
               </a-button> -->
             </a-space>
           </div>
+          <p v-if="formState.type === 'CIRCLE' && !isDrawing && hasDrawnGeometry" class="form-hint">{{ t('noFlyZone.form.circleEditHint') }} {{ t('noFlyZone.form.undoHint') }}</p>
+          <p v-if="['POLYGON', 'RECTANGLE', PATH_TYPE].includes(formState.type) && !isDrawing && hasDrawnGeometry" class="form-hint polygon-edit-hint">{{ t(formState.type === 'RECTANGLE' ? 'noFlyZone.form.rectangleEditHint' : formState.type === PATH_TYPE ? 'noFlyZone.form.pathEditHint' : 'noFlyZone.form.polygonEditHint') }} {{ t('noFlyZone.form.undoHint') }}</p>
           <a-form-item>
             <template #label>
               <span class="form-item-label form-item-label--required coordinate-section__label">
@@ -3570,16 +3762,16 @@ const handleSearchClear = () => {
             </div>
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.timeRange')">
-            <a-range-picker v-model:value="formState.timeRange" format="YYYY-MM-DD HH:mm"
-              value-format="YYYY-MM-DD HH:mm" :show-time="dateTimePickerOptions" allow-clear
+            <a-range-picker v-model:value="formState.timeRange" :format="geoJsonDraftTitle ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD HH:mm'"
+              :value-format="geoJsonDraftTitle ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD HH:mm'" :show-time="dateTimePickerOptions" allow-clear
               :disabled="disableFormDuringDrawing" />
           </a-form-item>
           <a-form-item :label="t('noFlyZone.form.additionalTimeRanges')">
             <div class="additional-time-ranges">
               <div v-for="(range, index) in formState.additionalTimeRanges" :key="`time-range-${index}`"
                 class="additional-time-range-row">
-                <a-range-picker v-model:value="formState.additionalTimeRanges[index]" format="YYYY-MM-DD HH:mm"
-                  value-format="YYYY-MM-DD HH:mm" :show-time="dateTimePickerOptions" allow-clear
+                <a-range-picker v-model:value="formState.additionalTimeRanges[index]" :format="geoJsonDraftTitle ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD HH:mm'"
+                  :value-format="geoJsonDraftTitle ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD HH:mm'" :show-time="dateTimePickerOptions" allow-clear
                   :disabled="disableFormDuringDrawing" />
                 <a-button danger type="text" :disabled="disableFormDuringDrawing" @click="removeAdditionalTimeRange(index)">
                   <MinusCircleOutlined />
@@ -3601,6 +3793,9 @@ const handleSearchClear = () => {
             <a-input v-model:value="formState.name" :placeholder="t('noFlyZone.form.namePlaceholder')"
               :disabled="disableFormDuringDrawing" />
           </a-form-item>
+          <a-form-item label="本条禁飞区公告">
+            <AnnouncementEditor v-model="formState.announcement" :title="formState.name" :disabled="formSubmitting" @busy="announcementBusy=$event" />
+          </a-form-item>
           <a-form-item :label="t('noFlyZone.form.wechatLink')">
             <a-input v-model:value="formState.wechatLink" :placeholder="t('noFlyZone.form.wechatPlaceholder')"
               :disabled="disableFormDuringDrawing" />
@@ -3608,7 +3803,7 @@ const handleSearchClear = () => {
           <a-space class="form-actions">
             <a-button type="primary" :loading="formSubmitting" :disabled="disableFormDuringDrawing || disableSubmit"
               @click="handleSubmit">
-              {{ formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create') }}
+              {{ geoJsonDraftTitle ? '保存到临时禁飞区' : (formState.id ? t('noFlyZone.actions.update') : t('noFlyZone.actions.create')) }}
             </a-button>
             <a-button :disabled="formSubmitting || disableFormDuringDrawing" @click="resetToCreateMode">
               {{ t('noFlyZone.actions.reset') }}
@@ -3617,7 +3812,7 @@ const handleSearchClear = () => {
         </a-form>
       </a-card>
       <a-card class="map-panel" :bordered="false">
-        <div ref="mapContainer" class="map-container">
+        <div ref="mapContainer" class="map-container" tabindex="0" @pointerdown.capture="focusMapEditor" @keydown.capture="onMapUndoKey">
           <div class="map-search-bar" :class="{ 'map-search-bar--disabled': !mapReady }">
             <a-auto-complete v-model:value="searchQuery" :options="searchOptions" :loading="searchLoading"
               :disabled="!mapReady" allow-clear class="map-search-input" @search="handleSearchInput"
@@ -3637,6 +3832,13 @@ const handleSearchClear = () => {
                 </div>
               </template>
             </a-auto-complete>
+          </div>
+          <div class="dji-reference-control" @pointerdown.stop @keydown.stop>
+            <div class="dji-reference-heading"><span>{{ t('noFlyZone.dji.label') }}</span><a-switch v-model:checked="djiEnabled" size="small" :disabled="!mapReady" :aria-label="t('noFlyZone.dji.label')" /></div>
+            <template v-if="djiEnabled">
+              <a-select v-model:value="djiDrone" :options="djiDroneOptions" size="small" show-search option-filter-prop="label" :aria-label="t('noFlyZone.dji.drone')" />
+              <span class="dji-reference-status" role="status">{{ t('noFlyZone.dji.' + djiState) }}<a v-if="djiState === 'error'" @click="djiReferenceLayer?.refresh()">{{ t('noFlyZone.dji.retry') }}</a></span>
+            </template>
           </div>
           <div class="map-layer-toggle" :class="{ 'map-layer-toggle--disabled': !mapReady }">
             <a-segmented v-model:value="mapType" :options="mapTypeOptions" size="small" :disabled="!mapReady" />
@@ -3660,9 +3862,11 @@ const handleSearchClear = () => {
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
             {{ typeLabel(record.type) }}
+            <a-tag v-if="record.geoJsonAvailable" color="blue">GeoJSON · GCJ-02</a-tag>
           </template>
           <template v-else-if="column.key === 'effective'">
             <div class="effective-period-list">
+              <small v-if="record.geoJsonAvailable">北京时间 UTC+8</small>
               <div v-for="(item, index) in effectiveTimeText(record)" :key="`${record.id || 'zone'}-${index}`">
                 {{ item }}
               </div>
@@ -3676,7 +3880,7 @@ const handleSearchClear = () => {
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="t('noFlyZone.actions.edit')">
-                <a-button shape="circle" type="text" :disabled="isDrawing" @click="editZone(record)">
+                <a-button shape="circle" type="text" :aria-label="t('noFlyZone.actions.edit')" :disabled="isDrawing" @click="editZone(record)">
                   <EditOutlined />
                 </a-button>
               </a-tooltip>
@@ -3705,9 +3909,9 @@ const handleSearchClear = () => {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--admin-line);
   border-radius: 10px;
-  background: #fafafa;
+  background: var(--admin-raised);
 }
 
 .county-region-library__header {
@@ -3726,7 +3930,7 @@ const handleSearchClear = () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .county-region-library__actions {
@@ -3735,7 +3939,7 @@ const handleSearchClear = () => {
 }
 
 .county-region-library__subtitle {
-  color: #666;
+  color: var(--admin-muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -3744,7 +3948,7 @@ const handleSearchClear = () => {
 .county-region-library__message,
 .county-region-library__selected,
 .county-region-library__empty {
-  color: #666;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
@@ -3762,9 +3966,9 @@ const handleSearchClear = () => {
   max-height: 280px;
   overflow: auto;
   padding: 8px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--admin-surface);
 }
 
 .manager-content {
@@ -3779,7 +3983,7 @@ const handleSearchClear = () => {
 .zone-table-card,
 .rich-text-card {
   border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .rich-text-card {
@@ -3799,21 +4003,21 @@ const handleSearchClear = () => {
   padding: 0;
   border-radius: 999px;
   border-color: rgba(15, 23, 42, 0.12);
-  color: #475569;
-  background: #fff;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  color: var(--admin-muted);
+  background: var(--admin-surface);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .rich-text-toggle:hover,
 .rich-text-toggle:focus {
-  color: #1677ff;
+  color: var(--admin-lime);
   border-color: rgba(22, 119, 255, 0.35);
-  background: #f8fbff;
+  background: var(--admin-raised);
 }
 
 .rich-text-settings__meta {
   margin-bottom: 12px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
@@ -3825,7 +4029,7 @@ const handleSearchClear = () => {
 
 .rich-text-settings__subtitle {
   margin: 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -3860,9 +4064,9 @@ const handleSearchClear = () => {
   gap: 2px;
   min-width: 112px;
   padding: 8px 12px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--admin-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--admin-surface);
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -3874,20 +4078,20 @@ const handleSearchClear = () => {
 }
 
 .area-chip--active {
-  border-color: #1677ff;
-  background: #e6f4ff;
+  border-color: var(--admin-lime);
+  background: var(--admin-raised);
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
 }
 
 .area-chip__title {
   font-size: 13px;
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .area-chip__type {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .area-actions {
@@ -3934,7 +4138,7 @@ const handleSearchClear = () => {
 .coordinate-value__label {
   flex: 0 0 auto;
   min-width: 25px;
-  color: #6b7280;
+  color: var(--admin-muted);
   white-space: nowrap;
 }
 
@@ -3975,7 +4179,7 @@ const handleSearchClear = () => {
 .form-hint {
   margin: 4px 0 0;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .drawing-actions {
@@ -4007,6 +4211,9 @@ const handleSearchClear = () => {
   width: 100%;
 }
 
+.dji-reference-control{position:absolute;top:60px;right:16px;z-index:2;width:190px;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--admin-line);border-radius:10px;background:rgba(26, 33, 28, .96);box-shadow:0 4px 16px #0f172a14}
+.dji-reference-heading{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--admin-text)}
+.dji-reference-status{font-size:12px;color:var(--admin-muted)}.dji-reference-status a{margin-left:8px}
 .map-layer-toggle {
   position: absolute;
   top: 16px;
@@ -4015,8 +4222,8 @@ const handleSearchClear = () => {
 }
 
 .map-layer-toggle :deep(.ant-segmented) {
-  background: rgba(255, 255, 255, 0.32);
-  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+  background: rgba(26, 33, 28, 0.32);
+  box-shadow: 0 4px 18px #00000014;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 4px;
   padding: 2px;
@@ -4028,7 +4235,7 @@ const handleSearchClear = () => {
 
 .map-search-empty {
   padding: 8px 12px;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .map-search-bar--disabled {
@@ -4043,7 +4250,7 @@ const handleSearchClear = () => {
   justify-content: center;
   align-items: center;
   gap: 12px;
-  color: #6b7280;
+  color: var(--admin-muted);
   background: linear-gradient(135deg, rgba(219, 234, 254, 0.35), rgba(254, 243, 199, 0.35));
 }
 

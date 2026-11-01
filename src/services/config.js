@@ -197,7 +197,7 @@ export const saveMemberNoAdsConfig = async (payload) => {
 }
 
 export const syncMemberNoAdsCrowdNow = async () => {
-  const response = await http.post('/config/member-no-ads/sync-now')
+  const response = await http.post('/config/member-no-ads/sync-start')
   return normalizePagePayload(response, {})
 }
 

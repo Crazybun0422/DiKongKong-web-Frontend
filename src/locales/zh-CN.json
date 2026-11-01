@@ -1,4 +1,5 @@
 {
+  "externalMapTab": "对外搜索 Key",
   "androidPushTab": "Android 消息推送",
   "androidServer": {
     "title": "Android / 小程序服务环境（共用）",
@@ -300,6 +301,9 @@
     },
     "status": {
       "waitingPayment": "待支付",
+      "cancelled": "已取消",
+      "refundPending": "退款处理中",
+      "refundReview": "退款待处理",
       "paid": "已支付",
       "refunded": "已退款",
       "unknown": "未知"
@@ -769,11 +773,19 @@
       "circle": "圆形"
     },
     "form": {
+      "rectangleEditHint": "拖动四角调整矩形，对角保持固定。调整后请保存。",
+      "pathEditHint": "拖动路径点或点击“＋”插点，缓冲边界随路径和距离更新。调整后请保存。",
+      "undoHint": "在地图上按 Ctrl+Z 撤销上一步。",
+      "polygonEditHint": "拖动蓝色顶点微调边界；点击边上的“＋”新增顶点，也可直接拖动“＋”。调整后请保存。",
+      "vertexDragTitle": "拖动顶点微调边界",
+      "midpointInsertTitle": "点击或拖动，在两点之间新增顶点",
       "name": "区域名称",
       "namePlaceholder": "请输入禁飞区域名称",
       "type": "绘制类型",
       "circleRadius": "圆形半径",
       "radiusUnit": "米",
+      "circleCenterDragTitle": "拖动调整圆心",
+      "circleEditHint": "拖动蓝色圆心移动整个圆形，半径保持不变。调整后请保存。",
       "circleHint": "请在地图上点击选择圆心后，再设置半径值。",
       "coordinatesLabel": "经纬度",
       "coordinatesHint": "点击地图添加顶点，可在下方查看经纬度。",
@@ -821,6 +833,7 @@
       "uploadError": "图片格式或大小不符合要求"
     },
     "actions": {
+      "undoGeometry": "撤销 (Ctrl+Z)",
       "startDrawing": "开始绘制",
       "drawing": "绘制中...",
       "finishDrawing": "完成绘制",
@@ -834,6 +847,16 @@
       "delete": "删除",
       "confirmDelete": "确认删除",
       "cancel": "取消"
+    },
+    "dji": {
+      "label": "大疆禁飞区对照",
+      "drone": "大疆机型",
+      "loading": "正在加载…",
+      "ready": "已显示当前地图范围",
+      "empty": "当前范围暂无数据",
+      "error": "加载失败",
+      "off": "已关闭",
+      "retry": "重试"
     },
     "mapType": {
       "standard": "标准图",
@@ -1078,6 +1101,7 @@
         "doubleReported": "是否双报备",
         "miniProgram": "跳转小程序",
         "appId": "小程序 AppID",
+        "originalId": "小程序原始 ID（Android 跳转）",
         "path": "小程序路径",
         "guide": "申请指引",
         "publicAccountLink": "公众号文章链接",
@@ -1091,6 +1115,7 @@
       "placeholders": {
         "cityDescription": "请输入城市说明",
         "appId": "请输入 appid",
+        "originalId": "Android 跳转需填写 gh_ 开头的原始 ID；在目标小程序后台“设置 → 基本设置 → 账号信息”查看。",
         "path": "请输入路径",
         "publicAccountLink": "请输入公众号文章链接",
         "videoAccountId": "请输入视频号ID",
@@ -1120,6 +1145,7 @@
       "validation": {
         "area": "请选择报备地区",
         "appId": "请输入小程序 AppID",
+        "originalId": "小程序原始 ID 应以 gh_ 开头",
         "path": "请输入小程序路径",
         "publicAccountLink": "请输入公众号文章链接",
         "videoAccountId": "请输入视频号 ID",
@@ -1156,7 +1182,8 @@
       "reportEntry": "报备设置",
       "guideSettings": "引导设置",
       "areaSettings": "区域设置",
-      "system": "系统设置"
+      "system": "系统设置",
+      "harmony": "鸿蒙设置"
     },
     "areaSettings": {
       "tabs": {
@@ -1627,7 +1654,8 @@
         "provinceCityKmlZip": "省区域压缩包",
         "countyKmlZip": "县区域压缩包",
         "memberAircraftModels": "机型统计",
-        "ladderLeaderboard": "天梯排行榜"
+        "ladderLeaderboard": "天梯排行榜",
+        "droneGameLeaderboard": "涂鸦飞行天梯"
       },
       "uomLayer": {
         "title": "UOM 图层配置",
@@ -1734,20 +1762,20 @@
       },
       "skyTypeAvatarPack": {
         "title": "星格图片包设置",
-        "subtitle": "上传低空星格测试结果使用的头像海报资源包。",
+        "subtitle": "上传新版角色与副称号插图，男女共 50 张。换图不会清空新版测试结果。",
         "currentFileLabel": "当前资源包",
         "currentVersionLabel": "当前版本",
-        "emptyFile": "暂无星格图片包",
-        "emptyVersion": "未设置",
+        "emptyFile": "未获取",
+        "emptyVersion": "未获取",
         "fields": {
           "file": "图片包文件",
           "version": "版本号"
         },
         "placeholders": {
-          "version": "例如 1.0.1"
+          "version": "从图包清单自动读取"
         },
-        "helper": "支持 ZIP/RAR/7Z，资源包内需包含 low_altitude_skytype_posters_en/female 与 male 目录，文件名需与星格标识对应。",
-        "structureTitle": "推荐目录结构",
+        "helper": "仅支持 ZIP。根目录为 manifest.json 和 50 张 PNG，服务器完整校验后才发布；旧图包不再使用。",
+        "structureTitle": "完整图包结构",
         "actions": {
           "selectFile": "选择文件",
           "replaceFile": "更换文件",
@@ -1858,6 +1886,32 @@
         },
         "messages": {
           "loadFailed": "天梯排行榜加载失败"
+        }
+      },
+      "droneGameLeaderboard": {
+        "title": "涂鸦飞行个人成就榜",
+        "subtitle": "当前赛季 {season}，展示 Android 与小程序在每次飞行结束时写入的个人成就。飞行过程不会同步到服务器。",
+        "actions": {
+          "reload": "重新加载"
+        },
+        "columns": {
+          "rank": "排名",
+          "avatar": "头像",
+          "username": "用户名",
+          "featureCode": "低空号",
+          "rating": "个人成就积分",
+          "tier": "段位",
+          "completions": "完赛次数",
+          "races": "飞行次数",
+          "wins": "胜场（已停用）",
+          "bestFinish": "最佳用时",
+          "lastFlight": "最近飞行"
+        },
+        "pagination": {
+          "total": "共 {total} 条 · 当前 {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "涂鸦飞行天梯加载失败"
         }
       }
     },
@@ -1981,6 +2035,8 @@
         "success": "成功",
         "failed": "失败",
         "skippedEmpty": "空人群已跳过",
+        "running": "同步中",
+        "skippedDev": "开发环境已跳过",
         "unknown": "未知"
       },
       "meta": {
@@ -1993,7 +2049,8 @@
         "saveThresholdSuccess": "免广告会员状态配置已保存",
         "saveThresholdFailed": "免广告会员状态配置保存失败",
         "syncSuccess": "免广告人群同步已触发",
-        "syncFailed": "免广告人群同步失败"
+        "syncFailed": "免广告人群同步失败",
+        "syncUnconfirmed": "未收到同步结果，正在查询后台状态"
       }
     },
     "copySettings": {
@@ -2447,5 +2504,29 @@
     "saved": "Android 微信登录配置保存成功",
     "loadFailed": "配置加载失败，请重试",
     "saveFailed": "配置保存失败，请重试"
+  },
+  "harmonyMap": {
+    "title": "HarmonyOS 地图配置",
+    "description": "腾讯位置服务开通鸿蒙地图 SDK Key 后填写。应用包名 cn.llplanet.mobile；控制台若限制授权应用，请填写签名中的 appIdentifier。客户端下次启动读取，留空表示尚未配置，不填写 SecretKey。",
+    "label": "腾讯地图 HarmonyOS SDK Key",
+    "placeholder": "请输入 HarmonyOS SDK Key",
+    "invalid": "Key 只能包含字母、数字和连字符，最长 128 字符；留空可清除配置。",
+    "loadFailed": "HarmonyOS 地图配置加载失败，请重试",
+    "saved": "HarmonyOS 地图配置已保存",
+    "savedAt": "保存成功（{time}），HarmonyOS 地图 Key 已更新",
+    "saveFailed": "HarmonyOS 地图配置保存失败，请重试"
+  },
+  "harmonyServer": {
+    "title": "鸿蒙服务环境",
+    "description": "独立管理鸿蒙开发版和发布版的服务器地址。客户端冷启动时读取，网络异常沿用缓存；留空使用内置默认地址。",
+    "debug": "开发环境 · HarmonyOS Debug",
+    "release": "发布环境 · HarmonyOS Release",
+    "apiBase": "接口地址",
+    "assetBase": "资源地址",
+    "defaultValue": "内置默认：{value}",
+    "invalid": "请填写 HTTPS 域名地址，可包含端口，不要包含路径、参数、账号或密码。留空使用默认值。",
+    "loadFailed": "读取服务环境失败，请重试。",
+    "saveFailed": "保存失败，请重试。",
+    "saved": "鸿蒙服务环境已保存，下次冷启动生效。"
   }
 }

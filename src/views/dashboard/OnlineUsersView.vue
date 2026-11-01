@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { fetchAdminOnlineUsers, fetchAdminOnlineUserDetail } from '../../services/adminUsers'
 import { resolveProfileAsset } from '../../services/profile'
 
+import { xinggeName } from '../../utils/xingge'
+
 const { t, locale } = useI18n()
 const label = (key) => t(`onlineUsers.${key}`)
 const rows = ref([])
@@ -66,7 +68,7 @@ const detailFields = computed(() => {
     [label('gender'), label(['male', 'female'].includes(profile.gender) ? profile.gender : 'unknown')],
     [label('age'), profile.age ?? label('unknown')],
     [label('birthday'), profile.birthday || label('unknown')],
-    [label('xingGe'), profile.selectedXingGe],
+    [label('xingGe'), xinggeName(profile)],
     [label('aircraft'), detail.value?.aircraftModel],
     [label('likes'), profile.likes],
     [label('signature'), profile.signature],
@@ -261,18 +263,19 @@ onBeforeUnmount(() => {
 <style scoped>
 .online-page { padding: 28px; max-width: 1600px; margin: 0 auto; }
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-h1 { margin: 0 0 8px; font-size: 24px; color: #172033; }
-p { margin: 0; color: #6b7280; line-height: 1.7; }
-.online-summary { display: flex; align-items: center; gap: 28px; background: #fff; border: 1px solid #e9edf3; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-.online-number { display: flex; align-items: center; gap: 12px; font-size: 48px; font-weight: 650; font-variant-numeric: tabular-nums; color: #172033; }
+h1 { margin: 0 0 8px; font-size: 24px; color: var(--admin-text); }
+p { margin: 0; color: var(--admin-muted); line-height: 1.7; }
+.online-summary { display: flex; align-items: center; gap: 28px; background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.online-number { display: flex; align-items: center; gap: 12px; font-size: 48px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--admin-text); }
 .online-dot { width: 12px; height: 12px; border-radius: 50%; background: #20b67a; box-shadow: 0 0 0 5px #e3f7ef; flex-shrink: 0; }
+.online-summary p { color: var(--admin-summary-muted); }
 .online-summary strong { font-size: 16px; }
-.online-summary small, .detail-time { color: #8b93a1; }
-.list-panel { padding: 20px; background: #fff; border-radius: 12px; }
+.online-summary small, .detail-time { color: var(--admin-muted); }
+.list-panel { padding: 20px; background: var(--admin-surface); border-radius: 12px; }
 .user-search { width: min(460px, 100%); margin-bottom: 20px; }
-.user-link { display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: #172033; text-align: left; cursor: pointer; font: inherit; }
+.user-link { display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: var(--admin-text); text-align: left; cursor: pointer; font: inherit; }
 .user-link :deep(.ant-avatar) { flex-shrink: 0; }
-.user-link:hover { color: #1677ff; }
+.user-link:hover { color: var(--admin-lime); }
 .error-alert { margin-bottom: 16px; }
 .detail-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .detail-heading h2 { margin: 0 0 6px; font-size: 20px; overflow-wrap: anywhere; }

@@ -1,0 +1,10 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const root='E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram';
+let code='ABC123',token='session';const storage=new Map();
+const profile={loadStoredProfile:()=>({featureCode:code}),getAuthToken:()=>token,resolveApiBase:()=>'',extractAvatarFileName:v=>v,buildAvatarDownloadUrl:v=>v};
+const mod={exports:{}};const wx={getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v)};
+vm.runInNewContext(fs.readFileSync(root+'/packages/market/api.js','utf8'),{require:()=>profile,module:mod,wx});const api=mod.exports;
+const owner=api.addressKey();api.saveAddress({recipient:'飞友甲',phone:'13800138000',address:'甲的地址'},owner);assert.equal(api.loadAddress().recipient,'飞友甲');
+code='DEF456';assert.equal(api.loadAddress().recipient,undefined);api.saveAddress({recipient:'甲页面的旧数据'},owner);assert.equal(api.loadAddress().recipient,undefined);
+api.saveAddress({recipient:'飞友乙',phone:'13800138001',address:'乙的地址'},api.addressKey());code='ABC123';assert.equal(api.loadAddress().recipient,'飞友甲');token='';assert.equal(api.loadAddress().recipient,undefined);assert.equal(api.addressKey(),null);
+console.log('PASS: shipping data persists per account; account switch/logout cannot expose or overwrite another account address.');

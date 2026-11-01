@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
+import { inspectXinggePack } from '../utils/xingge-pack'
+import { downloadSkyTypeAvatarPack } from '../services/skyTypeAvatarPack'
 import {
-  buildSkyTypeAvatarPackDownloadUrl,
   fetchSkyTypeAvatarPackVersion,
   uploadSkyTypeAvatarPack,
 } from '../services/skyTypeAvatarPack'
@@ -14,6 +15,8 @@ const { t } = useI18n()
 
 const packLoading = ref(false)
 const packSaving = ref(false)
+const packChecking = ref(false)
+const packError = ref('')
 const selectedFile = ref(null)
 const fileInputRef = ref(null)
 
@@ -27,50 +30,22 @@ const packForm = reactive({
   version: '',
 })
 
-const packageTree = `low_altitude_skytype_posters_en/
-  female/
-    airspace_night_guardian.png
-    beginner_pilot.png
-    cloud_hunter.png
-    low_altitude_execution_officer.png
-    sky_director.png
-    stargroup_leader.png
-    wind_rider_fpv.png
-  male/
-    airspace_night_guardian.png
-    beginner_pilot.png
-    cloud_hunter.png
-    low_altitude_execution_officer.png
-    sky_director.png
-    stargroup_leader.png
-    wind_rider_fpv.png`
-
-const currentDownloadUrl = computed(() =>
-  packConfig.fileName ? buildSkyTypeAvatarPackDownloadUrl(packConfig.fileName) : '',
-)
-
-const bumpVersion = (version) => {
-  const parts = String(version || '').trim().split('.')
-  if (parts.length >= 3 && parts.every((part) => /^\d+$/.test(part))) {
-    parts[parts.length - 1] = String(Number(parts[parts.length - 1]) + 1)
-    return parts.join('.')
-  }
-  return version ? `${version}.1` : '1.0.0'
-}
-
-const resetForm = (version = '') => {
-  selectedFile.value = null
-  packForm.fileName = ''
-  packForm.version = bumpVersion(version)
-}
+const packageTree = `manifest.json
+role-professional_agriculture-male.png
+role-professional_agriculture-female.png
+… 19 个角色 × 男女两版
+style-craft-male.png
+style-craft-female.png
+… 6 个副称号 × 男女两版
+共 50 张 PNG，全部位于 ZIP 根目录`
 
 const loadPackVersion = async () => {
   packLoading.value = true
   try {
     const data = await fetchSkyTypeAvatarPackVersion()
     const normalized = data || {}
-    packConfig.fileName = extractObjectName(normalized.fileName || '')
-    packConfig.version = normalized.version || ''
+    packConfig.fileName = normalized.status === 'ready' && normalized.schemaVersion === 2 ? extractObjectName(normalized.fileName || '') : ''
+    packConfig.version = packConfig.fileName ? normalized.resourceVersion : ''
   } catch (error) {
     if (error?.response?.status !== 404) {
       console.error('Failed to load sky type avatar pack config', error)
@@ -80,26 +55,46 @@ const loadPackVersion = async () => {
     packConfig.version = ''
   } finally {
     packLoading.value = false
-    resetForm(packConfig.version)
   }
 }
 
-const handleFileSelect = (event) => {
+let selectionSequence = 0
+const handleFileSelect = async (event) => {
   const file = event?.target?.files?.[0]
+  const sequence = ++selectionSequence
+  selectedFile.value = null
+  packForm.fileName = ''
+  packForm.version = ''
+  packError.value = ''
+  if (event?.target) event.target.value = ''
+  packChecking.value = !!file
   if (!file) return
-  selectedFile.value = file
-  packForm.fileName = file.name || ''
-  if (!String(packForm.version || '').trim()) {
-    packForm.version = bumpVersion(packConfig.version)
-  }
-  if (event?.target) {
-    event.target.value = ''
-  }
+  try {
+    const manifest = await inspectXinggePack(file)
+    if (sequence !== selectionSequence) return
+    selectedFile.value = file
+    packForm.fileName = file.name
+    packForm.version = manifest.resourceVersion
+  } catch (error) {
+    if (sequence === selectionSequence) {
+      packError.value = file.name + '：' + (error.message || '无法读取图包清单。')
+      message.error(packError.value)
+    }
+  } finally { if (sequence === selectionSequence) packChecking.value = false }
+}
+
+const downloadCurrent = async () => {
+  try { await downloadSkyTypeAvatarPack(packConfig.fileName) }
+  catch (_) { message.error('图包下载失败，请重试。') }
 }
 
 const clearSelection = () => {
+  selectionSequence++
+  packForm.version = ''
   selectedFile.value = null
   packForm.fileName = ''
+  packChecking.value = false
+  packError.value = ''
 }
 
 const triggerFileSelect = () => {
@@ -120,13 +115,16 @@ const submitUpload = async () => {
   if (packSaving.value) return
 
   packSaving.value = true
+  packError.value = ''
   try {
     await uploadSkyTypeAvatarPack(selectedFile.value, version)
     message.success(t('settings.system.skyTypeAvatarPack.messages.uploadSuccess'))
+    clearSelection()
     await loadPackVersion()
   } catch (error) {
     console.error('Failed to upload sky type avatar pack', error)
-    message.error(t('settings.system.skyTypeAvatarPack.messages.uploadFailed'))
+    packError.value = error?.response?.data?.message?.zh || (error.code === 'ECONNABORTED' ? '上传超时，请检查网络后重试。' : t('settings.system.skyTypeAvatarPack.messages.uploadFailed'))
+    message.error(packError.value)
   } finally {
     packSaving.value = false
   }
@@ -159,9 +157,9 @@ onMounted(() => {
         <span class="skytype-pack__current-label">
           {{ t('settings.system.skyTypeAvatarPack.currentFileLabel') }}
         </span>
-        <a v-if="packConfig.fileName" :href="currentDownloadUrl" target="_blank" rel="noreferrer">
+        <a-button v-if="packConfig.fileName" type="link" @click="downloadCurrent">
           {{ packConfig.fileName }}
-        </a>
+        </a-button>
         <span v-else class="empty-hint">
           {{ t('settings.system.skyTypeAvatarPack.emptyFile') }}
         </span>
@@ -176,13 +174,13 @@ onMounted(() => {
                   ref="fileInputRef"
                   class="skytype-pack__input"
                   type="file"
-                  accept=".zip,.rar,.7z"
+                  accept=".zip,application/zip"
                   :disabled="packSaving"
                   hidden
                   @change="handleFileSelect"
                 />
                 <div class="skytype-pack__trigger">
-                  <a-button type="dashed" @click="triggerFileSelect">
+                  <a-button type="dashed" :loading="packChecking" :disabled="packSaving" @click="triggerFileSelect">
                     <template #icon><UploadOutlined /></template>
                     {{
                       packForm.fileName
@@ -201,17 +199,20 @@ onMounted(() => {
               <div class="skytype-pack__helper">
                 {{ t('settings.system.skyTypeAvatarPack.helper') }}
               </div>
+              <a-alert v-if="packError" type="error" show-icon :message="packError" />
+              <a-alert v-else-if="packForm.fileName" type="success" show-icon :message="'已读取完整 50 张图片，资源版本：' + packForm.version" />
             </a-form-item>
 
             <a-form-item :label="t('settings.system.skyTypeAvatarPack.fields.version')">
               <a-input
                 v-model:value="packForm.version"
+                readonly
                 :placeholder="t('settings.system.skyTypeAvatarPack.placeholders.version')"
               />
             </a-form-item>
 
             <div class="skytype-pack__actions">
-              <a-button type="primary" :loading="packSaving" @click="submitUpload">
+              <a-button type="primary" :loading="packSaving" :disabled="packChecking" @click="submitUpload">
                 {{ t('settings.system.skyTypeAvatarPack.actions.upload') }}
               </a-button>
               <a-button type="default" :disabled="packSaving || packLoading" @click="loadPackVersion">
@@ -239,9 +240,9 @@ onMounted(() => {
   flex-direction: column;
   gap: 20px;
   border-radius: 16px;
-  background: #fff;
+  background: var(--admin-surface);
   padding: 24px;
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .skytype-pack__header {
@@ -256,19 +257,19 @@ onMounted(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
 .skytype-pack__meta-label,
 .skytype-pack__current-label,
 .skytype-pack__spec-title {
-  color: #64748b;
+  color: var(--admin-muted);
   font-weight: 600;
 }
 
 .skytype-pack__meta-value {
-  color: #0f172a;
+  color: var(--admin-text);
   font-weight: 600;
 }
 
@@ -303,13 +304,13 @@ onMounted(() => {
 
 .skytype-pack__file-name {
   font-size: 13px;
-  color: #0f172a;
+  color: var(--admin-text);
   word-break: break-all;
 }
 
 .skytype-pack__helper {
   margin-top: 8px;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -320,16 +321,16 @@ onMounted(() => {
 
 .skytype-pack__spec {
   border-radius: 12px;
-  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, var(--admin-raised) 0%, var(--admin-raised) 100%);
   padding: 16px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--admin-line);
 }
 
 .skytype-pack__tree {
   margin: 10px 0 0;
   font-size: 12px;
   line-height: 1.6;
-  color: #0f172a;
+  color: var(--admin-text);
   white-space: pre-wrap;
   word-break: break-word;
 }

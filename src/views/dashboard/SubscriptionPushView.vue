@@ -990,8 +990,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #f0f7ff, #e5f2ff);
-  border: 1px solid #d9e8ff;
+  background: linear-gradient(135deg, var(--admin-raised), var(--admin-raised));
+  border: 1px solid var(--admin-line);
   border-radius: 16px;
   padding: 18px 20px;
   gap: 12px;
@@ -1000,12 +1000,12 @@ onBeforeUnmount(() => {
 .hero h2 {
   margin: 4px 0 8px;
   font-size: 1.4rem;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .hero .muted {
   margin: 0;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .hero-meta {
@@ -1016,7 +1016,7 @@ onBeforeUnmount(() => {
 }
 
 .meta-updated {
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -1025,14 +1025,14 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.8rem;
-  color: #2563eb;
+  color: var(--admin-lime);
   font-weight: 700;
 }
 
 .form-card,
 .table-card {
   border-radius: 14px;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .align-end {
@@ -1048,8 +1048,8 @@ onBeforeUnmount(() => {
 }
 
 .kv-block {
-  background: #f8fafc;
-  border: 1px dashed #d7e3f4;
+  background: var(--admin-raised);
+  border: 1px dashed var(--admin-line);
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 8px;
@@ -1076,7 +1076,7 @@ onBeforeUnmount(() => {
 }
 
 .kv-hint {
-  color: #94a3b8;
+  color: var(--admin-muted);
   font-size: 0.85rem;
   line-height: 1.2;
 }
@@ -1095,7 +1095,7 @@ onBeforeUnmount(() => {
 }
 
 .range-separator {
-  color: #94a3b8;
+  color: var(--admin-muted);
 }
 
 .form-actions {
@@ -1127,12 +1127,12 @@ onBeforeUnmount(() => {
 }
 
 .detail-tags__label {
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .kv-reminder {
   margin: 4px 0 0;
-  color: #b45309;
+  color: #edc777;
   font-size: 0.9rem;
 }
 
@@ -1147,7 +1147,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  color: #475569;
+  color: var(--admin-muted);
 }
 
 .template-page__label {
@@ -1156,7 +1156,7 @@ onBeforeUnmount(() => {
 
 .template-name {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .progress-cell {
@@ -1170,13 +1170,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .status-label {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .count-label.failure {
@@ -1184,11 +1184,11 @@ onBeforeUnmount(() => {
 }
 
 .message {
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .row-selected {
-  background: #f0f9ff !important;
+  background: var(--admin-raised) !important;
 }
 
 @media (max-width: 720px) {

@@ -1,0 +1,190 @@
+{
+  "assetId": "dji-inspire-3-visual-study-v02",
+  "name": "DJI Inspire 3",
+  "version": "0.2",
+  "createdAt": "2026-10-18",
+  "request": "你再根据V02的要求提模inspire款的无人机",
+  "selectedVariant": "Inspire 3",
+  "method": "Locally authored parametric Three.js meshes and procedural materials, based on official DJI reference photographs and diagrams.",
+  "provider": null,
+  "units": "metres",
+  "upAxis": "Y",
+  "forwardAxis": "Z",
+  "pose": "landing gear lowered",
+  "intendedUse": "High-detail visual study and interactive preview; not engineering CAD or a mobile-game LOD package.",
+  "articulation": {
+    "viewerDriven": [
+      "Rotor_FL",
+      "Rotor_FR",
+      "Rotor_RL",
+      "Rotor_RR"
+    ],
+    "visibilityGroups": [
+      "Propeller_FL",
+      "Propeller_FR",
+      "Propeller_RL",
+      "Propeller_RR"
+    ],
+    "bakedAnimations": false,
+    "landingGearAnimation": false
+  },
+  "rights": {
+    "model": "Locally authored visual reconstruction. DJI design/trademark rights not granted by this package.",
+    "references": "DJI sources listed in reference/sources.json; third-party reference photographs/PDFs excluded.",
+    "dependencies": "Three.js MIT; see THREE-LICENSE.txt"
+  },
+  "verification": {
+    "meshes": 986,
+    "triangles": 386914,
+    "vertices": 475325,
+    "materials": 44,
+    "textures": 32,
+    "rotors": [
+      "Rotor_FL",
+      "Rotor_RL",
+      "Rotor_FR",
+      "Rotor_RR"
+    ],
+    "hasCameraDetail": true,
+    "bytes": 17121588,
+    "validationErrors": 0,
+    "validationWarnings": 0,
+    "glbRoundTrip": "PASS",
+    "previewViews": 6,
+    "propellerVisibility": "PASS",
+    "rotorAnimation": "PASS",
+    "reset": "PASS",
+    "mobileWidths": [
+      320,
+      390,
+      700
+    ]
+  },
+  "files": [
+    {
+      "path": "inspire-3.glb",
+      "bytes": 17121588,
+      "sha256": "0fb355b55c0df75cd0634ee6ec47be6bd7f0086207ec9ecb80fd35fcd6bbcf03"
+    },
+    {
+      "path": "index.html",
+      "bytes": 29866,
+      "sha256": "16a6a7db55434442f6d7cb082596935f35a62ba1766030769f206b00ce1f6e12"
+    },
+    {
+      "path": "model.js",
+      "bytes": 29492,
+      "sha256": "d216b3ad134512a2285e846246193394bf3670364a1d060b2af11e9acf3582eb"
+    },
+    {
+      "path": "camera.js",
+      "bytes": 13573,
+      "sha256": "76ea9925bde777303ac71a8edc2fd519af5ad000d81753907caffafec5e1dc71"
+    },
+    {
+      "path": "README.txt",
+      "bytes": 2848,
+      "sha256": "8d8a4388367ad797bfaea0350c0c5470cb6a0eab062060bc5d0736c5df1d28c8"
+    },
+    {
+      "path": "THREE-LICENSE.txt",
+      "bytes": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+    },
+    {
+      "path": "serve-preview.cmd",
+      "bytes": 140,
+      "sha256": "e7aa6420cae07cc4513789ce2a77cb704b615e62716d3da872ab7298b7292da5"
+    },
+    {
+      "path": "verification.json",
+      "bytes": 461,
+      "sha256": "3185dc88df55f635449663e39df9f810429be4a0aec0c875905f7ad33b9cd7ad"
+    },
+    {
+      "path": "gltf-validation.json",
+      "bytes": 9602,
+      "sha256": "e7d3485e13b99410f375dc7f4c9055a3ee23acdac5a8e283215dd6179a04ff2d"
+    },
+    {
+      "path": "vendor/build/three.core.js",
+      "bytes": 1403455,
+      "sha256": "eb077d2417f61d3e6d9264c317cabc4ea35769ed6b0ab533067292a550784c20"
+    },
+    {
+      "path": "vendor/build/three.module.js",
+      "bytes": 603113,
+      "sha256": "c8211c69345d2e9949dc7a8ac969380497aa0600a5a8ac6a459c8cd02dd9cb8a"
+    },
+    {
+      "path": "vendor/controls/OrbitControls.js",
+      "bytes": 38703,
+      "sha256": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c"
+    },
+    {
+      "path": "vendor/environments/RoomEnvironment.js",
+      "bytes": 4899,
+      "sha256": "c20f0b4677f6128a138d7152b85cbef9091f4f45cdfa05adca04d40c1697c7ae"
+    },
+    {
+      "path": "vendor/exporters/GLTFExporter.js",
+      "bytes": 86392,
+      "sha256": "e7c29444454eb321b39e4c8b3062944f4fd5299a0e7483e9cb8c0594cdec829f"
+    },
+    {
+      "path": "vendor/loaders/GLTFLoader.js",
+      "bytes": 114739,
+      "sha256": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a"
+    },
+    {
+      "path": "vendor/RoundedBoxGeometry.js",
+      "bytes": 6476,
+      "sha256": "c1b7c9bd2cddff2e3f3a0723f618a3d364a47450e3d25771d21faed88410bec8"
+    },
+    {
+      "path": "vendor/THREE-LICENSE.txt",
+      "bytes": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+    },
+    {
+      "path": "vendor/utils/BufferGeometryUtils.js",
+      "bytes": 35539,
+      "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
+    },
+    {
+      "path": "preview/hero.png",
+      "bytes": 455446,
+      "sha256": "9fa7e854a5770c882e4dea248514734751b38a23b90cccd6e9d72ee8126dfb62"
+    },
+    {
+      "path": "preview/front.png",
+      "bytes": 300197,
+      "sha256": "7e197a48d5ab66d0f07b5cc25c393b1b723416510d318b7d0ad2ad139c5c42f4"
+    },
+    {
+      "path": "preview/side.png",
+      "bytes": 272719,
+      "sha256": "e896e11e1376acca46a0aaf34348873c7b914ceeab12df8faf8dab5ac936ddf8"
+    },
+    {
+      "path": "preview/top.png",
+      "bytes": 390372,
+      "sha256": "4491db3b562f4d895340f8ecae876fd78325f8a3e69c4e66d9e50ab517469602"
+    },
+    {
+      "path": "preview/bottom.png",
+      "bytes": 291270,
+      "sha256": "53c8a1d90ddd30e04d4d242f102746b51e1f32d47882768ee0cfefc6d6d5c874"
+    },
+    {
+      "path": "preview/detail.png",
+      "bytes": 861388,
+      "sha256": "431b5462e17833aeef24a627c7bb7fb95711608af0d0ea5de926cae0aaa54e21"
+    },
+    {
+      "path": "reference/sources.json",
+      "bytes": 3893,
+      "sha256": "bb93fead1348ba5cfae129ecb5a3d166643f975b0af6ec7cecdc33ce71414511"
+    }
+  ]
+}

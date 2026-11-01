@@ -230,5 +230,5 @@ onBeforeUnmount(() => { disposed = true; wordsVersion++ })
 </template>
 
 <style scoped>
-.passphrase-settings{margin-top:24px}section+section{border-top:1px solid #eee;margin-top:24px;padding-top:24px}h3{font-size:16px;margin:0 0 10px}p{color:#888;font-size:13px;line-height:1.7}.reward-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}.reward-fields label{display:flex;flex-direction:column;gap:8px}.upload-actions{display:flex;gap:12px;margin:16px 0}@media(max-width:700px){.reward-fields{grid-template-columns:1fr}}
+.passphrase-settings{margin-top:24px}section+section{border-top:1px solid var(--admin-line);margin-top:24px;padding-top:24px}h3{font-size:16px;margin:0 0 10px}p{color:var(--admin-muted);font-size:13px;line-height:1.7}.reward-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:16px 0}.reward-fields label{display:flex;flex-direction:column;gap:8px}.upload-actions{display:flex;gap:12px;margin:16px 0}@media(max-width:700px){.reward-fields{grid-template-columns:1fr}}
 </style>

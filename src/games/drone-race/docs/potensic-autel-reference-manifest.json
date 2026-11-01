@@ -1,0 +1,195 @@
+{
+  "images": [
+    {
+      "imageUrl": "https://store.potensic.com/cdn/shop/files/ATOM2Droneimage.jpg?v=1738910395&width=1500",
+      "sourceUrl": "https://store.potensic.com/products/atom-2",
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://store.potensic.com/cdn/shop/files/StandardKit.jpg?v=1780971285&width=1500",
+      "sourceUrl": "https://store.potensic.com/products/atom-3",
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/5_b70f8647-a299-4dcc-a621-450f104ceec7.jpg?v=1718206908",
+      "sourceUrl": "https://shop.autelrobotics.com/products/evo-ii-pro-v3-rugged-bundle-1",
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://test.potensic.com/image/index/DreamerPro20230511-165232.jpg",
+      "sourceUrl": "https://test.potensic.com/dreamer-pro",
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/Weixin_Image_20250116152455_d220bd3b-de11-4e4c-a88f-13f4761bf74b_720x.png?v=1737069990",
+      "sourceUrl": "https://shop.autelrobotics.com/",
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/max4t2png.png?v=1779310448&width=720",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-max-series-for-theme-2023",
+      "bytes": 143457,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/products/1_d2a7493b-313a-45e8-86ba-2f9b1562ea35.png?v=1683592132&width=720",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-nano-series",
+      "bytes": 177399,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/1_2a74d08d-0c93-4f63-816e-b1a7352066ce.png?v=1760996980&width=720",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-nano-series",
+      "bytes": 202622,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/4_f8dbb793-58e5-4155-a95f-34352ef8058b_1100x.jpg?v=1718206908",
+      "sourceUrl": "https://shop.autelrobotics.com/products/evo-ii-pro-v3-rugged-bundle-1",
+      "bytes": 62107,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/08_35ab8cfd-a9ab-479f-9066-7baf57387c50_1100x.png?v=1732642972",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-max-series-for-theme-2023/products/evo-max-4t-copy",
+      "bytes": 380769,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/products/7_1100x.png?v=1760996980",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-nano-series/products/drones-evo-lite-plus",
+      "bytes": 167809,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/products/2_18d52906-a960-43c8-b413-86790a0b9b2b_1100x.png?v=1683592132",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-nano-series/products/drones-evo-nano-plus",
+      "bytes": 158634,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/01_1100x.png?v=1734720268",
+      "sourceUrl": "https://shop.autelrobotics.com/collections/autel-evo-max-series-for-theme-2023/products/evo-max-4t-copy",
+      "bytes": 201294,
+      "visuallyInspected": true
+    },
+    {
+      "imageUrl": "https://shop.autelrobotics.com/cdn/shop/files/16_4244481f-be1c-4d5c-83d7-186ab5e71889_1100x.jpg?v=1718206908",
+      "sourceUrl": "https://shop.autelrobotics.com/products/evo-ii-pro-v3-rugged-bundle-1",
+      "bytes": 70883,
+      "visuallyInspected": true
+    }
+  ],
+  "geometry": [
+    {
+      "family": "Potensic ATOM 2",
+      "primaryImage": "atom-2.jpg",
+      "body": "Light gray elongated shell, near-flat recessed rounded-rectangle top panel; nose corners clipped into faceted shoulders and a narrow dark horizontal brow.",
+      "arms": "Thin straight pale-gray arms. Front arms meet forward body shoulders; rear folding roots are farther aft and lower. Distinct silver motor cylinders.",
+      "camera": "Small black single-lens camera hangs close under nose; narrow round side pivot drums.",
+      "landingGear": "Long thin blade-shaped feet under front motors; short nib feet at rear motors.",
+      "other": "Black two-blade props with orange tips. This shell is flatter and more angular than ATOM 3.",
+      "additionalImages": [],
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Potensic ATOM 3",
+      "primaryImage": "atom-3.jpg",
+      "body": "Bulbous wide forehead and sculpted convex roof; deep nose cavity. Top narrows toward rear battery/button area. Thin dark wraparound brow.",
+      "arms": "Pale-gray rectangular arms. Rear arms attach to conspicuous circular folding hinges low on the belly sides.",
+      "camera": "Large rounded-square black camera pod and thick black U-shaped yoke fill the deep nose opening; much more substantial than ATOM 2 camera.",
+      "landingGear": "Long flat front motor legs and short rear feet; the four legs must not share one length.",
+      "other": "Orange-tipped two-blade props. Image also contains the controller; ignore controller in aircraft mesh.",
+      "additionalImages": [],
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Potensic Dreamer Pro",
+      "primaryImage": "dreamer-pro-index.jpg",
+      "body": "Glossy white shallow saucer/hump center with black pill-shaped nose opening. Shell blends smoothly into the fixed X arms.",
+      "arms": "Integrated curved tubular fixed arms without folding hinges; silver motor cylinders with tall white spinner domes.",
+      "camera": "Camera hangs far below fuselage on a visible vibration-isolation plate with four rubber dampers and a vertical yaw spindle. White/silver block camera and round side gimbal motors.",
+      "landingGear": "Two large white trapezoid hoops/skids along the sides; sloped front/rear uprights. No four motor-foot stance.",
+      "other": "This is a Phantom-like fixed-airframe silhouette. Photo includes controller/case; ignore those.",
+      "additionalImages": [],
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Autel EVO II Pro V3",
+      "primaryImage": "evo-ii-pro-v3.jpg",
+      "additionalImages": [
+        "evo-ii-pro-v3-side.jpg",
+        "evo-ii-pro-v3-top.jpg"
+      ],
+      "body": "Very thick orange stepped shell. Wide rounded front canopy, narrower rear spine in top view. Deep belly/battery housing with diagonal side ventilation slots.",
+      "arms": "Thick black rectangular arms have different root heights: forward arm root high beneath orange shoulder, aft root low near belly rear. Folded reference exposes this clearly. Heavy cylindrical black motors with red trim.",
+      "camera": "Silver rounded-square 6K camera with very large inset black circular lens, round side pivot drums and black vertical mount; nose has two large circular obstacle eyes in a dark connected face mask.",
+      "landingGear": "Long tapered front motor legs and shorter rear-motor feet; white rectangular lamps on motor housings.",
+      "other": "Photos are folded, so use them for shell and joint placement, not deployed span. Two small side obstacle cameras and two top circles are visible.",
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Autel EVO Nano/Nano+",
+      "primaryImage": "evo-nano-unfolded.png",
+      "additionalImages": [
+        "evo-nano-plus.png"
+      ],
+      "body": "Very small slim, low, rounded boat-shaped shell; broad shallow nose tapers into narrow rear battery spine. Dark or contrasting continuous brow joins two small circular obstacle eyes.",
+      "arms": "Slim black rounded-rectangle arms; forward pair attaches high at shoulders, rear pair lower with round side hinge. Motors are relatively small.",
+      "camera": "Small black horizontally cylindrical camera/gimbal assembly with a circular red-ringed lens and round side motor drums.",
+      "landingGear": "Long skinny straight front feet; very short rear motor feet.",
+      "other": "Gray unfolded and orange folded references are color variants, not different basic geometries.",
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Autel EVO Lite/Lite+",
+      "primaryImage": "evo-lite-unfolded.png",
+      "additionalImages": [
+        "evo-lite-plus.png"
+      ],
+      "body": "Elongated orange shell with a visibly raised rear battery hump and seam behind sloped nose hood; fuller/deeper than Nano. Two small round obstacle eyes joined by dark brow.",
+      "arms": "Wide flat rectangular carbon-pattern arms with clear straight upper edges; front roots at shoulder height, rear circular hinges lower. Larger deployed span relative to center body than Nano.",
+      "camera": "Large silver block 6K camera under nose, circular black/red lens face and gray cylindrical side pivots; not the Nano black barrel.",
+      "landingGear": "Long thin straight black front motor legs; short rear feet. A rectangular lamp is integrated in each front motor base.",
+      "other": "Image depicts Lite+ 6K payload. Plain Lite differs in camera/gimbal; do not copy a 6K label across variants.",
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Autel EVO Lite Enterprise",
+      "primaryImage": "evo-lite-enterprise.png",
+      "body": "Gray angular forehead with two small forward round obstacle eyes and a raised center battery spine.",
+      "arms": "Long dark rectangular arms. Front roots high and rear roots lower.",
+      "camera": "640T aircraft in foreground has two round lens apertures side by side in a rounded black rectangular pod with gray rim; 6K aircraft behind has a single-lens camera.",
+      "landingGear": "Long skinny front legs, much shorter rear motor feet.",
+      "other": "This official banner was initially downloaded as evo-max-home.png; corrected filename is evo-lite-enterprise.png. Do not use this as EVO Max reference.",
+      "additionalImages": [],
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    },
+    {
+      "family": "Autel EVO Max 4T family",
+      "primaryImage": "evo-max-angle.png",
+      "additionalImages": [
+        "evo-max-4t.png",
+        "evo-max-camera-front.png"
+      ],
+      "body": "Tall gray slab-like central fuselage and broad flatter canopy; angular stepped sidewalls and deep open U-shaped mouth below the brow. Upper sensor circles and a small raised roof puck are visible.",
+      "arms": "Substantial long rectangular gray beams. Front shoulders high and rear roots distinctly lower at aft base; this is a two-level structure, not a single flat X.",
+      "camera": "Large rounded-rectangle multichannel payload on long central gimbal stem in open nose cavity; four asymmetric apertures in a 2x2 arrangement: wide rectangular upper-left window, yellow round upper-right, large lower-left round lens, small lower-right round lens. Side pitch motor is a large round disk.",
+      "landingGear": "Long outward-sloping gray front motor legs; short rear motor feet. Large black motor cans with thin orange rings and integrated lamps.",
+      "other": "Current product page and images represent Max 4T/V2 family. 4N payload needs its own lens arrangement; this image does not verify 4N.",
+      "basis": "Direct visual inspection of downloaded official product imagery; geometry is qualitative, not measured CAD."
+    }
+  ],
+  "unavailable": [
+    {
+      "family": "Dragonfish",
+      "sourceUrl": "https://www.autelrobotics.com/productdetail/dragonfish-series-drones-old/",
+      "imageUrls": [
+        "https://www.autelrobotics.com/wp-content/themes/autel/PC/proimg/g9.png",
+        "https://www.autelrobotics.com/wp-content/themes/autel/PC/proimg/DF-Banner.webp",
+        "https://www.autelrobotics.com/wp-content/themes/autel/userfiles/images/2021/09/09/36%281%29.png"
+      ],
+      "reason": "Official URLs extracted from page links; every image download returned HTTP 403. No image viewed; no new geometric claims made."
+    }
+  ]
+}

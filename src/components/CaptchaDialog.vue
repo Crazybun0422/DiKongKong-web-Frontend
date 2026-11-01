@@ -199,9 +199,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="visible" class="overlay">
-    <div class="dialog">
-      <h3 class="title">{{ t('captcha.title') }}</h3>
+  <div v-if="visible" class="overlay captcha-overlay">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="captcha-dialog-title">
+      <h3 id="captcha-dialog-title" class="title">{{ t('captcha.title') }}</h3>
       <div class="captcha-container" ref="captchaContainer">
         <img
           v-if="bgDataUrl"
@@ -228,7 +228,7 @@ onMounted(() => {
       <div class="slider-wrapper" :class="{ hint: showHint }">
         <input
           ref="slider"
-          class="slider"
+          class="slider" :aria-label="t('captcha.title')"
           type="range"
           :min="0"
           :max="maxLeft"
@@ -450,4 +450,14 @@ onMounted(() => {
     left: 130%;
   }
 }
+
+.dialog { width: min(340px, calc(100vw - 8px)); background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 12px; }
+.title { color: var(--admin-text); padding-block: 8px; }
+.close-btn { color: var(--admin-muted); min-height: 40px; }
+.close-btn:hover { color: var(--admin-lime); }
+.slider-wrapper { height: 44px; }
+.slider:focus-visible { outline: 2px solid var(--admin-lime); outline-offset: -2px; }
+.slider::-webkit-slider-thumb { background: var(--admin-lime); border-color: var(--admin-border); }
+.slider::-moz-range-thumb { background: var(--admin-lime); border-color: var(--admin-border); }
+@media (max-width: 360px) { .dialog { padding: 4px; } }
 </style>

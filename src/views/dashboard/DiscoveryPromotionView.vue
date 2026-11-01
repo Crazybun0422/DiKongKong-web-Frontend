@@ -24,6 +24,7 @@ const emptyForm = () => ({
   imageFileName: '',
   targetType: 'MINI_PROGRAM',
   miniProgramAppId: '',
+  miniProgramOriginalId: '',
   miniProgramPath: '',
   miniProgramEnvVersion: 'release',
   channelsFinderUserName: '',
@@ -48,8 +49,14 @@ const targetLabel = (value) => ({
 
 const formatNumber = (value) => Number(value || 0).toLocaleString('zh-CN')
 
+const cleanText = value => String(value ?? '').trim()
 const resetForm = (source = {}) => {
-  Object.assign(form, emptyForm(), source, {
+  const defaults = emptyForm()
+  const normalized = { ...source }
+  for (const [key, value] of Object.entries(defaults)) {
+    if (typeof value === 'string') normalized[key] = source[key] == null ? value : String(source[key])
+  }
+  Object.assign(form, defaults, normalized, {
     activeRange: source.startsAt || source.endsAt ? [source.startsAt || null, source.endsAt || null] : [],
   })
 }
@@ -92,16 +99,19 @@ const uploadImage = async ({ file, onSuccess, onError }) => {
 }
 
 const validate = () => {
-  if (!form.title.trim()) return '请填写展示名称'
+  if (!cleanText(form.title)) return '请填写展示名称'
   if (!form.imageFileName) return '请上传图片'
-  if (form.targetType === 'MINI_PROGRAM' && !form.miniProgramAppId.trim()) return '请填写小程序 AppID'
-  if (form.targetType === 'CHANNELS' && !form.channelsFinderUserName.trim()) return '请填写视频号 ID'
-  if (form.targetType === 'WECHAT_ARTICLE' && !/^https:\/\//i.test(form.articleUrl.trim())) return '请填写 HTTPS 公众号文章链接'
-  if (form.targetType === 'CUSTOMER_SERVICE' && !/^https:\/\/work\.weixin\.qq\.com\/kfid\//i.test(form.customerServiceUrl.trim())) return '请填写有效的企业微信客服链接'
+  if (form.targetType === 'MINI_PROGRAM' && !cleanText(form.miniProgramAppId)) return '请填写小程序 AppID'
+  if (form.targetType === 'MINI_PROGRAM' && form.miniProgramOriginalId && !/^gh_[A-Za-z0-9_-]+$/.test(cleanText(form.miniProgramOriginalId))) return '小程序原始 ID 应以 gh_ 开头'
+  if (form.targetType === 'CHANNELS' && !cleanText(form.channelsFinderUserName)) return '请填写视频号 ID'
+  if (form.targetType === 'WECHAT_ARTICLE' && !/^https:\/\//i.test(cleanText(form.articleUrl))) return '请填写 HTTPS 公众号文章链接'
+  if (form.targetType === 'CUSTOMER_SERVICE' && !/^https:\/\/work\.weixin\.qq\.com\/kfid\//i.test(cleanText(form.customerServiceUrl))) return '请填写有效的企业微信客服链接'
   return ''
 }
 
 const submit = async () => {
+  if (saving.value) return
+  if (uploadLoading.value) return message.warning('请等待图片上传完成')
   const validationMessage = validate()
   if (validationMessage) {
     message.warning(validationMessage)
@@ -111,16 +121,17 @@ const submit = async () => {
   try {
     const payload = {
       placement: form.placement,
-      title: form.title.trim(),
+      title: cleanText(form.title),
       imageFileName: form.imageFileName,
       targetType: form.targetType,
-      miniProgramAppId: form.miniProgramAppId.trim(),
-      miniProgramPath: form.miniProgramPath.trim(),
+      miniProgramAppId: cleanText(form.miniProgramAppId),
+      miniProgramOriginalId: form.targetType === 'MINI_PROGRAM' ? cleanText(form.miniProgramOriginalId) : '',
+      miniProgramPath: cleanText(form.miniProgramPath),
       miniProgramEnvVersion: form.miniProgramEnvVersion,
-      channelsFinderUserName: form.channelsFinderUserName.trim(),
-      channelsFeedId: form.channelsFeedId.trim(),
-      articleUrl: form.articleUrl.trim(),
-      customerServiceUrl: form.customerServiceUrl.trim(),
+      channelsFinderUserName: cleanText(form.channelsFinderUserName),
+      channelsFeedId: cleanText(form.channelsFeedId),
+      articleUrl: cleanText(form.articleUrl),
+      customerServiceUrl: cleanText(form.customerServiceUrl),
       sortOrder: Number(form.sortOrder) || 0,
       enabled: Boolean(form.enabled),
       startsAt: form.placement === 'BANNER' ? form.activeRange?.[0] || null : null,
@@ -135,7 +146,8 @@ const submit = async () => {
     editorVisible.value = false
     await loadItems()
   } catch (error) {
-    message.error('配置保存失败，请检查必填项')
+    const detail = error.response?.data?.message
+    message.error(detail?.zh || (typeof detail === 'string' ? detail : '') || error.message || '配置保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -267,6 +279,9 @@ onMounted(loadItems)
         <template v-if="form.targetType === 'MINI_PROGRAM'">
           <div class="form-grid">
             <a-form-item label="小程序 AppID" required><a-input v-model:value="form.miniProgramAppId" /></a-form-item>
+            <a-form-item label="小程序原始 ID（Android 跳转）" extra="填写 gh_ 开头的原始 ID，可在目标小程序后台“设置 → 基本设置 → 账号信息”查看。">
+              <a-input v-model:value="form.miniProgramOriginalId" placeholder="gh_…" />
+            </a-form-item>
             <a-form-item label="版本"><a-select v-model:value="form.miniProgramEnvVersion" :options="[
               { label: '正式版', value: 'release' }, { label: '体验版', value: 'trial' }, { label: '开发版', value: 'develop' },
             ]" /></a-form-item>
@@ -293,32 +308,32 @@ onMounted(loadItems)
 </template>
 
 <style scoped>
-.promotion-page { color: #111827; }
+.promotion-page { color: var(--admin-text); }
 .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .page-heading h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
-.page-heading p { margin: 8px 0 0; color: #6b7280; }
+.page-heading p { margin: 8px 0 0; color: var(--admin-muted); }
 .placement-tabs { margin-bottom: 18px; }
 .promotion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.promotion-card { overflow: hidden; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
-.media-preview { position: relative; height: 150px; background: #f3f4f6; }
+.promotion-card { overflow: hidden; background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 8px; }
+.media-preview { position: relative; height: 150px; background: var(--admin-raised); }
 .media-preview.is-button { height: 112px; }
 .media-preview img { width: 100%; height: 100%; object-fit: contain; }
-.status-dot { position: absolute; top: 10px; right: 10px; padding: 3px 8px; border-radius: 4px; background: #111827; color: #fff; font-size: 12px; }
+.status-dot { position: absolute; top: 10px; right: 10px; padding: 3px 8px; border-radius: 4px; background: var(--admin-bg); color: #fff; font-size: 12px; }
 .status-dot.disabled { background: #9ca3af; }
 .promotion-body { padding: 14px; }
 .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .title-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.title-row span { flex: 0 0 auto; color: #6b7280; font-size: 12px; }
-.metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0; border-top: 1px solid #eef0f2; border-bottom: 1px solid #eef0f2; }
-.metrics div { padding: 10px 6px; text-align: center; border-right: 1px solid #eef0f2; }
+.title-row span { flex: 0 0 auto; color: var(--admin-muted); font-size: 12px; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0; border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); }
+.metrics div { padding: 10px 6px; text-align: center; border-right: 1px solid var(--admin-line); }
 .metrics div:last-child { border-right: 0; }
 .metrics b, .metrics span { display: block; }
 .metrics b { font-size: 18px; }
-.metrics span { margin-top: 3px; color: #6b7280; font-size: 12px; }
+.metrics span { margin-top: 3px; color: var(--admin-muted); font-size: 12px; }
 .card-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 0.55fr); gap: 16px; }
 .upload-row { display: flex; align-items: center; gap: 16px; }
-.upload-preview { width: 240px; height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f5f6f8; border: 1px solid #d9dde3; border-radius: 6px; color: #9ca3af; }
+.upload-preview { width: 240px; height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--admin-raised); border: 1px solid var(--admin-line); border-radius: 6px; color: var(--admin-muted); }
 .upload-preview.compact { width: 90px; height: 90px; }
 .upload-preview img { width: 100%; height: 100%; object-fit: contain; }
 @media (max-width: 720px) { .page-heading, .upload-row { align-items: stretch; flex-direction: column; } .form-grid { grid-template-columns: 1fr; gap: 0; } }

@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-29",
+  "kind": "sunset",
+  "model": "icon",
+  "modelRun": "2026-10-28T00:00:00+00:00",
+  "rows": 721,
+  "cols": 1441,
+  "resolutionDegrees": 0.25,
+  "validCount": 884774,
+  "visibleCount": 79386,
+  "source": "Open-Meteo AWS Open Data / dwd_icon + CAMS Global",
+  "sourceTransport": "public-spatial-om",
+  "algorithmVersion": "planet-glow-bulk-v4",
+  "sha256": "b075939c8e20f0ba64e8f5efe5d5cc79d02508bfc2fbee04559ddc928fd3484f",
+  "previewBounds": [
+    100,
+    20,
+    135,
+    45
+  ],
+  "note": "Real forecast model data; experimental index, not measured clouds or validated probability."
+}

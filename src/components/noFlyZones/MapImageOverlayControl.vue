@@ -591,7 +591,7 @@ onMounted(() => {
 .overlay-header h4 {
   margin: 0;
   font-size: 14px;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .overlay-toggle {
@@ -601,21 +601,21 @@ onMounted(() => {
   padding: 0;
   border-radius: 999px;
   border-color: rgba(15, 23, 42, 0.12);
-  color: #475569;
-  background: #fff;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  color: var(--admin-muted);
+  background: var(--admin-surface);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .overlay-toggle:hover,
 .overlay-toggle:focus {
-  color: #1677ff;
+  color: var(--admin-lime);
   border-color: rgba(22, 119, 255, 0.35);
-  background: #f8fbff;
+  background: var(--admin-raised);
 }
 
 .placing-hint {
   font-size: 12px;
-  color: #2563eb;
+  color: var(--admin-lime);
 }
 
 .overlay-controls {
@@ -655,18 +655,18 @@ onMounted(() => {
 
 .overlay-label {
   font-size: 12px;
-  color: #475569;
+  color: var(--admin-muted);
 }
 
 .overlay-unit {
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .overlay-hint {
   margin: 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--admin-muted);
 }
 
 .hidden-input {
@@ -677,7 +677,7 @@ onMounted(() => {
 <style>
 .map-image-overlay {
   border-radius: 8px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 4px 18px #00000014;
   object-fit: contain;
 }
 </style>

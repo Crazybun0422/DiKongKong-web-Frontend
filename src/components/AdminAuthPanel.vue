@@ -182,7 +182,7 @@ watch(
 
 <template>
   <section class="auth-panel">
-    <a-card class="auth-card" bordered="false">
+    <a-card class="auth-card" :bordered="false">
       <a-tabs v-model:activeKey="activeTabKey" centered size="large">
         <a-tab-pane :key="'login'" :tab="t('auth.loginTab')">
           <a-form ref="loginFormRef" :model="loginForm" :rules="loginRules" layout="vertical" autocomplete="off"
@@ -283,26 +283,9 @@ watch(
 </template>
 
 <style scoped>
-.auth-card {
-  background: rgba(255, 255, 255, 0.34);
-  border-radius: 28px;
-  padding: 2.5rem 2.25rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 18px 44px rgba(14, 42, 102, 0.14);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.token-alert {
-  margin-top: 1.5rem;
-  word-break: break-all;
-}
-
-.token-alert code {
-  background: rgba(15, 23, 42, 0.08);
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  display: block;
-  color: #0b1b44;
-}
+.auth-card { background: transparent; border: 0; box-shadow: none; }
+.auth-card :deep(.ant-card-body) { padding: 0; }
+.auth-card :deep(.ant-tabs-nav) { margin-bottom: 24px; }
+.auth-card :deep(.ant-form-item:last-child) { margin-bottom: 0; }
+.auth-card :deep(.ant-btn-primary) { min-height: 46px; }
 </style>

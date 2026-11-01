@@ -1485,6 +1485,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponseObject'
+  /api/config/member-no-ads/sync-start:
+    post:
+      summary: 后台执行免广告人群同步
+      description: 仅 ADMIN 可调用。立即返回 RUNNING，通过 last-crowd 查询结果；同一服务进程内定时和手动任务不会并行执行。旧 sync-now 接口保留。
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: 已接受任务，或返回正在执行的任务；开发环境返回 SKIPPED_DEV
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseWeDataCrowdSyncRecordResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   /api/config/member-no-ads/last-crowd:
     get:
       summary: 获取上一次免广告人群记录

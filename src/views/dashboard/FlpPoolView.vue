@@ -253,34 +253,34 @@ onMounted(loadPool)
 </template>
 
 <style scoped>
-.flp-pool-page { color: #171717; }
+.flp-pool-page { color: var(--admin-text); }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.page-kicker { display: flex; align-items: center; gap: 8px; color: #6b7280; font-size: 12px; font-weight: 700; }
+.page-kicker { display: flex; align-items: center; gap: 8px; color: var(--admin-muted); font-size: 12px; font-weight: 700; }
 .page-header h1 { margin: 6px 0 4px; font-size: 28px; letter-spacing: 0; }
-.page-header p, .section-copy p { margin: 0; color: #6b7280; line-height: 1.6; }
+.page-header p, .section-copy p { margin: 0; color: var(--admin-muted); line-height: 1.6; }
 .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.updated-at { color: #8b8f97; font-size: 12px; }
-.metric-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #111827; color: #fff; border: 1px solid #111827; border-radius: 8px; overflow: hidden; }
+.updated-at { color: var(--admin-muted); font-size: 12px; }
+.metric-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--admin-bg); color: #fff; border: 1px solid #111827; border-radius: 8px; overflow: hidden; }
 .metric-item { min-width: 0; padding: 20px 22px; position: relative; }
 .metric-item + .metric-item { border-left: 1px solid rgba(255,255,255,.16); }
 .metric-item span { display: block; color: #cbd5e1; font-size: 13px; }
 .metric-item strong { display: inline-block; margin-top: 8px; max-width: calc(100% - 36px); overflow: hidden; text-overflow: ellipsis; font-size: 26px; line-height: 1.1; }
-.metric-item small { margin-left: 6px; color: #94a3b8; }
+.metric-item small { margin-left: 6px; color: var(--admin-muted); }
 .metric-item.is-issued strong { color: #86efac; }
 .metric-item.is-destroyed strong { color: #fca5a5; }
-.config-surface { margin-top: 20px; background: #fff; border: 1px solid #d9dde4; border-radius: 8px; }
+.config-surface { margin-top: 20px; background: var(--admin-surface); border: 1px solid var(--admin-line); border-radius: 8px; }
 .config-section { display: grid; grid-template-columns: minmax(220px, .75fr) minmax(0, 2fr); gap: 34px; padding: 26px 28px; }
-.config-section + .config-section { border-top: 1px solid #e8eaf0; }
+.config-section + .config-section { border-top: 1px solid var(--admin-line); }
 .section-copy h2 { margin: 0 0 6px; font-size: 17px; }
 .supply-section { align-items: center; }
 .supply-input { width: min(420px, 100%); }
 .field-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 16px; }
 .field-grid--two { grid-template-columns: repeat(2, minmax(180px, 1fr)); margin-bottom: 18px; }
-.field-item { display: flex; flex-direction: column; gap: 7px; color: #3f4650; font-size: 13px; min-width: 0; }
+.field-item { display: flex; flex-direction: column; gap: 7px; color: var(--admin-text); font-size: 13px; min-width: 0; }
 .field-item :deep(.ant-input-number-group-wrapper), .field-item :deep(.ant-input-number) { width: 100%; }
 .lottery-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; }
-.lottery-reward-field { min-width: 0; padding: 12px; border: 1px solid #e1e5eb; border-radius: 6px; background: #fafbfc; }
-.lottery-reward-header { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 8px; color: #303742; font-size: 14px; font-weight: 600; }
+.lottery-reward-field { min-width: 0; padding: 12px; border: 1px solid var(--admin-line); border-radius: 6px; background: var(--admin-raised); }
+.lottery-reward-header { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin-bottom: 8px; color: var(--admin-text); font-size: 14px; font-weight: 600; }
 .lottery-reward-header :deep(.ant-btn) { width: 28px; height: 28px; padding: 0; }
 .lottery-reward-input { width: 100%; }
 .lottery-reward-input :deep(.ant-input-number-input) { height: 42px; font-size: 15px; }

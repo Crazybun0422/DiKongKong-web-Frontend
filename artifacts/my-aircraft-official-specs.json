@@ -1,0 +1,592 @@
+{
+  "models": {
+    "dji-mini-2-se": {
+      "sourceUrl": "https://www.dji.com/mini-2-se/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "246 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 138×81×58 mm (L×W×H) / Unfolded (with propellers): 245×289×56 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "3.5 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "16 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "31 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s (Level 5)"
+        },
+        {
+          "label": "工作温度",
+          "value": "0° to 40° C (32° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/2.3-inch CMOS, Effective Pixels: 12 MP"
+        }
+      ]
+    },
+    "dji-mini-4k": {
+      "sourceUrl": "https://www.dji.com/mini-2-se/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "246 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 138×81×58 mm (L×W×H) / Unfolded (with propellers): 245×289×56 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "3.5 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "16 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "31 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s (Level 5)"
+        },
+        {
+          "label": "工作温度",
+          "value": "0° to 40° C (32° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/2.3-inch CMOS, Effective Pixels: 12 MP"
+        }
+      ]
+    },
+    "dji-mini-3": {
+      "sourceUrl": "https://www.dji.com/mini-3/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "248 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 148×90×62 mm (L×W×H) / Unfolded (with propellers): 251×362×72 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "3.5 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "16 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "38 minutes (with Intelligent Flight Battery) / 51 minutes (with Intelligent Flight Battery Plus*)"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s (Level 5)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/1.3-inch CMOS / Effective Pixels：48MP"
+        }
+      ]
+    },
+    "dji-mini-4-pro": {
+      "sourceUrl": "https://www.dji.com/mini-4-pro/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "< 249 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 148×94×64 mm (L×W×H) / Unfolded (with propellers): 298×373×101 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s (S Mode) / 5 m/s (N Mode) / 3 m/s (C Mode)"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "5 m/s (S Mode) / 5 m/s (N Mode) / 3 m/s (C Mode)"
+        },
+        {
+          "label": "最高速度",
+          "value": "16 m/s (S Mode) / 12 m/s (N Mode) / 12 m/s (C Mode)"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "34 minutes (with Intelligent Flight Battery) / 45 minutes (with Intelligent Flight Battery Plus*)"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/1.3-inch CMOS, Effective Pixels: 48 MP"
+        }
+      ]
+    },
+    "dji-mavic-3-classic": {
+      "sourceUrl": "https://www.dji.com/mavic-3-classic/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "895 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 221×96.3×90.3 mm (L×W×H) / Unfolded (without propellers): 347.5×283×107.7 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "8 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "6 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "46 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "4/3 CMOS, Effective Pixels: 20 MP"
+        }
+      ]
+    },
+    "dji-mavic-3-pro": {
+      "sourceUrl": "https://www.dji.com/mavic-3-pro/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "Mavic 3 Pro: 958 g / Mavic 3 Pro Cine: 963 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 231.1×98×95.4 mm (L×W×H) / Unfolded (without propellers): 347.5×290.8×107.7 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "8 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "6 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "43 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "Hasselblad Camera: 4/3 CMOS, Effective Pixels: 20 MP / Medium Tele Camera: 1/1.3″ CMOS, Effective Pixels: 48 MP / Tele Camera: 1/2″ CMOS, Effective Pixels: 12 MP"
+        }
+      ]
+    },
+    "dji-mavic-3-pro-cine": {
+      "sourceUrl": "https://www.dji.com/mavic-3-pro/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "Mavic 3 Pro: 958 g / Mavic 3 Pro Cine: 963 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 231.1×98×95.4 mm (L×W×H) / Unfolded (without propellers): 347.5×290.8×107.7 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "8 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "6 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "43 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "Hasselblad Camera: 4/3 CMOS, Effective Pixels: 20 MP / Medium Tele Camera: 1/1.3″ CMOS, Effective Pixels: 48 MP / Tele Camera: 1/2″ CMOS, Effective Pixels: 12 MP"
+        }
+      ]
+    },
+    "dji-air-3": {
+      "sourceUrl": "https://www.dji.com/air-3/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "720 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 207×100.5×91.1 mm (L×W×H) / Unfolded (without propellers): 258.8×326×105.8 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "10 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "10 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "46 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "Wide-Angle Camera: 1/1.3-inch CMOS, Effective Pixels: 48 MP / Medium Tele Camera: 1/1.3-inch CMOS, Effective Pixels: 48 MP"
+        }
+      ]
+    },
+    "dji-air-3s": {
+      "sourceUrl": "https://www.dji.com/air-3s/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "724 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded (without propellers): 214.19×100.63×89.17 mm (L×W×H) / Unfolded (without propellers): 266.11×325.47×106.00 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "10 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "10 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "At equivalent sea level and in an equivalent windless environment: / 21 m/s / / At equivalent sea level and with an equivalent tailwind of 6 m/s, flying with the wind: / 27 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "45 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "Wide-Angle Camera: 1-inch CMOS, 50MP Effective Pixels / Medium Tele Camera: 1/1.3-inch CMOS, 48MP Effective Pixels"
+        }
+      ]
+    },
+    "dji-inspire-3": {
+      "sourceUrl": "https://www.dji.com/inspire-3/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "Approx. 3,995 g (includes gimbal camera, two batteries, lens, PROSSD, and propellers)"
+        },
+        {
+          "label": "最大起飞重量",
+          "value": "Approx. 4,310 g"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "8 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "Vertical: 8 m/s / Tilt: 10 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "94 km/h"
+        },
+        {
+          "label": "抗风能力",
+          "value": "Takeoff/land: 12 m/s / In-flight: 14 m/s"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "Approx. 28 minutes (landing gears lowered) / Approx. 26 minutes (landing gears raised)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-20° to 40° C (-4° to 104° F)"
+        }
+      ]
+    },
+    "dji-avata-2": {
+      "sourceUrl": "https://www.dji.com/avata-2/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "Approx. 377 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "185×212×64 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "6 m/s (Normal mode) / 9 m/s (Sport mode)"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "6 m/s (Normal mode) / 9 m/s (Sport mode)"
+        },
+        {
+          "label": "最高速度",
+          "value": "8 m/s (Normal mode) / 16 m/s (Sport mode) / 27 m/s (Manual mode)*"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "Approx. 23 mins"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s (Level 5)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/1.3-inch image sensor / Effective Pixels: 12 MP"
+        }
+      ]
+    },
+    "dji-neo": {
+      "sourceUrl": "https://www.dji.com/neo/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "Approx. 135 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "130×157×48.5 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "0.5 m/s (Cine mode) / 2 m/s (Normal mode) / 3 m/s (Sport mode)"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "0.5 m/s (Cine mode) / 2 m/s (Normal mode) / 2 m/s (Sport mode)"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "Approx. 18 mins (approx. 17 mins with the Propeller Guards)* / Each battery allows the drone to perform at least 20 palm takeoff and landing for shoots in succession**"
+        },
+        {
+          "label": "抗风能力",
+          "value": "8 m/s (Level 4)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/2-inch image sensor"
+        }
+      ]
+    },
+    "dji-flip": {
+      "sourceUrl": "https://www.dji.com/flip/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "< 249 g"
+        },
+        {
+          "label": "尺寸",
+          "value": "Folded: 136×62×165 mm (L×W×H) / Unfolded: 233×280×79 mm (L×W×H)"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s (Sport mode) / 5 m/s (Normal mode) / 2 m/s (Cine mode)"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "5 m/s (Sport mode) / 5 m/s (Normal mode) / 1.5 m/s (Cine mode)"
+        },
+        {
+          "label": "最高速度",
+          "value": "At equivalent sea level and in an equivalent windless environment: / 12 m/s* (Sport mode) / 12 m/s (tracking status) / / At equivalent sea level and with an equivalent tailwind of 4 m/s, flying with the wind: / 16 m/s* (Sport mode) / 12 m/s (tracking status)"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "31 minutes"
+        },
+        {
+          "label": "抗风能力",
+          "value": "10.7 m/s (Level 5)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-10° to 40° C (14° to 104° F)"
+        },
+        {
+          "label": "影像传感器",
+          "value": "1/1.3-inch image sensor"
+        }
+      ]
+    },
+    "dji-flycart-30": {
+      "sourceUrl": "https://www.dji.com/flycart-30/specs",
+      "parameters": [
+        {
+          "label": "整机重量",
+          "value": "42.5 kg (without battery) / 65 kg (with two DB2000 batteries)"
+        },
+        {
+          "label": "最大起飞重量",
+          "value": "95 kg (with cargo at sea level）"
+        },
+        {
+          "label": "尺寸",
+          "value": "1590 x 1900 x 947 mm / (LxWxH) (arms unfolded, propellers folded) / 2800x3085x947 mm / (LxWxH) (arms & propellers unfolded) / 1115x760x1027 mm / (LxWxH) (arms & propellers folded)"
+        },
+        {
+          "label": "工作温度",
+          "value": "-20° to 45° C"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "3 m/s (vertical) / 5 m/s (tilted)"
+        },
+        {
+          "label": "最高速度",
+          "value": "20 m/s"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        }
+      ]
+    },
+    "dji-flycart-100": {
+      "sourceUrl": "https://www.dji.com/flycart-100/specs",
+      "parameters": [
+        {
+          "label": "最大起飞重量",
+          "value": "170kg"
+        },
+        {
+          "label": "最长飞行时间",
+          "value": "Under 149.9kg takeoff weight: dual battery 14 minutes , single battery 7 minutes."
+        },
+        {
+          "label": "工作温度",
+          "value": "-20℃ to 40℃"
+        },
+        {
+          "label": "最大上升速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最大下降速度",
+          "value": "5 m/s"
+        },
+        {
+          "label": "最高速度",
+          "value": "20 m/s"
+        },
+        {
+          "label": "抗风能力",
+          "value": "12 m/s"
+        },
+        {
+          "label": "尺寸",
+          "value": "960 mm × 805 mm × 669 mm"
+        },
+        {
+          "label": "整机重量",
+          "value": "14.7 ± 0.3 kg"
+        }
+      ]
+    }
+  },
+  "checkedAt": "2026-10-27T10:47:43.564965+00:00"
+}

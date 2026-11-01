@@ -767,7 +767,7 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 20px;
   top: 16px;
-  color: #bfbfbf;
+  color: #606060;
   pointer-events: none;
   font-size: 14px;
 }

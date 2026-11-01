@@ -2,9 +2,11 @@ import http from './http'
 
 const normalizeOrder = (order = {}) => {
   const amountValue = Number(order?.amount)
+  const flpValue = order?.flpAmount == null ? null : Number(order.flpAmount)
   return {
     ...order,
     amount: Number.isFinite(amountValue) ? amountValue : 0,
+    flpAmount: Number.isFinite(flpValue) ? flpValue : null,
   }
 }
 

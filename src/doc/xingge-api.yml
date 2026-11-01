@@ -1,0 +1,126 @@
+openapi: 3.0.3
+info:
+  title: 低空星格新版接口
+  version: lowaltitude-star-v2-20261028
+  description: 旧称号与旧图包失效，未完成新版测试显示“未获取”。图包版本独立于答卷。
+security:
+  - bearerAuth: []
+paths:
+  /api/user/xingge/bank:
+    get:
+      summary: 当前完整题库、规则版本与指纹
+      responses:
+        '200': { description: data 包含完整题库、testVersion、rulesVersion、bankFingerprint }
+  /api/user/xingge/assessment:
+    get:
+      summary: 当前登录账号的规范答卷与派生视图
+      description: data 为 record、view 和 profileGender（male/female/unknown）；形象按个人资料性别派生，未设置性别时 artwork 为 null。无有效新版记录时 record 为 null，view.status 为 untested，result/artwork/completedAt 均为 null。
+      responses:
+        '200': { description: 读取成功，包括未获取状态 }
+        '401': { description: 未登录 }
+    post:
+      summary: 校验十题完整答案，由后端重算并保存
+      description: 用户身份取自登录会话；完成时间由服务器生成。客户端角色、分数、图片和完成时间不参与判定。artVariant 以个人资料性别为准；保存后的角色由个人资料 selectedXingGe 返回，无需额外写入旧字段。未设置性别仍可完成测试，图片暂不请求。artVariant 以个人资料性别为准；保存后的角色由个人资料 selectedXingGe 返回，无需额外写入旧字段。未设置性别仍可完成测试，图片暂不请求。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssessmentRequest' }
+      responses:
+        '200': { description: data 为规范 record 和 view }
+        '400': { description: INVALID_ANSWERS 或 INVALID_ART_VARIANT }
+        '409': { description: TEST_VERSION_MISMATCH }
+  /api/user/xingge/assessment/art-variant:
+    put:
+      summary: 同步个人资料对应的形象（兼容接口）
+      description: 请求包含 schemaVersion、testVersion、bankFingerprint、artVariant；仅允许与个人资料性别一致的形象，保留答案、判定与完成时间。个人资料性别未知时，页面通过 PUT /api/user/profile/pilot-info 保存用户选择；已有性别时不显示独立男女选择。再次读取答卷自动反映最新个人资料性别。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VariantRequest' }
+      responses:
+        '200': { description: data 为更新后的 record 和 view }
+        '400': { description: INVALID_ART_VARIANT }
+        '409': { description: NOT_TESTED、TEST_VERSION_MISMATCH、ASSESSMENT_CHANGED、PROFILE_GENDER_REQUIRED 或 PROFILE_GENDER_LINKED；并发变化应重新读取 }
+  /api/xingge-image-packs/version:
+    get:
+      summary: 获取当前图包状态与逐图清单
+      description: 管理员和普通用户均需认证。未上传新版返回成功且 data.status 为 unconfigured；已发布返回 ready、schemaVersion、testVersion、resourceVersion、fileName、entries。entries 含上传时自动计算的 circleFit（圆形内容适配比例）和 backgroundColor（匹配原图底色的六位十六进制颜色），不修改 PNG 像素。历史清单缺少这两项时，客户端采用完整保留矩形的内接缩放与白底。旧图包不回退。
+      responses:
+        '200': { description: 当前资源状态 }
+        '503': { description: 暂时读取失败，不应清除有效答卷 }
+  /api/xingge-image-packs/upload:
+    post:
+      summary: 管理员上传完整新版 ZIP
+      description: 根目录必须为 manifest.json 和规范命名的 50 张 PNG。校验逻辑键、文件名、SHA-256、PNG 实际解码和 CRC，完整上传后才切换当前版本。拒绝重复、缺图、额外文件和目录。ZIP/展开总量不超过 256 MiB、单图 16 MiB、清单 64 KiB、宽高各 4096。新资源版本不能与当前已发布版本相同。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                version: { type: string, description: 可省略；填写时必须与清单 resourceVersion 一致 }
+      responses:
+        '200': { description: 新版本已完整发布 }
+        '400': { description: 包校验失败，当前版本保持不变 }
+        '401': { description: 需要管理员身份 }
+  /api/xingge-image-packs/image/{objectName}:
+    get:
+      summary: 认证后下载当前清单中的单张 PNG
+      parameters:
+        - in: path
+          name: objectName
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: image/png；客户端校验清单 SHA-256 后展示 }
+        '404': { description: 不属于当前发布清单或文件不存在 }
+  /api/xingge-image-packs/public/roles/{variant}/{roleId}.png:
+    get:
+      summary: 朋友圈单页使用的公开星格角色插图
+      description: 仅返回当前已发布图包内的已知角色 PNG，不读取或返回任何用户资料、答卷、测试记录。支持无登录的朋友圈预览。
+      security: []
+      parameters:
+        - { name: variant, in: path, required: true, schema: { type: string, enum: [male, female] } }
+        - { name: roleId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 'image/png；公开缓存 300 秒，更新图包后自动切换。' }
+        '404': { description: 未发布图包或角色不存在 }
+        '503': { description: 图包暂时无法读取 }
+  /api/xingge-image-packs/download/{objectName}:
+    get:
+      summary: 认证后下载当前完整图包
+      parameters:
+        - in: path
+          name: objectName
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: application/zip }
+        '404': { description: 旧包或不存在的资源 }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  schemas:
+    VariantRequest:
+      type: object
+      required: [schemaVersion, testVersion, bankFingerprint, artVariant]
+      properties:
+        schemaVersion: { type: integer, enum: [2] }
+        testVersion: { type: string, enum: [lowaltitude-star-v2-20261028] }
+        bankFingerprint: { type: string, enum: ['sha256:eb9ca61cbba8318367ae373e66e9911b37ac69576c830e699ab6c2841521f62f'] }
+        artVariant: { type: string, enum: [male, female] }
+    AssessmentRequest:
+      allOf:
+        - { $ref: '#/components/schemas/VariantRequest' }
+        - type: object
+          required: [answers]
+          properties:
+            answers:
+              type: object
+              additionalProperties: { type: string }
+              description: 当前分支十个问题 ID 对应选项 ID；其他职业另含 _profession。拒绝少题、额外或跨分支答案。

@@ -1,4 +1,6 @@
 import miniprogramCodeUrl from './assets/miniprogram-code.jpg';
+import { initAndroidDownload } from './android-download.js';
+import { initHarmonyDownload } from './harmony-download.js';
 
 document.getElementById('download-code').href = miniprogramCodeUrl;
 
@@ -25,6 +27,11 @@ appTabs.forEach((tab, index) => {
     appTabs[nextIndex].focus();
   });
 });
+// Huawei Android/HarmonyOS 2–4 browsers remain on the APK tab; only an explicit
+// native HarmonyOS/OpenHarmony user agent selects HAP by default.
+if (/OpenHarmony|HarmonyOS/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent)) {
+  selectAppTab(document.getElementById('tab-harmony'));
+}
 
 const dialogTriggers = new WeakMap();
 function openDialog(id, trigger) {
@@ -49,6 +56,8 @@ document.querySelectorAll('[data-app]').forEach(button => {
 });
 document.getElementById('show-code').addEventListener('click', event => openDialog('code-dialog', event.currentTarget));
 document.getElementById('year').textContent = new Date().getFullYear();
+initAndroidDownload(openDialog);
+initHarmonyDownload(openDialog);
 
 // Autoplay is native. The animated WebP stays visible until playback starts,
 // and remains a continuously moving fallback if browser autoplay is blocked.

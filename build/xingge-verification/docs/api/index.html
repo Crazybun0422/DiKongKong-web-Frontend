@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111413">
+  <meta name="description" content="低空星球适飞区图层 API 接入文档：服务鉴权、PNG 瓦片、KML 查询与接入示例。">
+  <title>API接入文档 · 低空星球</title>
+  <link rel="icon" href="/assets/logo-C2MSDqd2.png" type="image/png">
+  <link rel="stylesheet" crossorigin href="/assets/apiDocs-D3LgR4AN.css">
+  <link rel="stylesheet" crossorigin href="/assets/style-CW7EvELY.css">
+</head>
+<body class="docs-page">
+  <header class="header wrap">
+    <a class="brand" href="/" aria-label="低空星球首页"><span class="brand-mark"><img src="/assets/logo-C2MSDqd2.png" alt="低空星球 Logo" width="1232" height="1232"></span><span>低空星球</span></a>
+    <nav aria-label="主导航"><a class="api-entry" href="/">返回首页 <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main class="docs-layout wrap">
+    <aside class="docs-sidebar">
+      <details open>
+        <summary>文档目录</summary>
+        <nav class="docs-toc" aria-label="文档目录"><a href="#section-1">1. 服务地址与鉴权</a>
+<a href="#section-2">2. 图层切换规则</a>
+<a href="#section-3">3. 获取 PNG 图层目录</a>
+<a href="#section-4">4. 获取 PNG 瓦片</a>
+<a href="#section-5">5. 按可视区域查询 KML</a>
+<a href="#section-6">6. 按中心点附近查询 KML</a>
+<a href="#section-7">7. 下载 KML 文件</a>
+<a href="#section-8">8. 完整调用逻辑</a>
+<a href="#section-9">9. 状态码</a>
+<a href="#section-10">10. 接入检查清单</a></nav>
+      </details>
+      <a class="docs-download" href="./suitable-fly-zone.md" download="适飞区图层API接入文档.md">下载 Markdown 原文 <span aria-hidden="true">↓</span></a>
+    </aside>
+    <article class="docs-content"><h1>适飞区图层 API 接入文档</h1>
+<p>文档版本：V2.0
+更新时间：2026-08-10</p>
+<h2 id="section-1">1. 服务地址与鉴权</h2>
+<p>服务地址：</p>
+<pre><code class="language-text">https://skylane.cn/api/open/v1/suitable-fly-zone
+</code></pre>
+<p>所有接口都由业务后端直接提供，不经过静态资源 CDN。每次请求必须携带 B 端“API 接入管理”生成的 AuthToken：</p>
+<pre><code class="language-http">Authorization: Bearer &lt;AuthToken&gt;
+</code></pre>
+<p>示例：</p>
+<pre><code class="language-bash">curl \
+  -H &#39;Authorization: Bearer YOUR_AUTH_TOKEN&#39; \
+  &#39;https://skylane.cn/api/open/v1/suitable-fly-zone/catalog&#39;
+</code></pre>
+<p>AuthToken 不得放在 URL 或日志中。受控联调页面可以使用 <code>fetch + Authorization</code> 获取 PNG Blob 后交给地图组件渲染；这会让 AuthToken 进入浏览器运行时，仅适用于测试。正式公开页面建议使用短期凭证或由调用方自己的后端/API 网关转发。</p>
+<h2 id="section-2">2. 图层切换规则</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="接口说明表格"><table>
+<thead>
+<tr>
+<th>地图缩放级别</th>
+<th>数据形式</th>
+<th>处理方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>zoom &lt; 4</code></td>
+<td>不加载</td>
+<td>清除适飞区图层</td>
+</tr>
+<tr>
+<td><code>4 ≤ zoom ≤ 13</code></td>
+<td>PNG XYZ 瓦片</td>
+<td>使用目录接口返回的 <code>urlTemplate</code></td>
+</tr>
+<tr>
+<td><code>zoom &gt; 13</code></td>
+<td>KML 矢量瓦片</td>
+<td>查询当前可视区域并绘制 Polygon/LineString</td>
+</tr>
+</tbody></table>
+</div><p><code>zoom = 13</code> 使用 PNG，<code>zoom = 14</code> 开始使用 KML。PNG 与 KML 坐标均为 WGS84；目标地图使用 GCJ-02 时，应在计算或绘制前完成坐标转换。</p>
+<h2 id="section-3">3. 获取 PNG 图层目录</h2>
+<h3>请求</h3>
+<pre><code class="language-http">GET /api/open/v1/suitable-fly-zone/catalog
+Authorization: Bearer &lt;AuthToken&gt;
+</code></pre>
+<h3>响应示例</h3>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;message&quot;: {
+    &quot;en&quot;: &quot;okay&quot;,
+    &quot;zh&quot;: &quot;操作成功&quot;
+  },
+  &quot;data&quot;: {
+    &quot;version&quot;: &quot;20260517&quot;,
+    &quot;tileCoordSystem&quot;: &quot;WGS84&quot;,
+    &quot;routePrefix&quot;: &quot;https://skylane.cn/api/open/v1/suitable-fly-zone/tiles&quot;,
+    &quot;layers&quot;: [
+      {
+        &quot;layerKey&quot;: &quot;collected_exact_geojson_merged_geojson_tiles&quot;,
+        &quot;minZoom&quot;: 4,
+        &quot;maxZoom&quot;: 13,
+        &quot;tileSize&quot;: 256,
+        &quot;variants&quot;: [
+          {
+            &quot;color&quot;: &quot;current&quot;,
+            &quot;directoryName&quot;: &quot;collected_exact_geojson_merged_geojson_tiles_current&quot;,
+            &quot;urlTemplate&quot;: &quot;https://skylane.cn/api/open/v1/suitable-fly-zone/tiles/collected_exact_geojson_merged_geojson_tiles/current/{z}/{x}/{y}.png&quot;
+          }
+        ]
+      }
+    ]
+  }
+}
+</code></pre>
+<p>客户端不得硬编码 <code>version</code>、图层目录或颜色列表，应以目录响应为准。默认颜色可选择 <code>color=current</code>；找不到时选择 <code>variants[0]</code>。</p>
+<h2 id="section-4">4. 获取 PNG 瓦片</h2>
+<p>使用目录返回的 <code>urlTemplate</code> 替换 <code>{z}</code>、<code>{x}</code>、<code>{y}</code>，并继续携带 AuthToken：</p>
+<pre><code class="language-http">GET /api/open/v1/suitable-fly-zone/tiles/{layerKey}/{variant}/{z}/{x}/{y}.png
+Authorization: Bearer &lt;AuthToken&gt;
+</code></pre>
+<p>示例：</p>
+<pre><code class="language-bash">curl \
+  -H &#39;Authorization: Bearer YOUR_AUTH_TOKEN&#39; \
+  &#39;https://skylane.cn/api/open/v1/suitable-fly-zone/tiles/collected_exact_geojson_merged_geojson_tiles/current/13/6665/3425.png&#39; \
+  --output tile.png
+</code></pre>
+<p>成功响应：</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: image/png
+Cache-Control: private, max-age=3600
+</code></pre>
+<p>瓦片使用标准 Web Mercator XYZ 编号，<code>y</code> 从北向南递增，不是 TMS。</p>
+<p>经纬度转 XYZ：</p>
+<pre><code class="language-javascript">function lonLatToTile(lng, lat, zoom) {
+  const n = 2 ** zoom;
+  const safeLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  const latRad = safeLat * Math.PI / 180;
+  return {
+    x: Math.floor((lng + 180) / 360 * n),
+    y: Math.floor(
+      (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n
+    )
+  };
+}
+</code></pre>
+<h2 id="section-5">5. 按可视区域查询 KML</h2>
+<h3>请求</h3>
+<pre><code class="language-http">GET /api/open/v1/suitable-fly-zone/kml/tiles
+Authorization: Bearer &lt;AuthToken&gt;
+</code></pre>
+<div class="table-scroll" tabindex="0" role="region" aria-label="接口说明表格"><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>类型</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>minLng</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 西南角经度</td>
+</tr>
+<tr>
+<td><code>minLat</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 西南角纬度</td>
+</tr>
+<tr>
+<td><code>maxLng</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 东北角经度</td>
+</tr>
+<tr>
+<td><code>maxLat</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 东北角纬度</td>
+</tr>
+<tr>
+<td><code>layerKey</code></td>
+<td>string</td>
+<td>否</td>
+<td>不传时使用当前默认 KML 图层</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>否</td>
+<td>返回上限，建议 <code>48</code></td>
+</tr>
+</tbody></table>
+</div><p>示例：</p>
+<pre><code class="language-bash">curl \
+  -H &#39;Authorization: Bearer YOUR_AUTH_TOKEN&#39; \
+  &#39;https://skylane.cn/api/open/v1/suitable-fly-zone/kml/tiles?minLng=112.90&amp;minLat=28.20&amp;maxLng=112.96&amp;maxLat=28.26&amp;limit=48&#39;
+</code></pre>
+<p>建议将当前视口四周额外扩展约 60%，并在视口稳定约 180ms 后查询，减少拖动过程中的重复请求。</p>
+<h3>响应示例</h3>
+<pre><code class="language-json">{
+  &quot;success&quot;: true,
+  &quot;message&quot;: {
+    &quot;en&quot;: &quot;okay&quot;,
+    &quot;zh&quot;: &quot;操作成功&quot;
+  },
+  &quot;data&quot;: {
+    &quot;version&quot;: &quot;20260517&quot;,
+    &quot;layerKey&quot;: &quot;geojson_kml_tiles/tile13&quot;,
+    &quot;tileZoom&quot;: 13,
+    &quot;matchedTileCount&quot;: 1,
+    &quot;returnedTileCount&quot;: 1,
+    &quot;tiles&quot;: [
+      {
+        &quot;z&quot;: 13,
+        &quot;x&quot;: 6665,
+        &quot;y&quot;: 3425,
+        &quot;relativePath&quot;: &quot;13/6665/3425.kml&quot;,
+        &quot;url&quot;: &quot;https://skylane.cn/api/open/v1/suitable-fly-zone/kml/13/6665/3425.kml?layerKey=geojson_kml_tiles%2Ftile13&quot;,
+        &quot;downloadUrl&quot;: &quot;https://skylane.cn/api/open/v1/suitable-fly-zone/kml/13/6665/3425.kml?layerKey=geojson_kml_tiles%2Ftile13&quot;,
+        &quot;fileSize&quot;: 2507,
+        &quot;featureCount&quot;: 2,
+        &quot;bbox&quot;: {
+          &quot;minLng&quot;: 112.8955078125,
+          &quot;minLat&quot;: 28.22697003891833,
+          &quot;maxLng&quot;: 112.939453125,
+          &quot;maxLat&quot;: 28.265682390146473
+        }
+      }
+    ]
+  }
+}
+</code></pre>
+<p><code>tileZoom=13</code> 是 KML 文件的存储网格级别，不是当前地图必须使用的缩放级别。当 <code>matchedTileCount &gt; returnedTileCount</code> 时，应缩小查询范围。</p>
+<h2 id="section-6">6. 按中心点附近查询 KML</h2>
+<pre><code class="language-http">GET /api/open/v1/suitable-fly-zone/kml/tiles/nearby
+Authorization: Bearer &lt;AuthToken&gt;
+</code></pre>
+<div class="table-scroll" tabindex="0" role="region" aria-label="接口说明表格"><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>类型</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>longitude</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 中心经度</td>
+</tr>
+<tr>
+<td><code>latitude</code></td>
+<td>number</td>
+<td>是</td>
+<td>WGS84 中心纬度</td>
+</tr>
+<tr>
+<td><code>radiusMeters</code></td>
+<td>number</td>
+<td>是</td>
+<td>查询半径，建议 <code>5000</code></td>
+</tr>
+<tr>
+<td><code>layerKey</code></td>
+<td>string</td>
+<td>否</td>
+<td>不传时使用默认图层</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>integer</td>
+<td>否</td>
+<td>返回上限，建议 <code>48</code></td>
+</tr>
+</tbody></table>
+</div><pre><code class="language-bash">curl \
+  -H &#39;Authorization: Bearer YOUR_AUTH_TOKEN&#39; \
+  &#39;https://skylane.cn/api/open/v1/suitable-fly-zone/kml/tiles/nearby?longitude=112.928&amp;latitude=28.228&amp;radiusMeters=5000&amp;limit=48&#39;
+</code></pre>
+<h2 id="section-7">7. 下载 KML 文件</h2>
+<p>直接请求查询响应中的 <code>tiles[].url</code>，每个文件请求都必须携带 AuthToken：</p>
+<pre><code class="language-bash">curl \
+  -H &#39;Authorization: Bearer YOUR_AUTH_TOKEN&#39; \
+  &#39;https://skylane.cn/api/open/v1/suitable-fly-zone/kml/13/6665/3425.kml?layerKey=geojson_kml_tiles%2Ftile13&#39; \
+  --output 3425.kml
+</code></pre>
+<p>成功响应：</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/vnd.google-earth.kml+xml
+Cache-Control: private, max-age=3600
+</code></pre>
+<p>KML 处理建议：</p>
+<ol>
+<li>按 UTF-8 XML 解析。</li>
+<li>读取 <code>Polygon</code>、内环和 <code>LineString</code>。</li>
+<li>坐标为 WGS84；目标地图使用 GCJ-02 时先转换。</li>
+<li>使用 <code>z/x/y</code> 作为缓存键，建议最多缓存 96 个已解析文件。</li>
+<li>单个 KML 加载失败时不要阻塞其他文件。</li>
+</ol>
+<h2 id="section-8">8. 完整调用逻辑</h2>
+<pre><code class="language-javascript">const API_BASE = &#39;https://skylane.cn/api/open/v1/suitable-fly-zone&#39;;
+const AUTH_TOKEN = process.env.AUTH_TOKEN;
+
+async function apiFetch(url) {
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${AUTH_TOKEN}` }
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response;
+}
+
+async function refreshSuitableFlyZone({ zoom, bounds }) {
+  if (zoom &lt; 4) {
+    clearSuitableFlyZoneLayers();
+    return;
+  }
+
+  if (zoom &lt;= 13) {
+    const catalogBody = await (await apiFetch(`${API_BASE}/catalog`)).json();
+    const layer = catalogBody.data.layers[0];
+    const variant = layer.variants.find(item =&gt; item.color === &#39;current&#39;) || layer.variants[0];
+    renderAuthenticatedPngTiles(variant.urlTemplate, AUTH_TOKEN);
+    clearKmlGraphics();
+    return;
+  }
+
+  const params = new URLSearchParams({ ...bounds, limit: &#39;48&#39; });
+  const result = await (await apiFetch(`${API_BASE}/kml/tiles?${params}`)).json();
+  const resources = await Promise.all(
+    result.data.tiles.map(async tile =&gt; parseKml(await (await apiFetch(tile.url)).text()))
+  );
+  renderKmlGraphics(resources);
+  clearPngTiles();
+}
+</code></pre>
+<p>示例代码默认运行在服务端。受控联调页面也可以直接执行 <code>apiFetch</code>；PNG 需要先通过带 Authorization 的 <code>fetch</code> 获取 Blob URL，不能直接把受保护 URL交给不支持自定义 Header 的图片组件。</p>
+<h2 id="section-9">9. 状态码</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="接口说明表格"><table>
+<thead>
+<tr>
+<th>HTTP 状态码</th>
+<th>场景</th>
+<th>处理建议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>200</code></td>
+<td>请求成功</td>
+<td>继续处理目录、PNG 或 KML</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>参数缺失或格式错误</td>
+<td>检查经纬度、范围和 <code>limit</code></td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>AuthToken 缺失或无效</td>
+<td>检查 Authorization 请求头</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>AuthToken 对应服务已到期</td>
+<td>联系服务方续期</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>图层或瓦片不存在</td>
+<td>视为空瓦片，不要无限重试</td>
+</tr>
+<tr>
+<td><code>500</code></td>
+<td>服务内部异常</td>
+<td>记录请求时间和坐标后联系服务方</td>
+</tr>
+</tbody></table>
+</div><h2 id="section-10">10. 接入检查清单</h2>
+<ul>
+<li><input disabled="" type="checkbox"> 所有请求均访问 <code>https://skylane.cn/api/open/v1/suitable-fly-zone/**</code>。</li>
+<li><input disabled="" type="checkbox"> 所有请求均携带 <code>Authorization: Bearer &lt;AuthToken&gt;</code>。</li>
+<li><input disabled="" type="checkbox"> AuthToken 没有出现在 URL 和日志中；正式公开页面没有暴露长期 Token。</li>
+<li><input disabled="" type="checkbox"> 启动时读取目录，未硬编码版本和图层目录。</li>
+<li><input disabled="" type="checkbox"> <code>zoom=13</code> 使用 PNG，<code>zoom=14</code> 开始使用 KML。</li>
+<li><input disabled="" type="checkbox"> PNG 使用 XYZ 编号，未将 <code>y</code> 当成 TMS。</li>
+<li><input disabled="" type="checkbox"> WGS84 与目标地图坐标系之间已正确转换。</li>
+<li><input disabled="" type="checkbox"> KML 查询设置了合理缓冲区、请求防抖和 <code>limit</code>。</li>
+<li><input disabled="" type="checkbox"> 已处理 <code>401</code>、<code>403</code>、<code>404</code> 和单瓦片加载失败。</li>
+</ul>
+</article>
+  </main>
+  <footer class="docs-footer wrap"><a href="/">← 返回低空星球</a><a href="#">回到顶部 ↑</a></footer>
+</body>
+</html>

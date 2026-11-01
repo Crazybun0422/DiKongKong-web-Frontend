@@ -1,0 +1,1026 @@
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\dji\\components\\dji-no-fly-layer\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\components\\dji-no-fly-layer\\index.js"
+index 06bbc9d..77e1799 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\dji\\components\\dji-no-fly-layer\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\components\\dji-no-fly-layer\\index.js"
+@@ -65,7 +65,7 @@ Component({
+     },
+ 
+     detached() {
+-      this._activeRequestId = 0;
++      this.cancelDjiRequest();
+     }
+   },
+ 
+@@ -96,7 +96,7 @@ Component({
+       const nextEnabled = enabled !== false;
+       this._enabled = nextEnabled;
+       if (!nextEnabled) {
+-        this._activeRequestId = 0;
++        this.cancelDjiRequest();
+         this._ready = false;
+         this._lastFetch = null;
+         this._lastAreas = undefined;
+@@ -188,6 +188,21 @@ Component({
+       return cleaned.length ? cleaned.join(",") : DEFAULT_LEVELS_PARAM;
+     },
+ 
++    destroy() {
++      this._enabled = false;
++      this.cancelDjiRequest();
++    },
++
++    cancelDjiRequest() {
++      this._activeRequestId = 0;
++      this._pendingRequestKey = "";
++      const task = this._requestTask;
++      this._requestTask = null;
++      if (task && typeof task.abort === "function") {
++        try { task.abort(); } catch (error) { console.warn("DJI request abort failed", error); }
++      }
++    },
++
+     fetchDjiZones(options = {}) {
+       if (!this._enabled) return;
+       const force = options.force === true;
+@@ -213,7 +228,11 @@ Component({
+           Math.abs((gcjRect.rblat || 0) - (prev.rect.rblat || 0)) > 0.005
+         )
+         : true;
+-      if (!force && !moved && !radiusDiff && !rectChanged) {
++      const requestKey = JSON.stringify([gcjRect, this._levels, this._drone]);
++      if (this._activeRequestId && this._pendingRequestKey === requestKey) return;
++      if (!force && !moved && !radiusDiff && !rectChanged && Array.isArray(this._lastAreas) &&
++          prev.levels === this._levels && prev.drone === this._drone) {
++        this.cancelDjiRequest();
+         const status = this.describeDjiStatus(this._lastAreas);
+         this.emitStatusChange(Object.assign({}, status, {
+           djiMsg: this._status?.djiMsg || "",
+@@ -234,7 +253,9 @@ Component({
+         return;
+       }
+ 
++      this.cancelDjiRequest();
+       const requestId = ++this._requestSeq;
++      this._pendingRequestKey = requestKey;
+       this._activeRequestId = requestId;
+       this.emitStatusChange({
+         loadingDji: true,
+@@ -245,7 +266,11 @@ Component({
+       fetchDjiAreas({
+         rect,
+         levels: this._levels || DEFAULT_LEVELS_PARAM,
+-        drone: this._drone || ""
++        drone: this._drone || "",
++        onRequestTask: task => {
++          if (this._activeRequestId === requestId) this._requestTask = task;
++          else task?.abort();
++        }
+       })
+         .then((areas) => {
+           if (this._activeRequestId !== requestId) return;
+@@ -267,7 +292,9 @@ Component({
+             latitude: center.latitude,
+             longitude: center.longitude,
+             radius,
+-            rect: gcjRect
++            rect: gcjRect,
++            levels: this._levels,
++            drone: this._drone
+           };
+         })
+         .catch((err) => {
+@@ -286,6 +313,8 @@ Component({
+         .finally(() => {
+           if (this._activeRequestId === requestId) {
+             this._activeRequestId = 0;
++            this._pendingRequestKey = "";
++            this._requestTask = null;
+           }
+         });
+     },
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\dji\\utils\\dji.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\utils\\dji.js"
+index ad145e3..c50730f 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\dji\\utils\\dji.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\utils\\dji.js"
+@@ -11,7 +11,7 @@ const NFZ_SUBAREA_ALPHA_SCALE = 0.7;
+ const NFZ_STROKE_OPACITY = 0.95;
+ const NFZ_DEFAULT_COLOR = "#DE4329";
+ 
+-function fetchDjiAreas({ rect, levels, drone }) {
++function fetchDjiAreas({ rect, levels, drone, onRequestTask }) {
+   return new Promise((resolve, reject) => {
+     if (
+       !rect ||
+@@ -41,7 +41,7 @@ function fetchDjiAreas({ rect, levels, drone }) {
+       ? `${DJI_PROXY}${encodeURIComponent(targetUrl)}`
+       : targetUrl;
+ 
+-    wx.request({
++    const task = wx.request({
+       url: requestUrl,
+       method: "GET",
+       success(res) {
+@@ -58,14 +58,18 @@ function fetchDjiAreas({ rect, levels, drone }) {
+           body.areas ||
+           body.data?.areas ||
+           body.data?.data?.areas ||
+-          body.data?.zones ||
+-          [];
+-        resolve(Array.isArray(areas) ? areas : []);
++          body.data?.zones;
++        if (!Array.isArray(areas)) {
++          reject(new Error("Invalid DJI areas response"));
++          return;
++        }
++        resolve(areas);
+       },
+       fail(err) {
+         reject(err);
+       }
+     });
++    if (typeof onRequestTask === "function") onRequestTask(task);
+   });
+ }
+ 
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom\\components\\uom-plugin\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom\\components\\uom-plugin\\index.js"
+index d77429c..05692bf 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom\\components\\uom-plugin\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom\\components\\uom-plugin\\index.js"
+@@ -220,6 +220,7 @@ Component({
+   },
+   methods: {
+     init(options = {}) {
++      this._wmsViewportVersion = {};
+       const { mapCtx, center, centerPin, scale, region, enabled, renderColor, apiBase } = options;
+       console.log("[uom-plugin] init", { hasMapCtx: !!mapCtx, scale, enabled });
+       this.mapCtx = mapCtx || this.mapCtx || null;
+@@ -307,6 +308,7 @@ Component({
+     destroy() {
+       if (this._destroyed) return;
+       this._destroyed = true;
++      this._wmsViewportVersion = {};
+       if (this._uomFallbackTimer) clearTimeout(this._uomFallbackTimer);
+       if (this._wmsOverlayRemovalTimer) clearTimeout(this._wmsOverlayRemovalTimer);
+       if (this._wmsOverlaySwapTimer) clearTimeout(this._wmsOverlaySwapTimer);
+@@ -322,7 +324,7 @@ Component({
+           this.clearUomMaskEntryTimeout(entry);
+         }
+       }
+-      this.clearMapOverlays();
++      this.clearMapOverlays({ reason: "destroy" });
+       this.mapCtx = null;
+       this._lastStatusPayload = null;
+     },
+@@ -333,7 +335,7 @@ Component({
+       this._renderColor = nextColor;
+       this._offlineDescriptor = getCachedLayerTileDescriptor(nextColor, { apiBase: this._apiBase });
+       this._offlineDescriptorError = null;
+-      this.clearMapOverlays();
++      this.clearMapOverlays({ reason: "render-color-change" });
+       this.refreshWmsOverlay();
+     },
+ 
+@@ -346,10 +348,11 @@ Component({
+         }
+         return;
+       }
++      this._wmsViewportVersion = {};
+       this.data.uomDivisionEnabled = next;
+       this.setData({ uomDivisionEnabled: next });
+       if (!next) {
+-        this.clearMapOverlays({ onCleared });
++        this.clearMapOverlays({ onCleared, reason: "disabled" });
+         this.updateStatusPanel();
+         return;
+       }
+@@ -358,6 +361,7 @@ Component({
+     },
+ 
+     handleRegionChange(options = {}) {
++      this._wmsViewportVersion = {};
+       if (this._destroyed) return;
+       const { center, centerPin, scale, region, force, apiBase } = options;
+       if (centerPin) {
+@@ -399,12 +403,19 @@ Component({
+     scheduleFinalRefresh() {
+       if (!this.mapCtx) return;
+       if (this._wmsFinalRefreshTimer) clearTimeout(this._wmsFinalRefreshTimer);
++      const version = this._wmsViewportVersion;
++      const request = this._wmsViewportRead = {};
++      const ctx = this.mapCtx;
++      const current = () => !this._destroyed && this.data.uomDivisionEnabled !== false &&
++        this.mapCtx === ctx && this._wmsViewportVersion === version && this._wmsViewportRead === request;
+       this._wmsFinalRefreshTimer = setTimeout(() => {
+-        if (!this.mapCtx) return;
++        this._wmsFinalRefreshTimer = null;
++        if (!current()) return;
+         const scale = clampMapScale(this.data?.scale);
+         const isMaxScale = Math.round(scale) >= MAP_MAX_SCALE;
+         const fallbackCenter = this.resolveUomCenter();
+         const apply = (center, region) => {
++          if (!current()) return;
+           const resolvedCenter = this.resolveUomCenter(center);
+           if (!resolvedCenter) return;
+           if (region && region.northeast && region.southwest) {
+@@ -433,6 +444,7 @@ Component({
+           this.mapCtx.getCenterLocation({
+             type: "gcj02",
+             success: (res) => {
++              if (!current()) return;
+               const center = {
+                 latitude: res.latitude,
+                 longitude: res.longitude
+@@ -810,7 +822,7 @@ Component({
+ 
+     refreshWmsOverlay(centerOverride, scaleOverride, regionOverride) {
+       if (this.data.uomDivisionEnabled === false) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "disabled-refresh" });
+         return;
+       }
+       const center = this.resolveUomCenter(centerOverride);
+@@ -820,7 +832,7 @@ Component({
+         return;
+       }
+       if (resolveExcludedRegionRecord(center)) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "excluded-region" });
+         this._currentWmsTiles = [];
+         this._currentWmsTileKey = "";
+         this.updateStatusPanel();
+@@ -841,14 +853,11 @@ Component({
+               this.updateStatusPanel();
+             }
+           });
+-        this.clearMapOverlays();
+-        this._currentWmsTiles = [];
+-        this._currentWmsTileKey = "";
+         this.updateStatusPanel();
+         return;
+       }
+       if (scale < descriptor.minZoom || scale > descriptor.maxZoom) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "unsupported-scale" });
+         this._currentWmsTiles = [];
+         this._currentWmsTileKey = "";
+         this.updateStatusPanel();
+@@ -877,6 +886,9 @@ Component({
+       const overlayKey = buildWmsTileListKey(overlays);
+       const applyOverlays = () => {
+         if (this.data.uomDivisionEnabled === false) return;
++        if (this._wmsPendingBatch && this._wmsPendingBatch.overlayKey !== overlayKey && overlayKey === this._currentWmsTileKeyApplied) {
++          this.cancelPendingWmsBatch();
++        }
+         this._currentWmsTiles = overlays;
+         this._currentWmsTileKey = overlayKey;
+         const maskTiles = this.pickUomMaskTiles(overlays, center, UOM_MASK_KEEP_RADIUS);
+@@ -959,6 +971,7 @@ Component({
+       if (!this._wmsOverlayRemovals) this._wmsOverlayRemovals = new Set();
+       if (!this._wmsOverlayRemovalQueue) this._wmsOverlayRemovalQueue = [];
+       if (!this._wmsOverlayRemovalQueued) this._wmsOverlayRemovalQueued = new Set();
++      this.recordOverlayEvent("remove-request", { id: overlayId });
+       this._wmsOverlayRemovals.add(overlayId);
+       if (this._wmsOverlayRemovalQueued.has(overlayId)) return;
+       this._wmsOverlayRemovalQueued.add(overlayId);
+@@ -985,6 +998,7 @@ Component({
+       this.mapCtx.removeGroundOverlay({
+         id: overlayId,
+         success: () => {
++          this.recordOverlayEvent("remove-success", { id: overlayId });
+           if (this._wmsOverlayRemovals) {
+             this._wmsOverlayRemovals.delete(overlayId);
+           }
+@@ -998,6 +1012,7 @@ Component({
+           this.processWmsOverlayRemovalQueue();
+         },
+         fail: (err) => {
++          this.recordOverlayEvent("native-remove-failed", { id: overlayId, error: err?.errMsg || "unknown" });
+           console.warn("removeGroundOverlay failed", overlayId, err);
+           if (this.isWmsOverlayNotFound(err)) {
+             if (this._wmsOverlayRemovals) {
+@@ -1266,11 +1281,22 @@ Component({
+       if (!this.mapCtx || this._destroyed || this.data.uomDivisionEnabled === false) return;
+       if (this._wmsOverlayRetryTimer) clearTimeout(this._wmsOverlayRetryTimer);
+       this._wmsOverlayRetryTimer = null;
+-      this.processWmsOverlayRemovalQueue();
+-      this.cancelPendingWmsBatch();
+       const ctx = this.mapCtx;
+       const epoch = Number.isFinite(options.epoch) ? options.epoch : this._wmsOverlayEpoch;
+       const overlayKey = typeof options.overlayKey === "string" ? options.overlayKey : buildWmsTileListKey(tiles);
++      if (this._wmsPendingBatch?.overlayKey === overlayKey && this._wmsPendingBatch.epoch === epoch) return;
++      const batch = { id: `${Date.now()}-${this._wmsBatchSeq++}`, overlayKey, epoch, createdHandles: new Map(), requestedSrcs: new Set(), timeout: null };
++      // Reserve shared downloads before releasing the previous viewport's consumers.
++      for (const tile of tiles || []) {
++        if (!tile?.id || !tile.bounds || !tile.src) continue;
++        const entry = this._wmsTileResourceCache?.get(tile.src);
++        if (entry?.status !== "pending") continue;
++        if (!entry.consumers) entry.consumers = new Set();
++        entry.consumers.add(batch.id);
++        batch.requestedSrcs.add(tile.src);
++      }
++      this.processWmsOverlayRemovalQueue();
++      this.cancelPendingWmsBatch();
+       if (this._wmsOverlayRetryKey !== overlayKey) {
+         this._wmsOverlayRetryKey = overlayKey;
+         this._wmsOverlayRetryCount = 0;
+@@ -1281,8 +1307,8 @@ Component({
+       const nextHandles = new Map();
+       const obsoleteHandles = new Map(currentHandles);
+       const additions = [];
+-      const batch = { id: `${Date.now()}-${this._wmsBatchSeq++}`, createdHandles: new Map(), requestedSrcs: new Set(), timeout: null };
+       this._wmsPendingBatch = batch;
++      this.recordOverlayEvent("batch-start", { batch: batch.id, requested: (tiles || []).length });
+       const active = () => this._wmsPendingBatch === batch && epoch === this._wmsOverlayEpoch && !this._destroyed && this.data.uomDivisionEnabled !== false;
+       let pending = 0, failed = false, finished = false;
+       const finish = () => {
+@@ -1302,6 +1328,7 @@ Component({
+           // Never discard a visible viewport because its replacement failed or timed out.
+           for (const handle of batch.createdHandles.values()) this.queueWmsOverlayRemoval(handle.overlayId);
+           this._uomOverlayFailed = true;
++          this.recordOverlayEvent("batch-failed", { batch: batch.id, retained: currentHandles.size });
+           this.updateUomTileWarning();
+           const attempt = this._wmsOverlayRetryCount || 0;
+           if (attempt < 3) {
+@@ -1319,6 +1346,9 @@ Component({
+           }
+           this._wmsOverlayMap = nextHandles;
+           this._currentWmsTileKeyApplied = overlayKey;
++          this.recordOverlayEvent("batch-commit", { batch: batch.id, added: additions.length, removed: obsoleteHandles.size, retained: nextHandles.size - additions.length,
++            ids: Array.from(nextHandles.values(), handle => handle.overlayId),
++            removedIds: Array.from(obsoleteHandles.values(), handle => handle.overlayId) });
+           this._wmsOverlayRetryCount = 0;
+           this._uomOverlayFailed = false;
+           this.updateUomTileWarning();
+@@ -1326,6 +1356,7 @@ Component({
+         batch.requestedSrcs.forEach(src => this.releaseWmsTileResource(src, batch.id));
+         this.processWmsOverlayRemovalQueue();
+         this.syncUomLoadingState();
++        if (!failed) this.triggerEvent("statuschange", { uomRenderReady: true });
+       };
+       (tiles || []).forEach(tile => {
+         if (!tile || !tile.id || !tile.bounds) return;
+@@ -1370,7 +1401,10 @@ Component({
+             ctx.addGroundOverlay({ id: overlayId, src: src || tile.src, bounds: tile.bounds,
+               zIndex: Number.isFinite(Number(tile.zIndex)) ? Number(tile.zIndex) : 10,
+               alpha: tile.alpha != null ? tile.alpha : (tile.opacity != null ? tile.opacity : 0.65),
+-              success: () => settle(true), fail: () => settle(false) });
++              success: () => settle(true), fail: (error) => {
++              this.recordOverlayEvent("native-add-failed", { id: overlayId, error: error?.errMsg || "unknown" });
++              settle(false);
++            } });
+           } catch (_) { settle(false); }
+         });
+       }).catch(() => { failed = true; finish(); });
+@@ -1392,7 +1426,16 @@ Component({
+       return values.join("|");
+     },
+ 
++    recordOverlayEvent(event, details = {}) {
++      const entry = Object.assign({ event, at: Date.now(), epoch: this._wmsOverlayEpoch }, details);
++      const trace = this._overlayTrace || (this._overlayTrace = []);
++      trace.push(entry);
++      if (trace.length > 80) trace.shift();
++      if (event === "clear" || event.includes("failed")) console.info("[uom-overlay]", entry);
++    },
++
+     clearMapOverlays(options = {}) {
++      this.recordOverlayEvent("clear", { reason: options.reason || "explicit-clear", count: this._wmsOverlayMap?.size || 0 });
+       if (this._wmsOverlayRetryTimer) clearTimeout(this._wmsOverlayRetryTimer);
+       this._wmsOverlayRetryTimer = null;
+       this._wmsOverlayRetryKey = "";
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom4\\components\\uom-plugin\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom4\\components\\uom-plugin\\index.js"
+index f9fb2c8..42a28b3 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom4\\components\\uom-plugin\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom4\\components\\uom-plugin\\index.js"
+@@ -361,7 +361,8 @@ Component({
+       }
+       const bounds = this.resolveCurrentViewportBounds();
+       const needsCoverage = !bounds || !boundsContain(this._graphicsCoverageBounds, bounds);
+-      if (options.force === true || !this._viewportDataReady || !this._resourceEntries.length || needsCoverage) {
++      const samePendingViewport = this.data.uomLoading === true && this._viewportRequestKey === this.buildTileQueryUrl();
++      if (!samePendingViewport && (options.force === true || !this._viewportDataReady || needsCoverage)) {
+         this.invalidateViewport();
+         this.scheduleRefresh(options.force === true);
+       }
+@@ -371,6 +372,7 @@ Component({
+     invalidateViewport() {
+       // Invalidate immediately, before the debounced fetch can accept an older response.
+       this._refreshSeq += 1;
++      this._viewportRequestKey = this.buildTileQueryUrl();
+       this._lastRefreshKey = "";
+       this._viewportDataReady = false;
+       this._loadFailed = false;
+@@ -380,7 +382,9 @@ Component({
+     },
+ 
+     setEnabled(enabled) {
+-      this._enabled = enabled !== false;
++      const next = enabled !== false;
++      if (this._enabled === next) return;
++      this._enabled = next;
+       this.invalidateViewport();
+       this.setData({ uomDivisionEnabled: this._enabled });
+       if (!this._enabled) {
+@@ -457,7 +461,9 @@ Component({
+       if (this._enabled && !this._viewportDataReady) return;
+       this.triggerEvent("graphicschange", {
+         polygons: Array.isArray(this._graphics?.polygons) ? this._graphics.polygons : [],
+-        polylines: Array.isArray(this._graphics?.polylines) ? this._graphics.polylines : []
++        polylines: Array.isArray(this._graphics?.polylines) ? this._graphics.polylines : [],
++        ready: this._enabled && this._viewportDataReady,
++        revision: this._refreshSeq
+       });
+     },
+ 
+@@ -554,9 +560,9 @@ Component({
+       if (res?.data?.success === false || !Array.isArray(rawTiles)) {
+         throw new Error("invalid-kml-tile-query-response");
+       }
+-      return rawTiles
+-        .map((tile) => normalizeTile(tile, this._apiBase))
+-        .filter(Boolean);
++      const tiles = rawTiles.map((tile) => normalizeTile(tile, this._apiBase));
++      if (tiles.some(tile => !tile)) throw new Error("invalid-kml-tile-descriptor");
++      return tiles;
+     },
+ 
+     rememberTileResource(tileKey, resource) {
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom5\\components\\uom-plugin\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom5\\components\\uom-plugin\\index.js"
+index 4aea1b0..16840ba 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\packages\\uom5\\components\\uom-plugin\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom5\\components\\uom-plugin\\index.js"
+@@ -196,6 +196,7 @@ Component({
+   },
+   methods: {
+     init(options = {}) {
++      this._wmsViewportVersion = {};
+       const { mapCtx, center, centerPin, scale, region, enabled } = options;
+       console.log("[uom5] init", { hasMapCtx: !!mapCtx, scale, enabled });
+       this.mapCtx = mapCtx || this.mapCtx || null;
+@@ -276,6 +277,7 @@ Component({
+     destroy() {
+       if (this._destroyed) return;
+       this._destroyed = true;
++      this._wmsViewportVersion = {};
+       if (this._uomFallbackTimer) clearTimeout(this._uomFallbackTimer);
+       if (this._wmsOverlayRemovalTimer) clearTimeout(this._wmsOverlayRemovalTimer);
+       if (this._wmsOverlaySwapTimer) clearTimeout(this._wmsOverlaySwapTimer);
+@@ -291,7 +293,7 @@ Component({
+           this.clearUomMaskEntryTimeout(entry);
+         }
+       }
+-      this.clearMapOverlays();
++      this.clearMapOverlays({ reason: "destroy" });
+       this.mapCtx = null;
+       this._lastStatusPayload = null;
+     },
+@@ -299,10 +301,11 @@ Component({
+     setEnabled(enabled) {
+       const next = enabled !== false;
+       if (this.data.uomDivisionEnabled === next) return;
++      this._wmsViewportVersion = {};
+       this.data.uomDivisionEnabled = next;
+       this.setData({ uomDivisionEnabled: next });
+       if (!next) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "disabled" });
+         this.updateStatusPanel();
+         return;
+       }
+@@ -311,6 +314,7 @@ Component({
+     },
+ 
+     handleRegionChange(options = {}) {
++      this._wmsViewportVersion = {};
+       if (this._destroyed) return;
+       const { center, centerPin, scale, region, force } = options;
+       if (centerPin) {
+@@ -347,12 +351,19 @@ Component({
+     scheduleFinalRefresh() {
+       if (!this.mapCtx) return;
+       if (this._wmsFinalRefreshTimer) clearTimeout(this._wmsFinalRefreshTimer);
++      const version = this._wmsViewportVersion;
++      const request = this._wmsViewportRead = {};
++      const ctx = this.mapCtx;
++      const current = () => !this._destroyed && this.data.uomDivisionEnabled !== false &&
++        this.mapCtx === ctx && this._wmsViewportVersion === version && this._wmsViewportRead === request;
+       this._wmsFinalRefreshTimer = setTimeout(() => {
+-        if (!this.mapCtx) return;
++        this._wmsFinalRefreshTimer = null;
++        if (!current()) return;
+         const scale = clampMapScale(this.data?.scale);
+         const isMaxScale = Math.round(scale) >= MAP_MAX_SCALE;
+         const fallbackCenter = this.resolveUomCenter();
+         const apply = (center, region) => {
++          if (!current()) return;
+           const resolvedCenter = this.resolveUomCenter(center);
+           if (!resolvedCenter) return;
+           if (region && region.northeast && region.southwest) {
+@@ -381,6 +392,7 @@ Component({
+           this.mapCtx.getCenterLocation({
+             type: "gcj02",
+             success: (res) => {
++              if (!current()) return;
+               const center = {
+                 latitude: res.latitude,
+                 longitude: res.longitude
+@@ -686,7 +698,7 @@ Component({
+ 
+     refreshWmsOverlay(centerOverride, scaleOverride, regionOverride) {
+       if (this.data.uomDivisionEnabled === false) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "disabled-refresh" });
+         return;
+       }
+       const center = this.resolveUomCenter(centerOverride);
+@@ -696,14 +708,14 @@ Component({
+         return;
+       }
+       if (resolveExcludedRegionRecord(center)) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "excluded-region" });
+         this._currentWmsTiles = [];
+         this._currentWmsTileKey = "";
+         this.updateStatusPanel();
+         return;
+       }
+       if (scale < WMS_MIN_ZOOM || scale > WMS_MAX_ZOOM) {
+-        this.clearMapOverlays();
++        this.clearMapOverlays({ reason: "unsupported-scale" });
+         this._currentWmsTiles = [];
+         this._currentWmsTileKey = "";
+         this.updateStatusPanel();
+@@ -730,6 +742,9 @@ Component({
+       const overlayKey = buildWmsTileListKey(overlays);
+       const applyOverlays = () => {
+         if (this.data.uomDivisionEnabled === false) return;
++        if (this._wmsPendingBatch && this._wmsPendingBatch.overlayKey !== overlayKey && overlayKey === this._currentWmsTileKeyApplied) {
++          this.cancelPendingWmsBatch();
++        }
+         this._currentWmsTiles = overlays;
+         this._currentWmsTileKey = overlayKey;
+         const maskTiles = this.pickUomMaskTiles(overlays, center, UOM_MASK_KEEP_RADIUS);
+@@ -812,6 +827,7 @@ Component({
+       if (!this._wmsOverlayRemovals) this._wmsOverlayRemovals = new Set();
+       if (!this._wmsOverlayRemovalQueue) this._wmsOverlayRemovalQueue = [];
+       if (!this._wmsOverlayRemovalQueued) this._wmsOverlayRemovalQueued = new Set();
++      this.recordOverlayEvent("remove-request", { id: overlayId });
+       this._wmsOverlayRemovals.add(overlayId);
+       if (this._wmsOverlayRemovalQueued.has(overlayId)) return;
+       this._wmsOverlayRemovalQueued.add(overlayId);
+@@ -838,6 +854,7 @@ Component({
+       this.mapCtx.removeGroundOverlay({
+         id: overlayId,
+         success: () => {
++          this.recordOverlayEvent("remove-success", { id: overlayId });
+           if (this._wmsOverlayRemovals) {
+             this._wmsOverlayRemovals.delete(overlayId);
+           }
+@@ -848,6 +865,7 @@ Component({
+           this.processWmsOverlayRemovalQueue();
+         },
+         fail: (err) => {
++          this.recordOverlayEvent("native-remove-failed", { id: overlayId, error: err?.errMsg || "unknown" });
+           console.warn("removeGroundOverlay failed", overlayId, err);
+           if (this.isWmsOverlayNotFound(err)) {
+             if (this._wmsOverlayRemovals) {
+@@ -1113,11 +1131,22 @@ Component({
+       if (!this.mapCtx || this._destroyed || this.data.uomDivisionEnabled === false) return;
+       if (this._wmsOverlayRetryTimer) clearTimeout(this._wmsOverlayRetryTimer);
+       this._wmsOverlayRetryTimer = null;
+-      this.processWmsOverlayRemovalQueue();
+-      this.cancelPendingWmsBatch();
+       const ctx = this.mapCtx;
+       const epoch = Number.isFinite(options.epoch) ? options.epoch : this._wmsOverlayEpoch;
+       const overlayKey = typeof options.overlayKey === "string" ? options.overlayKey : buildWmsTileListKey(tiles);
++      if (this._wmsPendingBatch?.overlayKey === overlayKey && this._wmsPendingBatch.epoch === epoch) return;
++      const batch = { id: `${Date.now()}-${this._wmsBatchSeq++}`, overlayKey, epoch, createdHandles: new Map(), requestedSrcs: new Set(), timeout: null };
++      // Reserve shared downloads before releasing the previous viewport's consumers.
++      for (const tile of tiles || []) {
++        if (!tile?.id || !tile.bounds || !tile.src) continue;
++        const entry = this._wmsTileResourceCache?.get(tile.src);
++        if (entry?.status !== "pending") continue;
++        if (!entry.consumers) entry.consumers = new Set();
++        entry.consumers.add(batch.id);
++        batch.requestedSrcs.add(tile.src);
++      }
++      this.processWmsOverlayRemovalQueue();
++      this.cancelPendingWmsBatch();
+       if (this._wmsOverlayRetryKey !== overlayKey) {
+         this._wmsOverlayRetryKey = overlayKey;
+         this._wmsOverlayRetryCount = 0;
+@@ -1128,8 +1157,8 @@ Component({
+       const nextHandles = new Map();
+       const obsoleteHandles = new Map(currentHandles);
+       const additions = [];
+-      const batch = { id: `${Date.now()}-${this._wmsBatchSeq++}`, createdHandles: new Map(), requestedSrcs: new Set(), timeout: null };
+       this._wmsPendingBatch = batch;
++      this.recordOverlayEvent("batch-start", { batch: batch.id, requested: (tiles || []).length });
+       const active = () => this._wmsPendingBatch === batch && epoch === this._wmsOverlayEpoch && !this._destroyed && this.data.uomDivisionEnabled !== false;
+       let pending = 0, failed = false, finished = false;
+       const finish = () => {
+@@ -1149,6 +1178,7 @@ Component({
+           // Never discard a visible viewport because its replacement failed or timed out.
+           for (const handle of batch.createdHandles.values()) this.queueWmsOverlayRemoval(handle.overlayId);
+           this._uomOverlayFailed = true;
++          this.recordOverlayEvent("batch-failed", { batch: batch.id, retained: currentHandles.size });
+           this.updateUomTileWarning();
+           const attempt = this._wmsOverlayRetryCount || 0;
+           if (attempt < 3) {
+@@ -1166,6 +1196,9 @@ Component({
+           }
+           this._wmsOverlayMap = nextHandles;
+           this._currentWmsTileKeyApplied = overlayKey;
++          this.recordOverlayEvent("batch-commit", { batch: batch.id, added: additions.length, removed: obsoleteHandles.size, retained: nextHandles.size - additions.length,
++            ids: Array.from(nextHandles.values(), handle => handle.overlayId),
++            removedIds: Array.from(obsoleteHandles.values(), handle => handle.overlayId) });
+           this._wmsOverlayRetryCount = 0;
+           this._uomOverlayFailed = false;
+           this.updateUomTileWarning();
+@@ -1173,6 +1206,7 @@ Component({
+         batch.requestedSrcs.forEach(src => this.releaseWmsTileResource(src, batch.id));
+         this.processWmsOverlayRemovalQueue();
+         this.syncUomLoadingState();
++        if (!failed) this.triggerEvent("statuschange", { uomRenderReady: true });
+       };
+       (tiles || []).forEach(tile => {
+         if (!tile || !tile.id || !tile.bounds) return;
+@@ -1217,7 +1251,10 @@ Component({
+             ctx.addGroundOverlay({ id: overlayId, src: src || tile.src, bounds: tile.bounds,
+               zIndex: Number.isFinite(Number(tile.zIndex)) ? Number(tile.zIndex) : 10,
+               alpha: tile.alpha != null ? tile.alpha : (tile.opacity != null ? tile.opacity : 0.65),
+-              success: () => settle(true), fail: () => settle(false) });
++              success: () => settle(true), fail: (error) => {
++              this.recordOverlayEvent("native-add-failed", { id: overlayId, error: error?.errMsg || "unknown" });
++              settle(false);
++            } });
+           } catch (_) { settle(false); }
+         });
+       }).catch(() => { failed = true; finish(); });
+@@ -1239,7 +1276,16 @@ Component({
+       return values.join("|");
+     },
+ 
++    recordOverlayEvent(event, details = {}) {
++      const entry = Object.assign({ event, at: Date.now(), epoch: this._wmsOverlayEpoch }, details);
++      const trace = this._overlayTrace || (this._overlayTrace = []);
++      trace.push(entry);
++      if (trace.length > 80) trace.shift();
++      if (event === "clear" || event.includes("failed")) console.info("[uom5-overlay]", entry);
++    },
++
+     clearMapOverlays(options = {}) {
++      this.recordOverlayEvent("clear", { reason: options.reason || "explicit-clear", count: this._wmsOverlayMap?.size || 0 });
+       if (this._wmsOverlayRetryTimer) clearTimeout(this._wmsOverlayRetryTimer);
+       this._wmsOverlayRetryTimer = null;
+       this._wmsOverlayRetryKey = "";
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\cleanup.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\cleanup.js"
+index b797d6a..9952baf 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\cleanup.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\cleanup.js"
+@@ -80,6 +80,9 @@ function onUnload(page) {
+   page._centerPinLinkElevationState = null;
+   page._centerPinLinkElevationRequestKey = "";
+   page._pointElevationCache = null;
++  page._pendingUomPluginTransition = null;
++  page._pendingUomPluginSwitch = null;
++  page._uomGraphicsCommit = null;
+   const uomPlugins = page._uomPluginRefs && typeof page._uomPluginRefs === "object"
+     ? Object.values(page._uomPluginRefs)
+     : (page._uomPlugin ? [page._uomPlugin] : []);
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\layer-panel.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\layer-panel.js"
+index 37a1bb1..bb06c25 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\layer-panel.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\layer-panel.js"
+@@ -1,3 +1,4 @@
++const { setUomLayerEnabled } = require("./map-plugins");
+ const townRegions = require("../../../utils/town-regions");
+ const {
+   prepareProvinceCityHighlightResource,
+@@ -542,9 +543,7 @@ function onMapElementToggle(page, event = {}) {
+   });
+   page.setData(updates, () => {
+     if (flagKey === "uomDivisionEnabled") {
+-      if (page._uomPlugin && typeof page._uomPlugin.setEnabled === "function") {
+-        page._uomPlugin.setEnabled(nextValue);
+-      }
++      setUomLayerEnabled(page, nextValue);
+     }
+     if (flagKey === "djiNoFlyZoneEnabled") {
+       page.applyNoFlyOverlayToggle({
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\map-graphics.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-graphics.js"
+index 614f5c2..0838b33 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\map-graphics.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-graphics.js"
+@@ -7,21 +7,34 @@ function queueMapGraphicsSync(page, options = {}) {
+   if (options.markers) next.markers = true;
+   if (options.polylines) next.polylines = true;
+   if (options.overlay) next.overlay = true;
++  if (typeof options.onApplied === "function") {
++    (next.callbacks || (next.callbacks = [])).push(options.onApplied);
++  }
+   page._pendingMapGraphicsSync = next;
+-  if (page._mapGraphicsSyncTimer) return;
++  if (page._mapGraphicsSyncTimer || page._mapGraphicsSyncApplying) return;
+   page._mapGraphicsSyncTimer = setTimeout(() => {
+     page._mapGraphicsSyncTimer = null;
+     const pending = page._pendingMapGraphicsSync || {};
+     page._pendingMapGraphicsSync = null;
+-    if (pending.markers) {
+-      syncAllMarkers(page);
+-    }
+-    if (pending.polylines) {
+-      syncAllPolylines(page);
+-    }
+-    if (pending.overlay) {
+-      page.updateOverlayGraphics();
+-    }
++    const updates = {};
++    if (pending.markers) syncAllMarkers(page, updates);
++    if (pending.polylines) syncAllPolylines(page, updates);
++    if (pending.overlay) updateOverlayGraphics(page, updates);
++    const complete = () => (pending.callbacks || []).forEach(callback => callback());
++    if (Object.keys(updates).length) {
++      const trace = page._mapGraphicsTrace || (page._mapGraphicsTrace = []);
++      trace.push({ at: Date.now(), source: page._activeUomPluginSource,
++        uom: page._uomPolygons?.length || 0, dji: page._djiPolygons?.length || 0,
++        temporary: page._nfzPolygons?.length || 0, pins: page._nearbyPinPolygons?.length || 0,
++        fields: Object.keys(updates) });
++      if (trace.length > 40) trace.shift();
++      page._mapGraphicsSyncApplying = true;
++      page.setData(updates, () => {
++        page._mapGraphicsSyncApplying = false;
++        complete();
++        if (page._pendingMapGraphicsSync) queueMapGraphicsSync(page);
++      });
++    } else complete();
+   }, 0);
+ }
+ 
+@@ -95,7 +108,7 @@ function buildGraphicCollectionSignature(list = [], type = "") {
+   return `${type}:${source.length}:${source.map(builder).join("||")}`;
+ }
+ 
+-function syncAllPolylines(page) {
++function syncAllPolylines(page, updates = null) {
+   const polylines = [];
+   if (page.data.uomDivisionEnabled !== false && Array.isArray(page._uomPolylines)) {
+     polylines.push(...page._uomPolylines);
+@@ -111,10 +124,11 @@ function syncAllPolylines(page) {
+     return;
+   }
+   page._lastPolylineSignature = signature;
+-  page.setData({ polylines });
++  if (updates) updates.polylines = polylines;
++  else page.setData({ polylines });
+ }
+ 
+-function syncAllMarkers(page) {
++function syncAllMarkers(page, updates = null) {
+   const activeUomSource = `${page._activeUomPluginSource || ""}`.trim().toLowerCase();
+   const nearby =
+     page.data.merchantMarkersEnabled !== false && Array.isArray(page._nearbyMarkers)
+@@ -145,7 +159,8 @@ function syncAllMarkers(page) {
+     const signature = JSON.stringify(markers);
+     if (signature === page._lastMapMarkersSignature) return;
+     page._lastMapMarkersSignature = signature;
+-    page.setData({ markers });
++    if (updates) updates.markers = markers;
++    else page.setData({ markers });
+     return;
+   }
+   const planetBroadcastFocus = Array.isArray(page._planetBroadcastFocusMarkers)
+@@ -169,10 +184,11 @@ function syncAllMarkers(page) {
+   const signature = JSON.stringify(combined);
+   if (signature === page._lastMapMarkersSignature) return;
+   page._lastMapMarkersSignature = signature;
+-  page.setData({ markers: combined });
++  if (updates) updates.markers = combined;
++  else page.setData({ markers: combined });
+ }
+ 
+-function updateOverlayGraphics(page) {
++function updateOverlayGraphics(page, updates = null) {
+   const polygons = [];
+   const circles = [];
+   const polygonSources = [];
+@@ -259,7 +275,8 @@ function updateOverlayGraphics(page) {
+   page._lastOverlayCirclesCount = circles.length;
+   page._lastOverlayPolygonSignature = polygonSignature;
+   page._lastOverlayCircleSignature = circleSignature;
+-  page.setData({ polygons, circles });
++  if (updates) Object.assign(updates, { polygons, circles });
++  else page.setData({ polygons, circles });
+ }
+ 
+ function clearManualMarkers(page) {
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\map-plugins.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-plugins.js"
+index 4a35d60..01c4359 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\map-plugins.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-plugins.js"
+@@ -138,10 +138,14 @@ function buildUomPluginInitOptions(page, options = {}) {
+   };
+ }
+ 
+-function clearInactiveUomGraphics(page) {
++function clearInactiveUomGraphics(page, reason = "source-switch") {
+   const hadTileMarkers = Array.isArray(page._uomTileMarkers) && page._uomTileMarkers.length > 0;
+   const hadPolygons = Array.isArray(page._uomPolygons) && page._uomPolygons.length > 0;
+   const hadPolylines = Array.isArray(page._uomPolylines) && page._uomPolylines.length > 0;
++  if (hadTileMarkers || hadPolygons || hadPolylines) console.info("[uom-graphics-clear]", {
++    reason, source: page._activeUomPluginSource, polygons: page._uomPolygons?.length || 0,
++    polylines: page._uomPolylines?.length || 0, markers: page._uomTileMarkers?.length || 0
++  });
+   if (hadTileMarkers) {
+     page._uomTileMarkers = [];
+     page.queueMapGraphicsSync({ markers: true });
+@@ -154,7 +158,8 @@ function clearInactiveUomGraphics(page) {
+ }
+ 
+ function isDeferredUomTransition(previousSource, desiredSource) {
+-  return !!previousSource && previousSource !== desiredSource && desiredSource === "uom4";
++  return !!previousSource && previousSource !== desiredSource && (desiredSource === "uom4" ||
++    (previousSource === "uom4" && ["uom", "uom5"].includes(desiredSource)));
+ }
+ 
+ function requiresAsyncClearForUomSource(source) {
+@@ -171,7 +176,7 @@ function cancelPendingUomTransition(page) {
+   page._uomPlugin = transition.fromPlugin || page._uomPlugin || null;
+   page._uomPluginInitialized = !!page._uomPlugin;
+   page._activeUomPluginSource = transition.fromSource || page._activeUomPluginSource || "";
+-  clearInactiveUomGraphics(page);
++  if (transition.fromSource !== "uom4") clearInactiveUomGraphics(page, "transition-cancel");
+   return true;
+ }
+ 
+@@ -219,22 +224,18 @@ function tryFinalizePendingUomTransition(page, source, detail = {}, options = {}
+   const polygons = Array.isArray(options.polygons) ? options.polygons : [];
+   const polylines = Array.isArray(options.polylines) ? options.polylines : [];
+   const hasGraphics = polygons.length > 0 || polylines.length > 0;
+-  const loading = detail?.uomLoading === true;
+-  const tone = `${detail?.uomTone || ""}`.trim();
+-  const status = `${detail?.uomStatus || ""}`.trim();
+-  const targetSource = `${transition.toSource || ""}`.trim().toLowerCase();
+-  const statusReady = !loading && !!status && (
+-    targetSource === "uom4"
+-      ? tone !== "neutral" && tone !== "warn"
+-      : tone !== "warn"
+-  );
+-  if (!hasGraphics && !statusReady) return false;
++  const ready = transition.toSource === "uom4"
++    ? options.graphicsApplied === true && options.ready === true
++    : detail.uomRenderReady === true;
++  if (!ready) return false;
++  console.info("[uom-handoff]", { from: transition.fromSource, to: transition.toSource,
++    polygons: polygons.length, polylines: polylines.length });
+   page._pendingUomPluginTransition = null;
+   page._activeUomPluginSource = transition.toSource;
+   page._uomPlugin = transition.toPlugin || page._uomPlugin || null;
+   page._uomPluginInitialized = !!page._uomPlugin;
+   if (!hasGraphics) {
+-    clearInactiveUomGraphics(page);
++    clearInactiveUomGraphics(page, "handoff-complete");
+   }
+   deactivateUomPlugin(transition.fromPlugin);
+   return true;
+@@ -259,7 +260,33 @@ function deactivateUomPlugin(plugin, options = {}) {
+   if (onCleared) onCleared();
+ }
+ 
++function setUomLayerEnabled(page, enabled) {
++  if (enabled !== false) {
++    const plugin = ensureUomPluginReady(page);
++    if (plugin) plugin.setEnabled(true);
++    return;
++  }
++  const transition = page._pendingUomPluginTransition;
++  const plugins = new Set([page._uomPlugin, transition?.fromPlugin, transition?.toPlugin,
++    ...Object.values(page._uomPluginRefs || {})]);
++  page._pendingUomPluginTransition = null;
++  page._pendingUomPluginSwitch = null;
++  page._uomGraphicsCommit = null;
++  if (page._uomPluginInitTimer) clearTimeout(page._uomPluginInitTimer);
++  page._uomPluginInitTimer = null;
++  if (transition) {
++    page._uomPlugin = transition.fromPlugin;
++    page._activeUomPluginSource = transition.fromSource;
++  }
++  plugins.forEach(plugin => { if (plugin) deactivateUomPlugin(plugin); });
++  clearInactiveUomGraphics(page, "disabled");
++}
++
+ function ensureUomPluginReady(page, optionsOrRetry = {}, explicitRetry = 0) {
++  if (page.data.uomDivisionEnabled === false) {
++    setUomLayerEnabled(page, false);
++    return null;
++  }
+   const { options, retry } = normalizeUomEnsureArgs(optionsOrRetry, explicitRetry);
+   const desiredSource = resolvePreferredUomPluginSource(page, options.scale);
+   const pendingTransition = page._pendingUomPluginTransition;
+@@ -619,6 +646,7 @@ function onTemporaryNoFlyStatusChange(page, event = {}) {
+ }
+ 
+ module.exports = {
++  setUomLayerEnabled,
+   loadMapSubKey,
+   ensureUomPluginReady,
+   isPendingUomTransitionSource,
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\misc-actions.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\misc-actions.js"
+index b90bf6c..51fd0dc 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\map\\utils\\misc-actions.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\misc-actions.js"
+@@ -75,26 +75,24 @@ function onUomGraphicsChange(page, event = {}) {
+   const nextPolygons = Array.isArray(detail.polygons) ? detail.polygons : [];
+   const nextPolylines = Array.isArray(detail.polylines) ? detail.polylines : [];
+   if (mapPluginsUtils.isPendingUomTransitionSource(page, source)) {
+-    if (shouldPreserveCurrentUomGraphics(page, nextPolygons, nextPolylines)) {
+-      mapPluginsUtils.tryFinalizePendingUomTransition(page, source, {}, {
+-        polygons: nextPolygons,
+-        polylines: nextPolylines
+-      });
+-      return;
+-    }
++    if (detail.ready !== true) return;
++    const transition = page._pendingUomPluginTransition;
++    const commit = page._uomGraphicsCommit = {};
+     page._uomPolygons = nextPolygons;
+     page._uomPolylines = nextPolylines;
+-    page.queueMapGraphicsSync({ overlay: true, polylines: true });
+-    mapPluginsUtils.tryFinalizePendingUomTransition(page, source, {}, {
+-      polygons: nextPolygons,
+-      polylines: nextPolylines
+-    });
++    page.queueMapGraphicsSync({ overlay: true, polylines: true, onApplied: () => {
++      if (page._pendingUomPluginTransition !== transition || page._uomGraphicsCommit !== commit ||
++          page.data.uomDivisionEnabled === false || transition.toPlugin?._refreshSeq !== detail.revision) return;
++      mapPluginsUtils.tryFinalizePendingUomTransition(page, source, {}, {
++        polygons: nextPolygons, polylines: nextPolylines, ready: true, graphicsApplied: true
++      });
++    } });
+     return;
+   }
+   if (!isActiveUomEvent(page, event)) {
+     return;
+   }
+-  if (shouldPreserveCurrentUomGraphics(page, nextPolygons, nextPolylines)) {
++  if (detail.ready !== true && shouldPreserveCurrentUomGraphics(page, nextPolygons, nextPolylines)) {
+     return;
+   }
+   page._uomPolygons = nextPolygons;
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\markers\\location-picker\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\location-picker\\index.js"
+index 36c3c86..ca6d1c6 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\markers\\location-picker\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\location-picker\\index.js"
+@@ -521,7 +521,7 @@ Page({
+     }
+   },
+ 
+-  updateOverlayGraphics() {
++  updateOverlayGraphics(onApplied) {
+     const markers = [];
+     const polylines = [];
+     const polygons = [];
+@@ -540,7 +540,7 @@ Page({
+       polylines,
+       polygons,
+       circles
+-    });
++    }, typeof onApplied === "function" ? onApplied : undefined);
+   },
+ 
+   onUomStatusChange(event = {}) {
+@@ -569,8 +569,8 @@ Page({
+     this.updateOverlayGraphics();
+   },
+ 
+-  queueMapGraphicsSync() {
+-    this.updateOverlayGraphics();
++  queueMapGraphicsSync(options = {}) {
++    this.updateOverlayGraphics(options.onApplied);
+   },
+ 
+   requestInitialLocation() {
+diff --git "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\markers\\pin-picker\\index.js" "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\pin-picker\\index.js"
+index 415f872..a78452a 100644
+--- "a/E:\\source_code\\wechat\\DiKongKong-web-Frontend\\artifacts\\map-layer-flow-before\\pages\\markers\\pin-picker\\index.js"
++++ "b/E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\pin-picker\\index.js"
+@@ -1018,7 +1018,7 @@ Page({
+       bufferPolygons: this.composeMapPolygons(this._shapePolygons),
+       circles: this.composeMapCircles(this._shapeCircles),
+       markers: this.composeMapMarkers(this._shapeMarkers)
+-    });
++    }, typeof options.onApplied === "function" ? options.onApplied : undefined);
+   },
+ 
+   updateLineShapes(options = {}) {
+@@ -1510,8 +1510,8 @@ Page({
+     this.applyMapGraphics();
+   },
+ 
+-  queueMapGraphicsSync() {
+-    this.applyMapGraphics();
++  queueMapGraphicsSync(options = {}) {
++    this.applyMapGraphics({ onApplied: options.onApplied });
+   },
+ 
+   requestInitialLocation() {

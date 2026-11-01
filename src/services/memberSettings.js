@@ -125,3 +125,6 @@ export default {
   uploadVoicePack,
   uploadBackgroundImagePack,
 }
+
+export const fetchLifetimeMembership = async () => normalizePagePayload(await http.get('/config/member-lifetime'))
+export const saveLifetimeMembership = async (enabled) => normalizePagePayload(await http.put('/config/member-lifetime', { enabled }))

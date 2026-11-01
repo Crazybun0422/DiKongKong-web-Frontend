@@ -1,0 +1,32 @@
+const fs=require('fs'),assert=require('node:assert/strict');
+const {fixture,server}=require('D:/Workspace/LowLatitudePlanet/scripts/check-mini-flows.cjs');
+const {chromium}=require('playwright');
+const product={id:7,revision:1,newsVersion:7,title:'飞行便携收纳包',brand:'星球好物',category:'飞行配件',description:'轻巧收纳，随行出发。',imageUrl:'cover.png',imageUrls:['cover.png','second.png','third.png'],originalPrice:10,cashPrice:8,maxFlp:2,presale:true,stock:6,variants:[{id:'basic',name:'标准版',originalPrice:10,cashPrice:8,maxFlp:2,stock:5},{id:'extra',name:'双电池套装',originalPrice:20,cashPrice:17,maxFlp:3,stock:1},{id:'empty',name:'已售罄套餐',originalPrice:30,cashPrice:26,maxFlp:4,stock:0}]};
+const setup=`const marketProduct=${JSON.stringify(product)};let marketOrders=[];const original=AndroidMini.call;
+AndroidMini.call=(id,method,payload)=>{const args=JSON.parse(payload);if(method==='request'&&args.url.includes('/api/market/')){platformCalls.push({method,args});const p=new URL(args.url).pathname;let data;
+if(p.endsWith('/latest'))data={version:7};else if(p.endsWith('/categories'))data=['飞行配件','户外装备'];else if(p==='/api/market/products')data={content:[marketProduct],last:true,totalElements:1};else if(p==='/api/market/products/7')data=marketProduct;
+else if(p==='/api/market/orders'&&args.method==='POST'){const v=marketProduct.variants.find(v=>v.id===args.data.variantId);data={id:'LLP20261007120000-000001',...marketProduct,...args.data,cash:v.cashPrice*args.data.quantity,flp:v.maxFlp*args.data.quantity,variantName:v.name,status:'WAITING_PAYMENT'};marketOrders=[data];}
+else if(p==='/api/market/orders')data={content:marketOrders,last:true,totalElements:marketOrders.length};else if(p.endsWith('/payment-status'))data=marketOrders[0];else if(p.endsWith('/pay')){data={orderId:'market:order1',appId:'fixture',timeStamp:'123',nonceStr:'nonce',packageValue:'Sign=WXPay',paySign:'sig',partnerId:'merchant',prepayId:'prepay'};marketOrders[0].status='PAID';}else throw Error('unhandled '+p);setTimeout(()=>miniReply(id,true,{statusCode:200,data:{success:true,data}}),0);return;}return original(id,method,payload);};`;
+const out='artifacts/market-notion';fs.mkdirSync(out,{recursive:true});
+server.listen(0,'127.0.0.1',async()=>{let browser;try{browser=await chromium.launch({headless:true});for(const width of [320,393,1200]){
+const page=await browser.newPage({viewport:{width,height:900},bypassCSP:true});
+await page.route('**/runtime.js',r=>r.fulfill({contentType:'text/javascript',body:setup+fs.readFileSync('D:/Workspace/LowLatitudePlanet/app/src/main/assets/mini-parity/runtime.js','utf8')}));
+await page.route('**/api/files/download/**',r=>r.fulfill({contentType:'image/png',body:fs.readFileSync('E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram/packages/market/assets/logo.png')}));
+await fixture(page,'packages/market/index/index');await page.route('**/api/files/download/**',r=>r.fulfill({contentType:'image/png',body:fs.readFileSync('E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram/packages/market/assets/logo.png')}));await page.reload();await page.locator('.product-card').waitFor();await page.waitForFunction(()=>document.querySelector('.photo img')?.naturalWidth>0);
+assert.equal(await page.locator('.saving').count(),0);assert.match(await page.locator('.original').innerText(),/^原价/);
+const boxes=await page.locator('.category-tab').evaluateAll(es=>es.map(e=>({x:e.getBoundingClientRect().x,width:e.getBoundingClientRect().width})));
+assert(boxes.every(b=>b.width<100));assert(boxes[1].x-boxes[0].x-boxes[0].width<25);
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:`${out}/home-${width}.png`});
+await page.locator('.product-card').click();await page.locator('.gallery-dot').first().waitFor();assert.equal(await page.locator('.gallery-dot').count(),3);
+await page.locator('swiper').evaluate(e=>e.scrollTo({left:e.clientWidth,behavior:'instant'}));await page.waitForFunction(()=>miniDebug.active.data.imageIndex===1);assert.equal(await page.locator('.gallery-dot.active').count(),1);
+assert.equal(await page.getByPlaceholder('收货人姓名').count(),0);await page.locator('.buy-bar .flp-buy').click();await page.locator('.checkout-sheet').waitFor();
+await page.locator('.variant-option').filter({hasText:'双电池套装'}).click();await page.waitForFunction(()=>miniDebug.active.data.variantId==='extra'&&document.querySelectorAll('.quantity-button')[1].disabled);assert.equal(await page.locator('.quantity-button').last().isDisabled(),true);assert.match(await page.locator('.checkout-footer').innerText(),/17.00/);assert.equal(await page.locator('.variant-option').filter({hasText:'已售罄套餐'}).isDisabled(),true);
+await page.getByPlaceholder('收货人姓名').fill('测试飞友');await page.getByPlaceholder('联系电话').fill('13800138000');await page.getByPlaceholder('地图选址后可补充楼栋、门牌号，也可手动填写').fill('测试市测试路1号');
+const geom=await page.locator('.checkout-sheet').evaluate(e=>({x:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right,bottom:e.getBoundingClientRect().bottom}));assert(geom.x>=0&&geom.right<=width&&geom.bottom<=900);
+await page.locator('.checkout-scroll').evaluate(e=>e.scrollTo(0,0));await page.screenshot({path:`${out}/checkout-${width}.png`});
+await page.locator('.checkout-close').click();await page.evaluate(()=>wx.navigateBack());await page.locator('.product-card').waitFor();await page.locator('.product-card').click();await page.locator('.buy-bar .flp-buy').click();
+assert.equal(await page.getByPlaceholder('收货人姓名').inputValue(),'测试飞友');assert.equal(await page.getByPlaceholder('联系电话').inputValue(),'13800138000');
+await page.locator('.variant-option').filter({hasText:'双电池套装'}).click();await page.locator('.checkout-footer button').click();await page.getByText('待发货',{exact:true}).waitFor();assert.equal(await page.getByText('双电池套装',{exact:true}).count(),1);
+const checkouts=await page.evaluate(()=>platformCalls.filter(c=>c.method==='request'&&c.args.url.endsWith('/api/market/orders')&&c.args.method==='POST').map(c=>c.args.data));assert.equal(checkouts.length,1);assert.equal(checkouts[0].variantId,'extra');assert(!('cash' in checkouts[0]));assert(checkouts[0].requestKey);
+assert.deepEqual(await page.evaluate(()=>errors),[]);await page.close();console.log('PASS width',width);
+}console.log('PASS compact catalog, gallery swipe/indicator, modal, variant stock/pricing, persisted address, server checkout and order variant.');}catch(e){console.error(e);process.exitCode=1;}finally{await browser?.close();server.close();}});

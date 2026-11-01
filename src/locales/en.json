@@ -1,4 +1,5 @@
 {
+  "externalMapTab": "External search key",
   "androidPushTab": "Android notifications",
   "androidServer": {
     "title": "Android / Mini program server environments (shared)",
@@ -300,6 +301,9 @@
     },
     "status": {
       "waitingPayment": "Awaiting payment",
+      "cancelled": "Cancelled",
+      "refundPending": "Refund pending",
+      "refundReview": "Refund requires attention",
       "paid": "Paid",
       "refunded": "Refunded",
       "unknown": "Unknown"
@@ -765,11 +769,19 @@
       "circle": "Circle"
     },
     "form": {
+      "rectangleEditHint": "Drag corners to resize the rectangle while keeping the opposite corner fixed. Save to apply.",
+      "pathEditHint": "Drag path vertices or use + to insert one. The buffer follows the path and distance. Save to apply.",
+      "undoHint": "Press Ctrl+Z on the map to undo the last edit.",
+      "polygonEditHint": "Drag blue vertices to adjust the boundary. Click or drag a + handle to insert a vertex. Save to apply your changes.",
+      "vertexDragTitle": "Drag to move this vertex",
+      "midpointInsertTitle": "Click or drag to insert a vertex between these points",
       "name": "Zone Name",
       "namePlaceholder": "Enter a temporary no-fly zone name",
       "type": "Drawing Type",
       "circleRadius": "Circle Radius",
       "radiusUnit": "m",
+      "circleCenterDragTitle": "Drag to move the circle center",
+      "circleEditHint": "Drag the blue center to move the circle without changing its radius. Save to apply.",
       "circleHint": "Click on the map to select the center before setting the radius.",
       "coordinatesLabel": "Coordinates",
       "coordinatesHint": "Click on the map to add vertices and preview their latitude and longitude here.",
@@ -813,6 +825,7 @@
       "uploadError": "Invalid image type or size"
     },
     "actions": {
+      "undoGeometry": "Undo (Ctrl+Z)",
       "startDrawing": "Start Drawing",
       "drawing": "Drawing...",
       "finishDrawing": "Finish Drawing",
@@ -826,6 +839,16 @@
       "delete": "Delete",
       "confirmDelete": "Delete",
       "cancel": "Cancel"
+    },
+    "dji": {
+      "label": "DJI reference layer",
+      "drone": "DJI aircraft",
+      "loading": "Loading…",
+      "ready": "Current viewport displayed",
+      "empty": "No areas in this viewport",
+      "error": "Load failed",
+      "off": "Off",
+      "retry": "Retry"
     },
     "mapType": {
       "standard": "Standard",
@@ -1052,6 +1075,7 @@
         "doubleReported": "Double reported",
         "miniProgram": "Mini program jump",
         "appId": "Mini program AppID",
+        "originalId": "Original ID (Android launch)",
         "path": "Mini program path",
         "guide": "Guidance",
         "publicAccountLink": "Official account article link",
@@ -1065,6 +1089,7 @@
       "placeholders": {
         "cityDescription": "Enter city description",
         "appId": "Enter appid",
+        "originalId": "Android requires the gh_ original ID from the target mini program account settings.",
         "path": "Enter path",
         "publicAccountLink": "Enter article link",
         "videoAccountId": "Enter video account ID",
@@ -1094,6 +1119,7 @@
       "validation": {
         "area": "Select a report region",
         "appId": "Enter the mini program AppID",
+        "originalId": "The original ID must start with gh_",
         "path": "Enter the mini program path",
         "publicAccountLink": "Enter the official account article link",
         "videoAccountId": "Enter the video account ID",
@@ -1130,7 +1156,8 @@
       "reportEntry": "Report entry",
       "guideSettings": "Guide settings",
       "areaSettings": "Area settings",
-      "system": "System settings"
+      "system": "System settings",
+      "harmony": "HarmonyOS settings"
     },
     "areaSettings": {
       "tabs": {
@@ -1601,7 +1628,8 @@
         "provinceCityKmlZip": "Province package",
         "countyKmlZip": "County package",
         "memberAircraftModels": "Aircraft mix",
-        "ladderLeaderboard": "Ladder leaderboard"
+        "ladderLeaderboard": "Ladder leaderboard",
+        "droneGameLeaderboard": "Drone flight ladder"
       },
       "uomLayer": {
         "title": "UOM layer settings",
@@ -1708,20 +1736,20 @@
       },
       "skyTypeAvatarPack": {
         "title": "Skytype image package",
-        "subtitle": "Upload the poster asset package used by the Low Altitude Skytype results flow.",
+        "subtitle": "Upload all 50 role and style illustrations. Artwork updates preserve current assessments.",
         "currentFileLabel": "Current package",
         "currentVersionLabel": "Current version",
-        "emptyFile": "No skytype package uploaded",
-        "emptyVersion": "Not set",
+        "emptyFile": "Not acquired",
+        "emptyVersion": "Not acquired",
         "fields": {
           "file": "Package file",
           "version": "Version"
         },
         "placeholders": {
-          "version": "e.g. 1.0.1"
+          "version": "Read from package manifest"
         },
-        "helper": "Supports ZIP/RAR/7Z. Include the low_altitude_skytype_posters_en/female and male directories, and keep filenames aligned with skytype identifiers.",
-        "structureTitle": "Recommended structure",
+        "helper": "ZIP only: manifest.json and 50 PNG files at the root. Published only after complete validation. Legacy artwork is disabled.",
+        "structureTitle": "Complete package structure",
         "actions": {
           "selectFile": "Choose file",
           "replaceFile": "Replace file",
@@ -1832,6 +1860,32 @@
         },
         "messages": {
           "loadFailed": "Failed to load ladder leaderboard"
+        }
+      },
+      "droneGameLeaderboard": {
+        "title": "Personal flight achievements",
+        "subtitle": "Season {season}. Android and the mini program write one personal achievement when a flight ends; no in-flight state is synchronized.",
+        "actions": {
+          "reload": "Reload"
+        },
+        "columns": {
+          "rank": "Rank",
+          "avatar": "Avatar",
+          "username": "Username",
+          "featureCode": "Feature code",
+          "rating": "Achievement points",
+          "tier": "Tier",
+          "completions": "Completions",
+          "races": "Flights",
+          "wins": "Wins (retired)",
+          "bestFinish": "Best time",
+          "lastFlight": "Last flight"
+        },
+        "pagination": {
+          "total": "Total {total} records · Showing {start}-{end}"
+        },
+        "messages": {
+          "loadFailed": "Failed to load drone flight ladder"
         }
       }
     },
@@ -1955,6 +2009,8 @@
         "success": "Success",
         "failed": "Failed",
         "skippedEmpty": "Skipped (empty crowd)",
+        "running": "Syncing",
+        "skippedDev": "Skipped in development",
         "unknown": "Unknown"
       },
       "meta": {
@@ -1967,7 +2023,8 @@
         "saveThresholdSuccess": "No-ads membership status config saved",
         "saveThresholdFailed": "Failed to save no-ads membership status config",
         "syncSuccess": "No-ads crowd sync triggered",
-        "syncFailed": "Failed to sync no-ads crowd"
+        "syncFailed": "Failed to sync no-ads crowd",
+        "syncUnconfirmed": "Sync response unavailable. Checking background status."
       }
     },
     "copySettings": {
@@ -2421,5 +2478,29 @@
     "saved": "Android WeChat configuration saved",
     "loadFailed": "Could not load configuration. Please retry.",
     "saveFailed": "Could not save configuration. Please retry."
+  },
+  "harmonyMap": {
+    "title": "HarmonyOS map configuration",
+    "description": "Enter a Tencent HarmonyOS Map SDK Key. Bundle: cn.llplanet.mobile. Bind the signing appIdentifier if restricting authorized apps. Leave blank to clear the key. Do not enter a SecretKey.",
+    "label": "Tencent HarmonyOS Map SDK Key",
+    "placeholder": "Enter the HarmonyOS SDK key",
+    "invalid": "Enter a valid key (letters, numbers and hyphens; up to 128 characters)",
+    "loadFailed": "Could not load HarmonyOS map configuration. Please retry.",
+    "saved": "HarmonyOS map configuration saved",
+    "savedAt": "Saved successfully at {time}. HarmonyOS map key updated.",
+    "saveFailed": "Could not save HarmonyOS map configuration. Please retry."
+  },
+  "harmonyServer": {
+    "title": "HarmonyOS server environments",
+    "description": "Independent HarmonyOS development and release environments. Applied on cold start; cached settings remain available offline. Empty values restore built-in defaults.",
+    "debug": "Development · HarmonyOS Debug",
+    "release": "Production · HarmonyOS Release",
+    "apiBase": "API origin",
+    "assetBase": "Asset origin",
+    "defaultValue": "Bundled default: {value}",
+    "invalid": "Enter an HTTPS origin with an optional port, without paths, parameters or credentials. Leave blank for the default.",
+    "loadFailed": "Unable to load server environments. Please retry.",
+    "saveFailed": "Unable to save. Please retry.",
+    "saved": "HarmonyOS server settings saved. Applied on the next cold start."
   }
 }

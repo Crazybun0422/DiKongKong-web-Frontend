@@ -1,0 +1,24 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const root='E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram';
+let now=0,token='user-a',requests=[],reject=false,resolveRequest,callback=false;
+const moduleBox={exports:{}};
+const wx={getLocation(options){options.success({latitude:31,longitude:121});options.complete?.();}};
+vm.runInNewContext(fs.readFileSync(root+'/utils/personal-location.js','utf8'),{module:moduleBox,Date:{now:()=>now},wx,require:()=>({getAuthToken:()=>token,resolveApiBase:()=> 'https://test.invalid',uploadUserLocation:(point,options)=>{requests.push({point,options});return new Promise((resolve,fail)=>{resolveRequest=()=>reject?fail(Error('offline')):resolve({});});}})});
+const api=moduleBox.exports,tick=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+ api.getLocation({type:'gcj02',success(){callback=true;}});assert(callback,'GPS UI callback must not wait for upload');await tick();assert.equal(requests.length,1);
+ api.reportPosition({latitude:32,longitude:120});await tick();assert.equal(requests.length,1,'Merge in-flight fixes');resolveRequest();await tick();
+ now=29000;await api.reportPosition({latitude:31,longitude:121});assert.equal(requests.length,1);
+ now=30000;const next=api.reportPosition({latitude:32,longitude:122});await tick();assert.equal(requests.length,2);reject=true;resolveRequest();await next;
+ now=34000;await api.reportPosition({latitude:32,longitude:122});assert.equal(requests.length,2);
+ now=35000;const retry=api.reportPosition({latitude:32,longitude:122});await tick();reject=false;resolveRequest();await retry;assert.equal(requests.length,3);
+ token='user-b';const account=api.reportPosition({latitude:30,longitude:120});await tick();assert.equal(requests[3].options.token,'user-b');resolveRequest();await account;
+ token='';await api.reportPosition({latitude:30,longitude:120});assert.equal(requests.length,4);
+ token='user-c';for(const point of [{latitude:null,longitude:20},{latitude:NaN,longitude:20},{latitude:91,longitude:20}])await api.reportPosition(point);assert.equal(requests.length,4);
+ api.getLocation({type:'wgs84'});await tick();assert.equal(requests.length,4,'Never upload unconverted WGS84');
+ const deferred=api.flushPending();await tick();assert.equal(requests.length,5,'A recent pre-login GPS fix must be uploaded after login');resolveRequest();await deferred;
+ token='';await api.reportPosition({latitude:30,longitude:120});now+=61000;token='user-d';await api.flushPending();assert.equal(requests.length,5,'Do not replay an old pre-login fix');
+ assert(fs.readFileSync(root+'/pages/map/utils/location.js','utf8').includes('personal-location').valueOf());
+ const service=fs.readFileSync('E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/UserLocationService.java','utf8');assert(service.includes('userLocationRepository.save(location)'));
+ console.log('PASS: immediate GPS callbacks, upload, success throttle, failure retry, concurrent merge, account changes, invalid/unauthenticated fixes, coordinate system and existing server persistence.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

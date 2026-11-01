@@ -1,0 +1,26 @@
+{
+  "version": "20261018",
+  "models": 78,
+  "transparentPngCount": 156,
+  "sizes": [
+    128,
+    1024
+  ],
+  "zipSha256": "31dccf77b1b01464e2da0c83891ee29f885657b6e6cef2040ffd543307b43b12",
+  "checks": {
+    "zipDimensionsAlphaAndHashes": "PASS",
+    "backendTests": "7 passed, 0 failures, actual 78-model ZIP imported through service with mocked storage",
+    "adminUI": "390px and 1440px passed; no automatic 1024 downloads; original links fetch on demand",
+    "clientUI": "Android/Harmony embedded picker at 393px and 1200px; source 128px, layout 32px; selection retained",
+    "miniPixelCheck": "604 files passed",
+    "webBuild": "PASS",
+    "androidKotlinCompile": "PASS",
+    "harmonyBuild": "PASS (unsigned)"
+  },
+  "deployment": "Not deployed; no production settings changed",
+  "limitations": [
+    "Device validation and live object-storage upload not performed",
+    "1024 is canvas size; some original sources are lower resolution",
+    "AI-assisted cutouts used for 13 opaque originals; original alpha preserved on remaining models"
+  ]
+}

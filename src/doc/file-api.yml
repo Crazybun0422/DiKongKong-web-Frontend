@@ -225,7 +225,7 @@ paths:
   /api/xingge-image-packs/upload:
     post:
       summary: 上传星格图片包（管理员）
-      description: 仅管理员 token 可上传星格图片包文件，并写入当前版本号。
+      description: 仅管理员可上传新版完整 ZIP：根目录 manifest.json 与 50 张 PNG，经完整校验后发布。详见 xingge-api.yml。
       parameters:
         - in: header
           name: Authorization
@@ -263,7 +263,7 @@ paths:
   /api/xingge-image-packs/version:
     get:
       summary: 查询星格图片包版本
-      description: 管理员或普通用户 token 均可查询当前星格图片包版本与文件名。
+      description: 认证后返回 status=unconfigured 或 ready；ready 含 resourceVersion 与 entries 逐图清单。旧配置不再使用。详见 xingge-api.yml。
       parameters:
         - in: header
           name: Authorization

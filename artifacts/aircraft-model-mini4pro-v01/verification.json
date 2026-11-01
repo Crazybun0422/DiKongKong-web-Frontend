@@ -1,0 +1,16 @@
+{
+  "meshes": 518,
+  "triangles": 246532,
+  "vertices": 242314,
+  "rotors": [
+    "Rotor_FL",
+    "Rotor_FR",
+    "Rotor_RL",
+    "Rotor_RR"
+  ],
+  "bytes": 8912528,
+  "validationErrors": 0,
+  "validationWarnings": 0,
+  "glbRoundTrip": "PASS",
+  "previewViews": 6
+}

@@ -1,0 +1,13 @@
+// Start the local Vite preview on 127.0.0.1:5179 before running this isolated API fixture.
+const fs=require('fs'),assert=require('node:assert/strict');
+const {chromium}=require('../node_modules/playwright');
+(async()=>{const browser=await chromium.launch({headless:true});try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ await page.addInitScript(()=>localStorage.setItem('dikongkong_token','fixture'));
+ let saves=0;const product={id:1,revision:1,title:'飞行便携收纳包',brand:'星球好物',category:'飞行配件',imageUrl:'data:image/png;base64,'+fs.readFileSync('E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram/packages/market/assets/logo.png').toString('base64'),originalPrice:10,maxFlp:2,costPrice:7,supplier:'测试供应商',stock:20,published:true,presale:true};
+ await page.route('**/api/**',r=>{const u=new URL(r.request().url()),p=u.pathname;let data={};if(p.includes('/market/admin/products')){if(r.request().method()!=='GET'){saves++;Object.assign(product,r.request().postDataJSON());data=product}else data={content:[product],totalElements:1};}else if(p.includes('/market/admin/orders'))data={content:[{id:'order1',title:product.title,recipient:'测试飞友',phone:'13800138000',address:'测试地址',cash:8,flp:2,cost:7,supplier:product.supplier,status:'PAID',quantity:1}],totalElements:1};else if(p.includes('/market/admin/audits'))data={content:[],totalElements:0};r.fulfill({json:{success:true,data}});});
+ await page.goto('http://127.0.0.1:5179/admin/planet-market');await page.getByRole('heading',{name:'星球有市',exact:true}).waitFor();await page.getByText('飞行便携收纳包',{exact:false}).first().waitFor();
+ await page.getByRole('button',{name:'编辑',exact:true}).click();await page.getByText('用户支付：¥8.00 ＋ 2.00 FLP；每件现金差价：¥1.00',{exact:true}).waitFor();await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));await page.screenshot({path:'build/checks/market-admin-edit.png'});
+ await page.getByPlaceholder('如：星球好物').fill('星球甄选');await page.getByPlaceholder('如：飞行配件').fill('出行装备');await page.getByRole('button',{name:/保\s*存/}).click();await page.waitForFunction(()=>!document.querySelector('.ant-modal-wrap')||getComputedStyle(document.querySelector('.ant-modal-wrap')).display==='none');assert.equal(saves,1);assert.equal(product.brand,'星球甄选');assert.equal(product.category,'出行装备');
+ await page.getByRole('tab',{name:'订单 / 发货 / 结算'}).click();await page.getByText('录入发货',{exact:true}).waitFor();await page.screenshot({path:'build/checks/market-admin-orders.png'});console.log('PASS: admin page loads, prices and margin, edit/save, order/fulfillment view.');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -329,25 +329,25 @@ onMounted(() => Promise.all([loadPublishConfig(), loadRows()]))
 </template>
 
 <style scoped>
-.material-settings { padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
-.publish-config { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #e5e7eb; }
+.material-settings { padding: 16px; border: 1px solid var(--admin-line); border-radius: 8px; background: var(--admin-surface); }
+.publish-config { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--admin-line); }
 .publish-config-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-.publish-config-heading h4 { margin: 0; font-size: 17px; color: #0f172a; }
-.publish-config-heading p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+.publish-config-heading h4 { margin: 0; font-size: 17px; color: var(--admin-text); }
+.publish-config-heading p { margin: 5px 0 0; color: var(--admin-muted); font-size: 13px; }
 .publish-config-form { display: grid; grid-template-columns: minmax(180px, .8fr) 120px minmax(260px, 1.2fr) minmax(260px, 1.2fr); gap: 12px; }
 .publish-config-form :deep(.ant-form-item) { margin-bottom: 0; }
 .publish-config-form :deep(.ant-input-number) { width: 100%; }
 .material-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.material-header h4 { margin: 0; font-size: 17px; color: #0f172a; }
-.material-header p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+.material-header h4 { margin: 0; font-size: 17px; color: var(--admin-text); }
+.material-header p { margin: 5px 0 0; color: var(--admin-muted); font-size: 13px; }
 .material-actions, .upload-toolbar, .form-inline { display: flex; align-items: center; gap: 10px; }
-.material-title { font-weight: 700; color: #0f172a; }
-.material-copy { max-width: 680px; margin-top: 3px; overflow: hidden; color: #64748b; white-space: nowrap; text-overflow: ellipsis; }
+.material-title { font-weight: 700; color: var(--admin-text); }
+.material-copy { max-width: 680px; margin-top: 3px; overflow: hidden; color: var(--admin-muted); white-space: nowrap; text-overflow: ellipsis; }
 .material-thumbs, .editor-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .material-thumbs img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
-.material-thumbs span { align-self: center; color: #64748b; }
-.material-upload { margin: -4px 0 18px; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 6px; }
-.upload-toolbar { justify-content: space-between; color: #475569; }
+.material-thumbs span { align-self: center; color: var(--admin-muted); }
+.material-upload { margin: -4px 0 18px; padding: 10px; border: 1px dashed var(--admin-line); border-radius: 6px; }
+.upload-toolbar { justify-content: space-between; color: var(--admin-muted); }
 .editor-thumb { position: relative; width: 68px; height: 68px; overflow: hidden; border-radius: 5px; }
 .editor-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .editor-thumb button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: rgba(15, 23, 42, .72); color: #fff; cursor: pointer; }

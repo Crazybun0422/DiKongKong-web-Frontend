@@ -4,6 +4,8 @@ import { message, Modal } from 'ant-design-vue'
 import { ReloadOutlined, SaveOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import {
+  fetchLifetimeMembership,
+  saveLifetimeMembership,
   fetchMemberGroupQrcode,
   buildAvatarPackDownloadUrl,
   buildBackgroundImagePackDownloadUrl,
@@ -21,9 +23,25 @@ import {
   uploadVoicePack,
 } from '../../services/memberSettings'
 import { buildDownloadUrl, extractObjectName } from '../../services/files'
+import MemberGiftPanel from '../../components/MemberGiftPanel.vue'
 
 const { t } = useI18n()
 
+const lifetime = ref(null)
+const lifetimeLoading = ref(false)
+const lifetimeSaving = ref(false)
+const loadLifetime = async () => {
+  lifetimeLoading.value = true
+  try { lifetime.value = await fetchLifetimeMembership() }
+  catch { message.error('终身会员名额加载失败，请重试') }
+  finally { lifetimeLoading.value = false }
+}
+const toggleLifetime = async (enabled) => {
+  lifetimeSaving.value = true
+  try { lifetime.value = await saveLifetimeMembership(enabled); message.success('终身会员销售状态已更新') }
+  catch { message.error('更新失败，请重试') }
+  finally { lifetimeSaving.value = false }
+}
 const memberSettingsTab = ref('settings')
 const priceFormRef = ref(null)
 const priceLoading = ref(false)
@@ -290,6 +308,7 @@ const formatDateTime = (value) => {
 const formatCycle = (value) => {
   const normalized = String(value || '').toUpperCase()
   if (normalized === 'MONTHLY') return t('memberSettings.logs.cycle.monthly')
+  if (normalized === 'LIFETIME') return '终身会员（100年）'
   if (normalized === 'YEARLY') return t('memberSettings.logs.cycle.yearly')
   return value || '-'
 }
@@ -427,6 +446,7 @@ const handleDoubleActiveMemberDuration = () => {
 }
 
 const loadMemberSettings = () => {
+  loadLifetime()
   loadMemberRechargeConfig()
   loadMemberGroupQrcode()
 }
@@ -612,6 +632,22 @@ onMounted(() => {
             {{ t('memberSettings.actions.reload') }}
           </a-button>
         </div>
+        <section class="settings-panel lifetime-panel">
+          <header class="section-header"><div><h3>终身会员（100年）</h3><p>¥498 / 498 FLP · 限量500份 · 永不增发</p></div>
+            <a-switch :checked="Boolean(lifetime?.enabled)" :disabled="!lifetime || lifetime.soldOut || lifetimeLoading" :loading="lifetimeSaving" checked-children="销售中" un-checked-children="已关闭" @change="toggleLifetime" />
+          </header>
+          <a-spin :spinning="lifetimeLoading">
+            <div v-if="lifetime" class="lifetime-stats">
+              <a-statistic title="剩余可购" :value="lifetime.remaining" suffix="份" />
+              <a-statistic title="已成功开通" :value="lifetime.sold" suffix="份" />
+            </div>
+          </a-spin>
+          <div class="lifetime-notes">
+            <p class="helper-text">终身会员可解锁全部群，无次数限制。</p>
+            <p class="helper-text">仅支付成功或 FLP 兑换成功后扣减名额，未支付、取消支付不扣减。售满500份自动关闭，价格与总发行量不可调整。</p>
+            <p class="helper-text">下方群二维码仅在开通终身会员成功后显示，请配置社区治理小组群二维码。</p>
+          </div>
+        </section>
         <section class="settings-panel">
       <header class="section-header">
         <div>
@@ -804,6 +840,8 @@ onMounted(() => {
         </div>
       </a-tab-pane>
 
+      <a-tab-pane key="gifts" tab="赠送会员"><MemberGiftPanel /></a-tab-pane>
+
       <a-tab-pane key="logs" :tab="t('memberSettings.tabs.logs')">
         <section class="settings-panel">
           <header class="section-header">
@@ -880,25 +918,48 @@ onMounted(() => {
 .member-settings-header h2,
 .section-header h3 {
   margin: 0;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .member-settings-header p,
 .section-header p {
   margin: 6px 0 0;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .settings-panel {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 18px #00000014;
+}
+
+.lifetime-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lifetime-panel .section-header :deep(.ant-switch) {
+  flex: none;
+  align-self: flex-start;
+}
+
+.lifetime-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+  gap: 16px 24px;
+  max-width: 560px;
+}
+
+.lifetime-notes {
+  display: grid;
+  gap: 8px;
 }
 
 .updated-at {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -911,9 +972,9 @@ onMounted(() => {
 }
 
 .price-type-section {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 16px;
 }
 
@@ -927,12 +988,12 @@ onMounted(() => {
 
 .price-type-section__header h4 {
   margin: 0;
-  color: #111827;
+  color: var(--admin-text);
   font-size: 1rem;
 }
 
 .price-type-section__header span {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -947,7 +1008,7 @@ onMounted(() => {
   grid-template-columns: 120px 1fr;
   gap: 12px;
   align-items: start;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--admin-line);
   padding-top: 12px;
 }
 
@@ -957,7 +1018,7 @@ onMounted(() => {
 }
 
 .price-row__label {
-  color: #111827;
+  color: var(--admin-text);
   font-weight: 600;
   line-height: 32px;
 }
@@ -993,7 +1054,7 @@ onMounted(() => {
 }
 
 .payment-option-row__status {
-  color: #374151;
+  color: var(--admin-text);
   font-weight: 600;
 }
 
@@ -1027,9 +1088,9 @@ onMounted(() => {
 
 .member-qrcode-preview {
   width: min(220px, 100%);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 12px;
 }
 
@@ -1064,28 +1125,28 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 12px;
 }
 
 .pack-current__label {
   display: inline-block;
   min-width: 80px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .pack-current__value,
 .pack-current__link {
-  color: #111827;
+  color: var(--admin-text);
   font-weight: 600;
   word-break: break-all;
 }
 
 .pack-current__link {
-  color: #2563eb;
+  color: var(--admin-lime);
 }
 
 .pack-upload__trigger {
@@ -1104,7 +1165,7 @@ onMounted(() => {
 .pack-upload__name {
   max-width: 240px;
   overflow: hidden;
-  color: #374151;
+  color: var(--admin-text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1119,7 +1180,7 @@ onMounted(() => {
 
 .helper-text {
   margin: 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 

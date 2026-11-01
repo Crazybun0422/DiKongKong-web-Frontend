@@ -125,7 +125,7 @@ export const buildAreaGraphics = (areas) => {
   return { polygons, circles }
 }
 
-export const fetchDjiAreas = async ({ rect, levels, drone }) => {
+export const fetchDjiAreas = async ({ rect, levels, drone, signal }) => {
   if (!rect || rect.ltlat == null || rect.ltlng == null || rect.rblat == null || rect.rblng == null) {
     throw new Error('Rectangle bounds required')
   }
@@ -144,7 +144,7 @@ export const fetchDjiAreas = async ({ rect, levels, drone }) => {
   const url = new URL(DJI_FLYSAFE_RECT_URL)
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value))
 
-  const response = await fetch(url.toString())
+  const response = await fetch(url.toString(), { signal })
   if (!response.ok) {
     const text = await response.text()
     throw new Error(`DJI request failed: ${response.status} ${text}`)

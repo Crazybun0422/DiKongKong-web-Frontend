@@ -17,6 +17,7 @@ export const uploadSkyTypeAvatarPack = async (file, version) => {
 
   const response = await http.post('/xingge-image-packs/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 300000,
   })
 
   return normalizePayload(response, {})
@@ -32,4 +33,14 @@ export default {
   fetchSkyTypeAvatarPackVersion,
   uploadSkyTypeAvatarPack,
   buildSkyTypeAvatarPackDownloadUrl,
+}
+
+export const downloadSkyTypeAvatarPack = async (objectName) => {
+  const name = extractObjectName(objectName)
+  if (!name) return
+  const response = await http.get(`/xingge-image-packs/download/${encodeURIComponent(name)}`, { responseType: 'blob' })
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }

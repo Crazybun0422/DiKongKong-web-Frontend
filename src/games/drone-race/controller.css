@@ -1,0 +1,33 @@
+.controller-entry { position:relative; display:inline-flex; align-items:center; justify-content:center; width:36px; height:34px; border:1px solid #526766; border-radius:9px; background:#142329; color:#eaf3ec; flex-shrink:0; cursor:pointer; }
+.controller-entry i {position:absolute;right:4px;top:4px;width:5px;height:5px;border-radius:50%;background:#73817e}
+.controller-entry.is-connected i,.controller-status.is-connected i{background:#c8ff42;box-shadow:0 0 7px #c8ff4266}
+.controller-dialog {width:min(640px,calc(100vw - 32px));max-height:calc(var(--game-height,100dvh) - 24px);overflow:auto;padding:20px;text-align:left;font-size:12px;color:#eaf3ec}
+.controller-dialog h2 {display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:19px}
+.controller-dialog p {margin:8px 0;line-height:1.6}.controller-dialog [data-slot=dialog-description],.controller-note{color:#a8bbb7;font-size:11px}
+.controller-status {display:flex;align-items:center;gap:7px;padding:8px 10px;background:#23332f;border-radius:8px;margin:10px 0}
+.controller-status i{width:6px;height:6px;background:#ffbd78;border-radius:50%;flex-shrink:0}
+.controller-connect-row,.controller-actions{display:flex;gap:8px;align-items:center}.controller-connect-row select{flex:1;min-width:0;background:#15252b;color:#eaf3ec;border:1px solid #526766;border-radius:8px;height:34px;padding:0 8px;font-size:12px}
+.controller-dialog .game-button{min-height:34px;height:34px;padding:5px 12px;font-size:12px;white-space:nowrap}
+.controller-readings {display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:14px 0;padding:12px;border:1px solid #3b504b;border-radius:10px}
+.controller-axis{display:flex;gap:8px;align-items:center;font-size:11px}.controller-axis>span{width:55px;flex-shrink:0}.controller-axis output{min-width:35px;text-align:right;font-variant-numeric:tabular-nums}.controller-axis small{display:block;color:#a0b8ae;font-size:10px}
+.controller-axis-track{height:5px;border-radius:4px;background:#39554b;position:relative;flex:1}.controller-axis-track:after{content:'';position:absolute;left:50%;top:-3px;height:11px;width:1px;background:#b6c7ba}.controller-axis-track i{position:absolute;top:-2px;width:9px;height:9px;border-radius:50%;background:#c8ff42;transform:translateX(-50%);z-index:1}
+.controller-buttons{display:flex;gap:6px;align-items:center}.controller-buttons span{border:1px solid #465e54;border-radius:5px;padding:4px 8px;color:#afbbb6}.controller-buttons .pressed{color:#15241c;background:#c8ff42}
+.controller-config strong{font-weight:500;font-size:12px}.controller-config>div{display:flex;gap:18px;margin:9px 0}.controller-config label{display:flex;gap:5px;align-items:center}.controller-config input{accent-color:#c8ff42}
+.controller-actions{justify-content:flex-end;margin-top:12px}.controller-error{color:#ffb289}.controller-debug{border-top:1px solid #3b504b;padding-top:8px;color:#a8bbb7;font-size:10px}.controller-debug summary{cursor:pointer}.controller-debug code{display:block;word-break:break-all;font-size:10px}
+.controller-race-mode {position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;padding:8px 12px;background:#162b2ddd;border:1px solid #709780;border-radius:10px;color:#ceff64;font-size:12px;z-index:15}.controller-race-mode button{background:transparent;color:#eaf3ec;border:1px solid #526766;border-radius:6px;padding:5px 8px;font-size:11px}
+@media(max-width:480px){.controller-readings{grid-template-columns:1fr}.controller-config>div{gap:8px;flex-wrap:wrap}.controller-dialog{padding:16px}}
+/* Override generic dialog spacing so the live monitor fits a landscape phone. */
+.game-dialog.controller-dialog{width:min(640px,calc(100vw - 32px));padding:16px;max-height:calc(var(--game-height,100dvh) - 24px)}
+.game-dialog.controller-dialog[open]{display:block}
+.game-dialog.controller-dialog [data-slot=dialog-title]{font-size:18px;margin-bottom:4px}
+.game-dialog.controller-dialog [data-slot=dialog-description]{font-size:11px;line-height:1.5;margin:4px 0}
+.game-dialog.controller-dialog .controller-readings{margin:8px 0;padding:8px 10px}
+.game-dialog.controller-dialog .controller-status{margin:8px 0;padding:6px 9px}
+.game-dialog.controller-dialog .controller-config>div{margin:7px 0}
+.game-dialog.controller-dialog .controller-actions{margin-top:8px}
+.game-dialog.controller-dialog .controller-config label{height:20px;min-height:0;line-height:20px}
+.game-dialog.controller-dialog .controller-config input{width:13px;height:13px;min-height:0;margin:0;padding:0;flex:none}
+.game-dialog.controller-dialog .controller-axis output{display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:66px;line-height:18px}
+.game-dialog.controller-dialog .controller-axis small{display:inline;line-height:18px}
+.game-dialog.controller-dialog .controller-buttons span{padding:2px 7px}
+.game-dialog.controller-dialog .game-dialog-close{width:32px;height:32px;min-height:32px;padding:0;font-size:24px}

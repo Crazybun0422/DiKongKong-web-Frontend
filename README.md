@@ -11,6 +11,7 @@ npm run preview
 
 - 官网：`http://127.0.0.1:5173/`
 - 管理端：`http://127.0.0.1:5173/admin/`，未登录会进入 `/admin/login`。
+- 涂鸦飞行：`http://127.0.0.1:5173/games/drone-race/`；网页、Android 和小程序均在本地运行飞行，结束时向现有 Java 后端写入一次个人成就。
 - 生产包预览：`http://localhost:4173/`（以命令输出端口为准）。
 
 官网从 `low-altitude-planet-source-v4/low-altitude-planet/dist/` 导入，现由项目统一维护：
@@ -20,7 +21,7 @@ npm run preview
 - `src/landing/assets/`：官网 Logo、小程序码、视频和备用动图；替换素材后重新构建。
 - `admin/index.html`、`src/main.js`：原 Vue 管理端入口；路由统一位于 `/admin/` 下。
 
-原始素材包作为参考保留；后续修改以上已接入的文件。普通构建不需要 Python 或 FFmpeg，也不需要重新渲染视频。Vite 每次构建都会处理官网与管理端两套入口，将页面引用的图片、视频、CSS 和 JavaScript 输出到根目录 `dist/assets/`，并添加内容哈希用于资源版本更新。
+原始素材包作为参考保留；后续修改以上已接入的文件。普通构建不需要 Python 或 FFmpeg，也不需要重新渲染视频。Vite 每次构建都会处理官网、管理端与游戏三套入口，将页面引用的图片、视频、音频、CSS 和 JavaScript 输出到根目录 `dist/assets/`，并添加内容哈希用于资源版本更新。构建同时生成两端离线 ZIP 与 manifest 到 `dist/games/drone-race/`，同步本机客户端资源，并将共享 V21 计算库嵌入现有 Java 后端资源目录。
 
 ## 部署目录
 
@@ -33,7 +34,8 @@ npm run preview
 ├── index.html                  # 官网，访问 /
 ├── admin/
 │   └── index.html              # 管理端页面入口
-├── assets/                     # 两个页面的全部构建资源（保留构建后的文件名）
+├── games/drone-race/index.html  # 涂鸦飞行入口
+├── assets/                     # 三个页面的全部构建资源（保留构建后的文件名）
 └── logo_full_hollow_square.ico
 ```
 
@@ -70,4 +72,10 @@ location / {
 
 底部备案号为 `苏ICP备2025183953号-2`，点击在新标签页打开 `https://beian.miit.gov.cn/`。
 
+官网右上角“API接入文档”打开 `/docs/api/`，管理端登录入口位于页脚右侧、标语上方。文档原文保存在 `docs/api/suitable-fly-zone.md`，内容来自后端 `docs/适飞区图层API接入文档.md`；更新文档时将后端原文同步到该文件即可。Vite 在开发和编译时自动渲染 Markdown，并将文档页、样式和可下载的原文一起输出到 `dist`。部署时保留 `dist/docs/api/` 到网站根目录的 `docs/api/`，随完整 `dist` 一起上传，无需新增后端接口或 Nginx 路由。
+
 管理端生产接口仍请求同域 `/api`；开发代理默认指向 `http://localhost:7010`，可用 `VITE_DEV_API_PROXY_TARGET` 覆盖。仅部署静态 `dist/` 不会启动后端服务。
+
+Android 公测 APK 在“系统设置 → Android → Android 公测安装包”上传发布。版本读取、自动建表、断点续传及代理上传大小配置见 [Android 安装包下载说明](docs/android-apk-download.md)。
+
+涂鸦飞行已升级 V21；小程序和 Android 支持离线资源与虚拟摇杆，入口仅位于两端“图层 → 共享位置”自己的头像下。飞行过程完全在客户端本地运行，不建立房间、不连接游戏 WebSocket，也不上传控制状态；自然结束时只向现有 Java 服务提交一次个人成就。资源由管理端上传 ZIP 并按版本启用，客户端自动加载。个人月度天梯与资源版本由现有 Java 应用处理，无需单独 Node 服务、端口或游戏共享密钥。资源路径、客户端打包和 Java 发布见 [游戏部署说明](docs/drone-race.md)。

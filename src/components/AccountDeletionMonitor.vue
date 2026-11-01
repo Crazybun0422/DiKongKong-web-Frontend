@@ -25,4 +25,4 @@ function inspectResources() { return load('/auth/account-deletions/inventory/' +
     <p>PREPARED：尚未提交；QUEUED：已停用、等待清理；RETRY：保留任务重试；COMPLETE：已清理。完成记录不再保留低空号。</p>
   </a-drawer>
 </template>
-<style scoped>.inventory { margin-bottom:20px;padding:16px;background:#f5f6f8;overflow-wrap:anywhere; }.inventory p { margin:8px 0; }</style>
+<style scoped>.inventory { margin-bottom:20px;padding:16px;background:var(--admin-raised);overflow-wrap:anywhere; }.inventory p { margin:8px 0; }</style>

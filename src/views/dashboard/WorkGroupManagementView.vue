@@ -199,16 +199,16 @@ onMounted(() => {
 .card-title {
   margin: 0;
   font-size: 1.5rem;
-  color: #1f1f1f;
+  color: var(--admin-text);
 }
 
 .card-subtitle {
   margin: 0.35rem 0 0;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .groups-table :deep(.ant-table-thead > tr > th) {
-  background: #f0f3ff;
+  background: var(--admin-raised);
   font-weight: 600;
 }
 
@@ -229,12 +229,12 @@ onMounted(() => {
 }
 
 .placeholder {
-  color: #9ca3af;
+  color: var(--admin-muted);
 }
 
 .description-text {
   max-width: 520px;
-  color: #4b5563;
+  color: var(--admin-muted);
 }
 
 .groups-table :deep(.ant-table-row) td {

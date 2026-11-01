@@ -1,0 +1,68 @@
+{
+  "music-race": {
+    "duration_seconds": 56.47059,
+    "peak_dbfs": -1.5,
+    "rms_dbfs": -12.581,
+    "mp3_bytes": 1130624,
+    "decoded_peak_dbfs": -1.746,
+    "decoded_samples": 2490353,
+    "decoded_duration_seconds": 56.470589569161,
+    "true_peak_dbfs_4x": -1.74,
+    "wav_boundary_step": 0.00921630859375,
+    "wav_99_percentile_sample_step": 0.097137451171875,
+    "decoded_boundary_step": 0.004359180107712746,
+    "stereo_correlation": 0.8378443385039599
+  },
+  "gate-pass": {
+    "duration_seconds": 0.35,
+    "peak_dbfs": -9.286,
+    "rms_dbfs": -21.959,
+    "mp3_bytes": 8404,
+    "decoded_peak_dbfs": -9.752,
+    "decoded_samples": 15435
+  },
+  "countdown": {
+    "duration_seconds": 0.2,
+    "peak_dbfs": -8.606,
+    "rms_dbfs": -18.751,
+    "mp3_bytes": 5269,
+    "decoded_peak_dbfs": -9.052,
+    "decoded_samples": 8820
+  },
+  "launch": {
+    "duration_seconds": 0.55,
+    "peak_dbfs": -9.016,
+    "rms_dbfs": -20.73,
+    "mp3_bytes": 12583,
+    "decoded_peak_dbfs": -9.433,
+    "decoded_samples": 24255
+  },
+  "crash": {
+    "duration_seconds": 0.6,
+    "peak_dbfs": -1.916,
+    "rms_dbfs": -17.965,
+    "mp3_bytes": 13106,
+    "decoded_peak_dbfs": -2.207,
+    "decoded_samples": 26460
+  },
+  "finish": {
+    "duration_seconds": 1.2,
+    "peak_dbfs": -7.692,
+    "rms_dbfs": -19.651,
+    "mp3_bytes": 25122,
+    "decoded_peak_dbfs": -8.142,
+    "decoded_samples": 52920
+  },
+  "composition": {
+    "bpm": 136,
+    "bars": 32,
+    "beats": 128,
+    "key": "E minor",
+    "progression": "Em(add9) \u2013 Cmaj7 \u2013 Gadd9 \u2013 Dadd9, two bars each",
+    "sample_rate": 44100,
+    "loop_samples": 2490353,
+    "loop_boundary_max_step": 0.009210377913905998,
+    "original": true,
+    "source_audio": "none; all instruments and effects synthesized"
+  }
+}

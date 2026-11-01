@@ -1,0 +1,27 @@
+{
+  "meshes": 986,
+  "triangles": 386914,
+  "vertices": 475325,
+  "materials": 44,
+  "textures": 32,
+  "rotors": [
+    "Rotor_FL",
+    "Rotor_RL",
+    "Rotor_FR",
+    "Rotor_RR"
+  ],
+  "hasCameraDetail": true,
+  "bytes": 17121588,
+  "validationErrors": 0,
+  "validationWarnings": 0,
+  "glbRoundTrip": "PASS",
+  "previewViews": 6,
+  "propellerVisibility": "PASS",
+  "rotorAnimation": "PASS",
+  "reset": "PASS",
+  "mobileWidths": [
+    320,
+    390,
+    700
+  ]
+}

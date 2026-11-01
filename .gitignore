@@ -1,8 +1,13 @@
 node_modules/
 dist/
+.game-build/
 /.gitignore_
 /demo/offline-tile-demo/*.kml
 *.kml
 !demo/offline-tile-demo/province-kml/*.kml
 *.png
 !src/landing/assets/*.png
+admin
+/.ad-sync-build-check/assets
+/.ad-sync-build-check/docs/api
+.harmony-download-build-check

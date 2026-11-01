@@ -1,0 +1,115 @@
+{
+  "checkedAt": "2026-09-21T16:51:43.577Z",
+  "method": "Built web game in Chromium; actual generated aircraft flown down to a crash result using keyboard control.",
+  "results": [
+    {
+      "name": "portrait",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "card": {
+        "x": 25,
+        "y": 256.90625,
+        "width": 340,
+        "height": 330.1875
+      },
+      "icon": {
+        "x": 176,
+        "y": 287.90625,
+        "width": 38,
+        "height": 38
+      },
+      "title": {
+        "x": 121.890625,
+        "y": 345.90625,
+        "width": 146.21875,
+        "height": 17
+      },
+      "position": "fixed"
+    },
+    {
+      "name": "small-phone",
+      "viewport": {
+        "width": 320,
+        "height": 568
+      },
+      "card": {
+        "x": 25,
+        "y": 106.3125,
+        "width": 270,
+        "height": 355.375
+      },
+      "icon": {
+        "x": 141,
+        "y": 137.3125,
+        "width": 38,
+        "height": 38
+      },
+      "title": {
+        "x": 86.890625,
+        "y": 195.3125,
+        "width": 146.21875,
+        "height": 17
+      },
+      "position": "fixed"
+    },
+    {
+      "name": "landscape",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "card": {
+        "x": 162,
+        "y": 14.90625,
+        "width": 520,
+        "height": 360.1875
+      },
+      "icon": {
+        "x": 403,
+        "y": 52.90625,
+        "width": 38,
+        "height": 38
+      },
+      "title": {
+        "x": 348.890625,
+        "y": 110.90625,
+        "width": 146.21875,
+        "height": 17
+      },
+      "position": "fixed"
+    },
+    {
+      "name": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "card": {
+        "x": 460,
+        "y": 269.90625,
+        "width": 520,
+        "height": 360.1875
+      },
+      "icon": {
+        "x": 701,
+        "y": 307.90625,
+        "width": 38,
+        "height": 38
+      },
+      "title": {
+        "x": 646.890625,
+        "y": 365.90625,
+        "width": 146.21875,
+        "height": 17
+      },
+      "position": "fixed"
+    }
+  ],
+  "nativeStyleUnchanged": {
+    "iconDisplay": "inline",
+    "overlayPosition": "absolute"
+  },
+  "errors": []
+}

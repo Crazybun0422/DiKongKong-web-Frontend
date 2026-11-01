@@ -1,0 +1,40 @@
+{
+  "asset": "DJI Inspire 3 visual reconstruction reference",
+  "collectedAt": "2026-10-18",
+  "sources": [
+    {"url": "https://www.dji.com/inspire-3/specs", "role": "Official dimensions and specifications"},
+    {"url": "https://store.dji.com/product/dji-inspire-3", "role": "Official product photographs; exact image URLs in image-sources.json and original-sources.json"},
+    {"url": "https://repair.dji.com/help/content?customId=01700006559&lang=en&paperDocType=ARTICLE&re=US&spaceId=17", "role": "Official propeller diameter: 16 inches = 406.4 mm; pitch 7.1 inches"},
+    {"url": "https://dl.djicdn.com/downloads/inspire_3/DJI_Inspire_3_Quick_Start_Guide.pdf", "file": "DJI_Inspire_3_Quick_Start_Guide.pdf", "role": "Official geometry diagrams. Rendered page 3: quick-start-2.png; page 4: quick-start-3.png; page 5: quick-start-4.png"},
+    {"url": "https://dl.djicdn.com/downloads/inspire_3/20241016UM/DJI_Inspire_3_User_Manual_V3.0_EN.pdf", "role": "Official indexed table of component dimensions; no local copy retained"}
+  ],
+  "verifiedDimensionsMm": {
+    "motorDiagonalLanding": 685,
+    "motorDiagonalRaised": 695,
+    "travelModeDimensionsOnly": {"width": 709.8, "length": 500.5, "height": 176},
+    "propellerDiameter": 406.4,
+    "TB51Battery": [117.3, 90, 33.3],
+    "X9GimbalWithoutLens": [127.5, 120.6, 156.0],
+    "DL18mmLensDiameterLength": [64.5, 62.8],
+    "DL24_35_50mmLensDiameterLength": [55.0, 71.2]
+  },
+  "referenceViews": {
+    "original-00.jpg": "Flight configuration; raised booms and exposed lens coating, 2560 square",
+    "original-01.jpg": "Front, landing gear lowered, no propellers, 2560 square",
+    "original-02.jpg": "Front three-quarter, landing gear lowered, no propellers, 2560 square",
+    "original-03.jpg": "Opposite three-quarter, landing gear lowered, no propellers, 2560 square",
+    "original-04.jpg": "Side, landing gear lowered, no propellers, 2560 square",
+    "original-05.jpg": "Kit with detached gimbal, 2560 square",
+    "quick-start-3.png": "X9 camera, offset gimbal fork and yaw mounting diagrams",
+    "quick-start-4.png": "Top view motor grid, underside battery layout, propeller mounting"
+  },
+  "inferredGeometry": {
+    "disclaimer": "The following are visual modeling estimates, not manufacturer CAD or measured engineering dimensions.",
+    "layout": "Two central carbon-fibre booms slope from the upper fuselage to the left and right longitudinal motor tubes. Four wedge-shaped feet extend below the motors. The central boom and smaller linkage rod form the articulating landing assembly.",
+    "motorGridEstimate": "Official top-view diagram has front motor span approximately 201 pixels, rear span 149 pixels, front-to-rear span 147 pixels. Scaling the opposite motor diagonal to 685 mm gives front x approximately +/-301 mm, rear x approximately +/-223 mm, fore/aft z approximately +/-220 mm. Front is the X9 camera side. Not a perfect rectangle; longitudinal motor tubes splay outward toward the front.",
+    "body": "Narrow matte grey shell is tall at the front FPV camera and slopes down toward the rear battery pair. Large open side cutouts expose pivot cylinders and the inner mechanism; avoid replacing openings with painted black panels.",
+    "materials": "Fine woven dark carbon boom/tube material, satin grey outer shell, matte dark battery panels and feet, machined black motor rings, reflective coated camera optics, subtle red/green status details.",
+    "camera": "Large multi-sided X9 housing has side pitch cylinders and a single offset metal fork underneath the yaw cylinder. Cylindrical DL lens projects forward; should not resemble a Mini camera or rectangular action camera."
+  },
+  "rights": "Reference photographs and documentation are copyrighted by DJI and used as visual references. They are not original/generated textures and do not establish commercial asset or trademark licensing rights."
+}

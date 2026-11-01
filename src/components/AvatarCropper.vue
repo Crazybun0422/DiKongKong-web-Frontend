@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
@@ -10,7 +10,7 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'cancel', 'clear'])
 const { t } = useI18n()
 
-const containerSize = 300
+let containerSize = 300
 const imageRef = ref(null)
 const imageLoaded = ref(false)
 const previewData = ref('')
@@ -113,6 +113,7 @@ const initializeImage = () => {
   const imgEl = imageRef.value
   if (!imgEl) return
 
+  containerSize = imgEl.parentElement?.clientWidth || 300
   const naturalWidth = imgEl.naturalWidth || imgEl.width || containerSize
   const naturalHeight = imgEl.naturalHeight || imgEl.height || containerSize
 
@@ -142,8 +143,9 @@ const startDrag = (event) => {
     x: event.clientX - state.x,
     y: event.clientY - state.y,
   }
-  document.addEventListener('mousemove', onDrag)
-  document.addEventListener('mouseup', stopDrag)
+  document.addEventListener('pointermove', onDrag)
+  document.addEventListener('pointerup', stopDrag)
+  document.addEventListener('pointercancel', stopDrag)
 }
 
 const onDrag = (event) => {
@@ -156,8 +158,9 @@ const onDrag = (event) => {
 
 const stopDrag = () => {
   dragging.value = false
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDrag)
+  document.removeEventListener('pointermove', onDrag)
+  document.removeEventListener('pointerup', stopDrag)
+  document.removeEventListener('pointercancel', stopDrag)
 }
 
 const handleWheel = (event) => {
@@ -279,7 +282,10 @@ watch(
   },
 )
 
+const resizeCrop = () => { if (props.visible && imageLoaded.value) { stopDrag(); initializeImage() } }
+onMounted(() => window.addEventListener('resize', resizeCrop))
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeCrop)
   stopDrag()
 })
 </script>
@@ -306,7 +312,7 @@ onBeforeUnmount(() => {
             :src="src"
             :style="imgStyle"
             alt="avatar source"
-            @mousedown.prevent="startDrag"
+            @pointerdown.prevent="startDrag"
             @dragstart.prevent
           />
           <div class="stage-mask"></div>
@@ -470,5 +476,18 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   margin-top: auto;
+}
+
+.modal-header h3, .preview-title, .slider-card label { color: var(--admin-text); }
+.modal-header p, .preview-desc { color: var(--admin-muted); }
+.preview-card, .slider-card { background: var(--admin-raised); border-color: var(--admin-line); box-shadow: none; }
+.stage { flex-shrink: 0; background: var(--admin-bg); }
+.stage-inner img { touch-action: none; }
+@media (max-width: 760px) {
+  .modal-body { flex-direction: column; gap: 16px; }
+  .stage { width: 100%; height: auto; aspect-ratio: 1; max-width: 340px; align-self: center; padding: 8px; }
+  .stage-inner { width: min(300px, 100%); height: auto; aspect-ratio: 1; flex-shrink: 0; }
+  .sidebar { width: 100%; }
+  .preview-card { display: none; }
 }
 </style>

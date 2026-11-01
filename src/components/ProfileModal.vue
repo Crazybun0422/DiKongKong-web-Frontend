@@ -272,20 +272,20 @@ watch(
 
 .field label {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .input {
   width: 100%;
   padding: 0.65rem 0.9rem;
   border-radius: 12px;
-  border: 1px solid #d4dbe8;
-  background: #f8fafc;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-raised);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input:focus {
-  border-color: #3b82f6;
+  border-color: var(--admin-lime);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
   outline: none;
 }
@@ -300,14 +300,14 @@ watch(
   width: 118px;
   height: 118px;
   border-radius: 26px;
-  background: linear-gradient(135deg, #e0f2fe, #bfdbfe);
+  background: linear-gradient(135deg, var(--admin-raised), var(--admin-raised));
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 2.8rem;
-  color: #0f172a;
+  color: var(--admin-text);
   overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 16px 32px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .avatar-preview img {
@@ -325,7 +325,7 @@ watch(
 
 .avatar-title {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--admin-text);
   margin: 0;
 }
 
@@ -366,13 +366,13 @@ watch(
 .dropzone-title {
   margin: 0;
   font-size: 1rem;
-  color: #1d4ed8;
+  color: var(--admin-lime);
   font-weight: 600;
 }
 
 .dropzone-subtitle {
   margin: 0;
-  color: #475569;
+  color: var(--admin-muted);
 }
 
 .dropzone-button {
@@ -380,7 +380,7 @@ watch(
   padding: 0.45rem 1.3rem;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft));
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
@@ -397,7 +397,7 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  color: #1d4ed8;
+  color: var(--admin-lime);
 }
 
 .hidden-input {
@@ -405,7 +405,7 @@ watch(
 }
 
 .avatar-hint {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.92rem;
 }
 

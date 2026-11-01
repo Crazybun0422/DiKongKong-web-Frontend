@@ -1,0 +1,122 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------< com.example:DiKongKong-Backend >-------------------
+[INFO] Building DiKongKong-Backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ DiKongKong-Backend ---
+[INFO] Copying 3 resources from src\main\resources to target\classes
+[INFO] Copying 141 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.0:compile (default-compile) @ DiKongKong-Backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 701 source files with javac [debug parameters release 17] to target\classes
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[17,51] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[18,51] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[19,50] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[20,50] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[21,55] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/androidpush/AndroidPushIndexes.java:[22,55] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/AerialPointService.java:[22,46] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/PosterServiceVersionService.java:[34,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setConnectTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/PosterServiceVersionService.java:[35,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setReadTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/DirectMessageService.java:[29,44] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/DirectMessageService.java:[32,40] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/DirectMessageService.java:[34,44] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/DirectMessageService.java:[35,44] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/DirectMessageService.java:[36,44] org.springframework.data.mongodb.core.index.IndexOperations �е� ensureIndex(org.springframework.data.mongodb.core.index.IndexDefinition) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/WeappPosterService.java:[60,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setConnectTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/WeappPosterService.java:[61,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setReadTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/WeappQrcodeService.java:[42,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setConnectTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[WARNING] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/service/WeappQrcodeService.java:[43,17] org.springframework.boot.web.client.RestTemplateBuilder �е� setReadTimeout(java.time.Duration) �ѹ�ʱ, �ұ��Ϊ��ɾ��
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/util/WeappAccessTokenUtil.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/main/java/com/example/dikongkongbackend/util/WeappAccessTokenUtil.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ DiKongKong-Backend ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.0:testCompile (default-testCompile) @ DiKongKong-Backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 97 source files with javac [debug parameters release 17] to target\test-classes
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/test/java/com/example/dikongkongbackend/service/ExternalMapServiceTest.java: E:\source_code\wechat\DiKongKong-Backend\src\test\java\com\example\dikongkongbackend\service\ExternalMapServiceTest.javaʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/test/java/com/example/dikongkongbackend/service/ExternalMapServiceTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/test/java/com/example/dikongkongbackend/service/AircraftSharingServiceTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/source_code/wechat/DiKongKong-Backend/src/test/java/com/example/dikongkongbackend/service/AircraftSharingServiceTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.3:test (default-test) @ DiKongKong-Backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.example.dikongkongbackend.service.FlpServiceTest
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.580 s -- in com.example.dikongkongbackend.service.FlpServiceTest
+[INFO] Running com.example.dikongkongbackend.service.MarketConcurrencyTest
+20:56:10.080 [main] INFO org.hibernate.jpa.internal.util.LogHelper -- HHH000204: Processing PersistenceUnitInfo [name: default]
+20:56:10.164 [main] INFO org.hibernate.Version -- HHH000412: Hibernate ORM core version 6.6.15.Final
+20:56:10.215 [main] INFO org.hibernate.cache.internal.RegionFactoryInitiator -- HHH000026: Second-level cache disabled
+20:56:10.457 [main] INFO org.springframework.orm.jpa.persistenceunit.SpringPersistenceUnitInfo -- No LoadTimeWeaver setup: ignoring JPA class transformer
+20:56:10.761 [main] INFO org.hibernate.orm.connections.pooling -- HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'org.springframework.jdbc.datasource.DriverManagerDataSource@3d71e10b']
+	Database driver: undefined/unknown
+	Database version: 2.3.232
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+20:56:11.158 [main] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.2.Final
+20:56:11.648 [main] INFO org.hibernate.engine.transaction.jta.platform.internal.JtaPlatformInitiator -- HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+20:56:11.689 [main] INFO org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean -- Initialized JPA EntityManagerFactory for persistence unit 'default'
+20:56:12.012 [main] INFO org.springframework.data.jpa.repository.query.QueryEnhancerFactory -- Hibernate is in classpath; If applicable, HQL parser will be used.
+20:56:12.971 [main] INFO org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean -- Closing JPA EntityManagerFactory for persistence unit 'default'
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.102 s -- in com.example.dikongkongbackend.service.MarketConcurrencyTest
+[INFO] Running com.example.dikongkongbackend.service.MarketFlpReservationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in com.example.dikongkongbackend.service.MarketFlpReservationTest
+[INFO] Running com.example.dikongkongbackend.service.MarketPaymentGuardTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.154 s -- in com.example.dikongkongbackend.service.MarketPaymentGuardTest
+[INFO] Running com.example.dikongkongbackend.service.MarketServiceTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.146 s -- in com.example.dikongkongbackend.service.MarketServiceTest
+[INFO] Running com.example.dikongkongbackend.service.WechatAppPaymentServiceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in com.example.dikongkongbackend.service.WechatAppPaymentServiceTest
+[INFO] Running com.example.dikongkongbackend.service.WechatPaymentServiceTest
+20:56:13.399 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment status query start, order=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null
+20:56:13.400 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair attempt, order=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null
+20:56:13.403 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair confirmed SUCCESS from wechat, order=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, transaction=outTradeNo=ORD003, transactionId=WX003, tradeState=SUCCESS, tradeStateDesc=null, successTime=null, total=null, currency=null, appid=null, mchid=null
+20:56:13.404 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success start, order=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX003
+20:56:13.405 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success completed, beforeOrder=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, afterOrder=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX003
+20:56:13.405 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment status query repaired waiting order, beforeOrder=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, afterOrder=orderId=order-3, orderNumber=ORD003, orderType=null, paymentType=WECHAT, featureCode=FC001, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null
+20:56:13.408 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success start, order=orderId=order-1, orderNumber=ORD001, orderType=null, paymentType=null, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX001
+20:56:13.408 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success completed, beforeOrder=orderId=order-1, orderNumber=ORD001, orderType=null, paymentType=null, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=null, wechatTransactionId=null, afterOrder=orderId=order-1, orderNumber=ORD001, orderType=null, paymentType=null, featureCode=null, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX001
+20:56:13.412 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment reconcile batch loaded, lookbackHours=72, batchSize=100, loaded=2
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment reconcile inspecting order=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:00, wechatTransactionId=null
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair attempt, order=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:00, wechatTransactionId=null
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair confirmed SUCCESS from wechat, order=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:00, wechatTransactionId=null, transaction=outTradeNo=ORD004, transactionId=WX004, tradeState=SUCCESS, tradeStateDesc=null, successTime=null, total=null, currency=null, appid=null, mchid=null
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success start, order=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:00, wechatTransactionId=null, transactionId=WX004
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success completed, beforeOrder=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:00, wechatTransactionId=null, afterOrder=orderId=order-4, orderNumber=ORD004, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX004
+20:56:13.413 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment reconcile inspecting order=orderId=order-5, orderNumber=ORD005, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:01, wechatTransactionId=null
+20:56:13.414 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair attempt, order=orderId=order-5, orderNumber=ORD005, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:01, wechatTransactionId=null
+20:56:13.414 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat waiting order repair skipped because trade state is not SUCCESS, order=orderId=order-5, orderNumber=ORD005, orderType=null, paymentType=WECHAT, featureCode=null, referenceId=null, status=WAITING_PAYMENT, amount=null, createdAt=2026-05-20T10:01, wechatTransactionId=null, transaction=outTradeNo=ORD005, transactionId=null, tradeState=NOTPAY, tradeStateDesc=null, successTime=null, total=null, currency=null, appid=null, mchid=null
+20:56:13.414 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment reconcile batch finished, repaired=1, loaded=2
+20:56:13.416 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success start, order=orderId=order-2, orderNumber=ORD002, orderType=null, paymentType=null, featureCode=null, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX002
+20:56:13.417 [main] INFO com.example.dikongkongbackend.service.WechatPaymentService -- Wechat payment process success skipped because order already paid, order=orderId=order-2, orderNumber=ORD002, orderType=null, paymentType=null, featureCode=null, referenceId=null, status=PAID, amount=null, createdAt=null, wechatTransactionId=null, transactionId=WX002
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.067 s -- in com.example.dikongkongbackend.service.WechatPaymentServiceTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.2:jar (default-jar) @ DiKongKong-Backend ---
+[INFO] Building jar: E:\source_code\wechat\DiKongKong-Backend\target\DiKongKong-Backend-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] --- spring-boot:3.5.0:repackage (repackage) @ DiKongKong-Backend ---
+[INFO] Replacing main artifact E:\source_code\wechat\DiKongKong-Backend\target\DiKongKong-Backend-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to E:\source_code\wechat\DiKongKong-Backend\target\DiKongKong-Backend-0.0.1-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  23.444 s
+[INFO] Finished at: 2026-10-05T20:56:17+08:00
+[INFO] ------------------------------------------------------------------------

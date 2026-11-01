@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>DJI Inspire 3 · 三维外观样例 V02</title>
+    <style>
+      :root { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; color: #202b30; background: #f4f5f2; font-synthesis: none; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      button { font: inherit; }
+      button:focus-visible, a:focus-visible { outline: 3px solid #167a68; outline-offset: 4px; }
+      .shell { width: min(1540px, 100%); height: 100dvh; min-height: 640px; padding: 24px 32px 18px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+      .header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+      .brand { display: flex; align-items: center; gap: 13px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 12px; background: #e0e9e2; display: grid; place-items: center; color: #316456; }
+      .brand-mark svg { width: 23px; height: 23px; }
+      .eyebrow { margin: 0 0 4px; font-size: 10px; font-weight: 650; letter-spacing: .2em; color: #7c8b86; }
+      h1 { margin: 0; font-size: clamp(20px, 2vw, 28px); line-height: 1.25; font-weight: 620; letter-spacing: -.03em; }
+      .edition { display: flex; align-items: center; gap: 8px; color: #6f7c77; font-size: 11px; letter-spacing: .05em; white-space: nowrap; }
+      .edition::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #648a78; }
+      .stage { flex: 1; min-height: 460px; position: relative; overflow: hidden; border-radius: 26px; background: #e8ece9; border: 1px solid #e0e5df; }
+      .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+      .stage-copy { position: absolute; z-index: 2; top: 28px; left: 30px; pointer-events: none; }
+      .stage-copy strong { display: block; margin-bottom: 7px; color: #4f6159; font-size: 12px; font-weight: 600; letter-spacing: .13em; }
+      .stage-copy p { margin: 0; color: #83918a; font-size: 11px; }
+      .view-name { position: absolute; right: 28px; top: 27px; color: #6d7d74; font-size: 11px; z-index: 2; }
+      .view-name span { color: #9aa69e; margin-right: 8px; font-variant-numeric: tabular-nums; }
+      .detail-view { position: absolute; top: 55px; right: 26px; z-index: 3; padding: 8px 10px; border: 1px solid #ccd4ce; border-radius: 9px; background: #f6f8f566; color: #5d7065; font-size: 11px; cursor: pointer; }
+      .detail-view:hover, .detail-view[aria-pressed="true"] { background: #f7f9f5; color: #315f4b; border-color: #9caf9f; }
+      .propeller-view { top: 94px; }
+      .propeller-view:disabled { cursor: wait; opacity: .55; }
+      .loader { position: absolute; z-index: 3; inset: 0; display: grid; place-content: center; gap: 13px; text-align: center; font-size: 12px; color: #61756b; pointer-events: none; }
+      .loader::before { content: ""; width: 24px; height: 24px; margin: auto; border: 2px solid #c9d4cc; border-top-color: #42705a; border-radius: 50%; animation: loading 1s linear infinite; }
+      .loader.error { background: #e8ece9e8; padding: 32px; line-height: 1.9; white-space: pre-line; }
+      .loader.error::before { display: none; }
+      .loader[hidden] { display: none; }
+      @keyframes loading { to { transform: rotate(360deg); } }
+      .controls { position: absolute; z-index: 4; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; padding: 7px; border: 1px solid #ffffffd9; border-radius: 17px; background: #f8faf8e8; box-shadow: 0 10px 36px #263e2f0c; backdrop-filter: blur(12px); white-space: nowrap; }
+      .controls button { height: 36px; min-width: 54px; padding: 0 13px; border: 0; border-radius: 10px; background: transparent; color: #65746c; font-size: 12px; cursor: pointer; transition: background .15s, color .15s; }
+      .controls button:hover { background: #e5ece5; color: #2b5241; }
+      .controls button[aria-pressed="true"] { background: #315f4b; color: #f8fcf9; box-shadow: 0 2px 6px #315f4b16; }
+      .separator { height: 18px; width: 1px; background: #d9e1da; margin: 0 5px; }
+      .controls .spin { display: flex; align-items: center; gap: 7px; min-width: 91px; }
+      .spin-dot { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+      .spin[aria-pressed="true"] .spin-dot { background: currentColor; }
+      .footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; font-size: 11px; color: #7d8b83; padding: 0 3px; }
+      .specs { display: flex; gap: 25px; }
+      .specs strong { color: #4b5c53; font-weight: 550; margin-left: 7px; font-variant-numeric: tabular-nums; }
+      .disclaimer { white-space: nowrap; }
+      @media (max-width: 700px) {
+        .shell { min-height: 620px; padding: 18px 14px 16px; gap: 14px; }
+        .brand { gap: 9px; }
+        .brand-mark { width: 32px; height: 32px; border-radius: 10px; }
+        .eyebrow { font-size: 8px; letter-spacing: .16em; }
+        .edition { font-size: 9px; }
+        .stage { min-height: 430px; border-radius: 20px; }
+        .stage-copy { top: 23px; left: 20px; }
+        .view-name { top: 23px; right: 20px; }
+        .detail-view { top: 49px; right: 18px; }
+        .propeller-view { top: 88px; }
+        .controls { bottom: 18px; gap: 2px; padding: 5px; border-radius: 13px; }
+        .controls button { min-width: 40px; padding: 0 9px; font-size: 11px; }
+        .controls .spin { min-width: 67px; gap: 5px; }
+        .separator { margin: 0 2px; }
+        .footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+        .specs { gap: 15px; font-size: 10px; }
+        .disclaimer { font-size: 10px; }
+      }
+      @media (prefers-reduced-motion: reduce) { .loader::before { animation-duration: 2s; } .controls button { transition: none; } }
+    </style>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/build/three.module.js", "three/addons/": "./vendor/" } }
+    </script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 14 14M19 5 5 19"/><rect x="9" y="7" width="6" height="10" rx="2" fill="#e0e9e2"/><ellipse cx="5" cy="5" rx="3.5" ry="1.8" transform="rotate(-35 5 5)"/><ellipse cx="19" cy="5" rx="3.5" ry="1.8" transform="rotate(35 19 5)"/><ellipse cx="5" cy="19" rx="3.5" ry="1.8" transform="rotate(35 5 19)"/><ellipse cx="19" cy="19" rx="3.5" ry="1.8" transform="rotate(-35 19 19)"/></svg></div>
+          <div><p class="eyebrow">AIRCRAFT STUDY / 002</p><h1>DJI Inspire 3</h1></div>
+        </div>
+        <div class="edition">三维外观样例 · V02</div>
+      </header>
+      <section class="stage" id="stage" aria-label="DJI Inspire 3 交互三维模型">
+        <div class="stage-copy"><strong>INSPIRE 3 / 外观重建</strong><p>拖动旋转 · 滚轮缩放 · 双指平移</p></div>
+        <div class="view-name"><span id="view-number">01</span><b id="view-label" style="font-weight:500">透视</b></div>
+        <button type="button" class="detail-view" data-view="detail" aria-pressed="false" title="查看云台、相机和机鼻细节">相机细节 ↗</button>
+        <button type="button" class="detail-view propeller-view" id="propellers" aria-pressed="true" title="切换桨叶显示，查看机身和电机结构" disabled>桨叶显示 · 开</button>
+        <div class="loader" id="loader" role="status">正在准备模型</div>
+        <nav class="controls" aria-label="三维预览控件">
+          <button type="button" data-view="front" aria-pressed="false" title="查看机头">前视</button>
+          <button type="button" data-view="side" aria-pressed="false" title="查看右侧">侧视</button>
+          <button type="button" data-view="top" aria-pressed="false" title="查看顶部">俯视</button>
+          <button type="button" data-view="bottom" aria-pressed="false" title="查看机腹">底视</button>
+          <i class="separator" aria-hidden="true"></i>
+          <button type="button" class="spin" id="spin" aria-pressed="false"><span class="spin-dot" aria-hidden="true"></span>桨叶旋转</button>
+          <button type="button" id="reset" title="停止桨叶并恢复初始透视">重置</button>
+        </nav>
+      </section>
+      <footer class="footer">
+        <div class="specs"><span>机型<strong>Inspire 3</strong></span><span>结构<strong>四旋翼 · 独立云台</strong></span></div>
+        <span class="disclaimer">外观重建样例 · 非工程模型</span>
+      </footer>
+    </main>
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from './vendor/controls/OrbitControls.js';
+      import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
+      import { GLTFExporter } from './vendor/exporters/GLTFExporter.js';
+      import { RoomEnvironment } from './vendor/environments/RoomEnvironment.js';
+
+      const stage = document.querySelector('#stage');
+      const loading = document.querySelector('#loader');
+      const spinButton = document.querySelector('#spin');
+      const propellerButton = document.querySelector('#propellers');
+      const viewButtons = [...document.querySelectorAll('[data-view]')];
+      const buildMode = new URLSearchParams(location.search).get('build') === '1';
+      const viewLabels = { hero: ['01', '透视'], front: ['02', '前视'], side: ['03', '侧视'], top: ['04', '俯视'], bottom: ['05', '底视'], detail: ['06', '相机细节'] };
+      window.modelReady = false;
+      window.modelError = null;
+      let spinEnabled = false;
+      let currentView = 'hero';
+      let rotors = [];
+      let propellers = [];
+      let propellersVisible = true;
+      const framingPoints = [];
+      const target = new THREE.Vector3(0, .2, 0);
+      const modelSize = new THREE.Vector3(1.1, .4, .9);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#e4e7e5');
+      scene.fog = new THREE.Fog('#e4e7e5', 5, 15);
+      const camera = new THREE.PerspectiveCamera(32, 1, .001, 12);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = .88;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.autoUpdate = false;
+      // Environment illumination gives plastics, coated optics, and metal distinct reflections.
+      // The studio is generated locally: no network images or HDR files are required.
+      const studio = new RoomEnvironment();
+      // A small off-axis front softbox provides real, view-dependent reflections
+      // on the coated lens without adding decorative highlight geometry.
+      const opticalSoftbox = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.8, .8),
+        new THREE.MeshLambertMaterial({ color: 0x000000, emissive: '#edf3ff', emissiveIntensity: 6 })
+      );
+      opticalSoftbox.position.set(-1.3, .8, 3);
+      opticalSoftbox.lookAt(0, 0, 0);
+      studio.add(opticalSoftbox);
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const studioMap = pmrem.fromScene(studio, .035);
+      scene.environment = studioMap.texture;
+      scene.environmentIntensity = .56;
+      scene.environmentRotation.y = .38;
+      studio.dispose();
+      pmrem.dispose();
+      renderer.domElement.setAttribute('aria-label', '可拖动旋转和缩放的无人机模型');
+      renderer.domElement.setAttribute('role', 'img');
+      stage.prepend(renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = .08;
+      controls.autoRotate = false;
+      controls.minDistance = .15;
+      controls.maxDistance = 6;
+      controls.maxPolarAngle = Math.PI;
+      controls.screenSpacePanning = true;
+      controls.target.copy(target);
+
+      scene.add(new THREE.HemisphereLight('#f2f6ff', '#b7c0b7', .16));
+      const undersideFill = new THREE.DirectionalLight('#e4ebf2', .22);
+      undersideFill.position.set(.2, -.6, .4);
+      scene.add(undersideFill);
+      const key = new THREE.DirectionalLight('#fff6ea', 1.85);
+      key.position.set(-.5, .7, .6);
+      key.castShadow = true;
+      key.shadow.mapSize.set(4096, 4096);
+      Object.assign(key.shadow.camera, { left: -.27, right: .27, top: .27, bottom: -.27, near: .1, far: 2.5 });
+      key.shadow.camera.updateProjectionMatrix();
+      key.shadow.bias = -.000018;
+      key.shadow.normalBias = .000065;
+      key.shadow.radius = 3;
+      key.shadow.intensity = .72;
+      scene.add(key, key.target);
+      const fill = new THREE.DirectionalLight('#e3ecff', .27);
+      fill.position.set(.5, .2, .25);
+      scene.add(fill);
+      const rim = new THREE.DirectionalLight('#ffffff', 1.05);
+      rim.position.set(.1, .48, -.7);
+      scene.add(rim);
+
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ color: '#e4e7e5', toneMapped: false }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -.001;
+      scene.add(floor);
+
+      // Render the actual silhouette into a soft, height-weighted contact shadow.
+      // This replaces the hard directional shadows and the generic oval used in V01.
+      const shadowResolution = 1024;
+      let shadowExtent = 1.5;
+      const shadowTarget = new THREE.WebGLRenderTarget(shadowResolution, shadowResolution);
+      const shadowBlurTarget = new THREE.WebGLRenderTarget(shadowResolution, shadowResolution);
+      const shadowCamera = new THREE.OrthographicCamera(-shadowExtent / 2, shadowExtent / 2, shadowExtent / 2, -shadowExtent / 2, .001, .701);
+      shadowCamera.up.set(0, 0, -1);
+      const shadowDepth = new THREE.ShaderMaterial({
+        vertexShader: `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `void main() { float opacity = pow(clamp(gl_FragCoord.z, 0.0, 1.0), 2.4) * 0.62; gl_FragColor = vec4(0.12, 0.15, 0.13, opacity); }`,
+        blending: THREE.NoBlending,
+      });
+      const blurMaterial = new THREE.ShaderMaterial({
+        uniforms: { source: { value: null }, stepSize: { value: new THREE.Vector2() } },
+        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+        fragmentShader: `uniform sampler2D source; uniform vec2 stepSize; varying vec2 vUv;
+          void main() {
+            vec4 color = texture2D(source, vUv) * 0.2270270270;
+            color += texture2D(source, vUv + stepSize * 1.3846153846) * 0.3162162162;
+            color += texture2D(source, vUv - stepSize * 1.3846153846) * 0.3162162162;
+            color += texture2D(source, vUv + stepSize * 3.2307692308) * 0.0702702703;
+            color += texture2D(source, vUv - stepSize * 3.2307692308) * 0.0702702703;
+            gl_FragColor = color;
+          }`,
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.NoBlending,
+      });
+      const blurScene = new THREE.Scene();
+      blurScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial));
+      const blurCamera = new THREE.Camera();
+      const contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(shadowExtent, shadowExtent), new THREE.MeshBasicMaterial({ map: shadowTarget.texture, transparent: true, depthWrite: false, toneMapped: false, opacity: .8 }));
+      contactShadow.rotation.x = -Math.PI / 2;
+      contactShadow.position.y = -.0008;
+      scene.add(contactShadow);
+      let shadowDirty = true;
+      let shadowFrame = 0;
+
+      function renderContactShadow() {
+        if (!window.assetRoot || !contactShadow.visible) return;
+        const previousTarget = renderer.getRenderTarget();
+        const previousBackground = scene.background;
+        const previousMaterial = scene.overrideMaterial;
+        const previousClearColor = renderer.getClearColor(new THREE.Color());
+        const previousClearAlpha = renderer.getClearAlpha();
+        const previousShadowsEnabled = renderer.shadowMap.enabled;
+        renderer.shadowMap.enabled = false;
+        floor.visible = false;
+        contactShadow.visible = false;
+        scene.background = null;
+        scene.overrideMaterial = shadowDepth;
+        renderer.setClearColor(0x000000, 0);
+        renderer.setRenderTarget(shadowTarget);
+        renderer.clear();
+        renderer.render(scene, shadowCamera);
+        scene.overrideMaterial = previousMaterial;
+        scene.background = previousBackground;
+        for (const blur of [2.8, 1.3]) {
+          blurMaterial.uniforms.source.value = shadowTarget.texture;
+          blurMaterial.uniforms.stepSize.value.set(blur / shadowResolution, 0);
+          renderer.setRenderTarget(shadowBlurTarget);
+          renderer.render(blurScene, blurCamera);
+          blurMaterial.uniforms.source.value = shadowBlurTarget.texture;
+          blurMaterial.uniforms.stepSize.value.set(0, blur / shadowResolution);
+          renderer.setRenderTarget(shadowTarget);
+          renderer.render(blurScene, blurCamera);
+        }
+        renderer.setRenderTarget(previousTarget);
+        renderer.setClearColor(previousClearColor, previousClearAlpha);
+        renderer.shadowMap.enabled = previousShadowsEnabled;
+        updateGround();
+        shadowDirty = false;
+      }
+
+      function showViewName(name) {
+        const label = viewLabels[name] || ['—', '自由视角'];
+        document.querySelector('#view-number').textContent = label[0];
+        document.querySelector('#view-label').textContent = label[1];
+        viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === name)));
+      }
+
+      function setView(name = 'hero') {
+        if (!(name in viewLabels)) throw new Error(`未知视角：${name}`);
+        currentView = name;
+        controls.enableDamping = false;
+        controls.update();
+        const focus = target.clone();
+        const focusSize = modelSize.clone();
+        if (name === 'detail') {
+          const cameraPart = window.assetRoot?.getObjectByName('Camera');
+          if (cameraPart) new THREE.Box3().setFromObject(cameraPart).getCenter(focus);
+          else focus.set(target.x, target.y, target.z + modelSize.z * .23);
+          focus.y += .012;
+          focus.z -= .008;
+          focusSize.set(.22, .18, .19);
+        }
+        camera.up.set(0, 1, 0);
+        const directions = {
+          hero: new THREE.Vector3(.86, .48, 1.35),
+          front: new THREE.Vector3(0, 0, 1),
+          side: new THREE.Vector3(1, 0, 0),
+          top: new THREE.Vector3(0, 1, .0001),
+          bottom: new THREE.Vector3(0, -1, .0001),
+          detail: new THREE.Vector3(.43, .2, 1),
+        };
+        // Frame individual parts instead of the large empty corners between the four rotors.
+        // The detail preset intentionally crops to the camera and front body.
+        const direction = directions[name].normalize();
+        const right = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
+        const up = new THREE.Vector3().crossVectors(direction, right).normalize();
+        const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const tanH = tanV * camera.aspect;
+        let distance = 0;
+        const points = name !== 'detail' && framingPoints.length ? framingPoints.map(point => point.clone().sub(focus)) : [];
+        if (!points.length) for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+          points.push(new THREE.Vector3(x * focusSize.x / 2, y * focusSize.y / 2, z * focusSize.z / 2));
+        }
+        // The tall central body and wide, low rotor frame make the world AABB
+        // center noticeably higher than the visible silhouette in a 3/4 view.
+        // Center the projected parts before computing perspective clearance.
+        if (name !== 'detail' && points.length) {
+          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+          for (const point of points) {
+            const x = point.dot(right), y = point.dot(up);
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          }
+          const offset = right.clone().multiplyScalar((minX + maxX) / 2).addScaledVector(up, (minY + maxY) / 2);
+          focus.add(offset);
+          for (const point of points) point.sub(offset);
+        }
+        for (const corner of points) {
+          distance = Math.max(distance, corner.dot(direction) + Math.max(Math.abs(corner.dot(right)) / tanH, Math.abs(corner.dot(up)) / tanV));
+        }
+        distance *= name === 'detail' ? 1.12 : 1.17;
+        camera.position.copy(focus).addScaledVector(direction, distance);
+        if (name !== 'detail' && framingPoints.length) {
+          for (let pass = 0; pass < 2; pass++) {
+            camera.lookAt(focus);
+            camera.updateMatrixWorld(true);
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            for (const point of framingPoints) {
+              const screenPoint = point.clone().project(camera);
+              minX = Math.min(minX, screenPoint.x); maxX = Math.max(maxX, screenPoint.x);
+              minY = Math.min(minY, screenPoint.y); maxY = Math.max(maxY, screenPoint.y);
+            }
+            const correction = right.clone().multiplyScalar((minX + maxX) * .5 * distance * tanH).addScaledVector(up, (minY + maxY) * .5 * distance * tanV);
+            focus.add(correction);
+            camera.position.add(correction);
+          }
+        }
+        controls.target.copy(focus);
+        controls.update();
+        controls.enableDamping = true;
+        showViewName(name);
+        updateGround();
+        if (shadowDirty) renderContactShadow();
+        renderer.render(scene, camera);
+        return name;
+      }
+      window.setView = setView;
+
+      function collectFramingPoints(root) {
+        root.updateMatrixWorld(true);
+        framingPoints.length = 0;
+        root.traverseVisible(object => {
+          if (!object.isMesh) return;
+          if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+          const box = object.geometry.boundingBox;
+          if (!box || box.isEmpty()) return;
+          for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+            framingPoints.push(new THREE.Vector3(x, y, z).applyMatrix4(object.matrixWorld));
+          }
+        });
+      }
+
+      function setPropellersVisible(visible) {
+        propellersVisible = !!visible;
+        for (const propeller of propellers) propeller.visible = propellersVisible;
+        propellerButton.setAttribute('aria-pressed', String(propellersVisible));
+        propellerButton.textContent = `桨叶显示 · ${propellersVisible ? '开' : '关'}`;
+        shadowDirty = true;
+        renderer.shadowMap.needsUpdate = true;
+        if (window.assetRoot) {
+          collectFramingPoints(window.assetRoot);
+          if (currentView in viewLabels) setView(currentView);
+        }
+      }
+      window.setPropellersVisible = setPropellersVisible;
+
+      function updateGround() {
+        const groundVisible = camera.position.y > floor.position.y + .005;
+        floor.visible = groundVisible;
+        contactShadow.visible = groundVisible;
+        undersideFill.intensity = groundVisible ? .22 : .6;
+      }
+      function resize() {
+        const { width, height } = stage.getBoundingClientRect();
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        if (currentView in viewLabels) setView(currentView);
+      }
+      new ResizeObserver(resize).observe(stage);
+      resize();
+      controls.addEventListener('start', () => { currentView = 'free'; showViewName('free'); });
+      viewButtons.forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+      spinButton.addEventListener('click', () => {
+        spinEnabled = !spinEnabled;
+        spinButton.setAttribute('aria-pressed', String(spinEnabled));
+      });
+      propellerButton.addEventListener('click', () => setPropellersVisible(!propellersVisible));
+      document.querySelector('#reset').addEventListener('click', () => {
+        spinEnabled = false;
+        spinButton.setAttribute('aria-pressed', 'false');
+        for (const rotor of rotors) rotor.node.quaternion.copy(rotor.initialQuaternion);
+        setPropellersVisible(true);
+        shadowDirty = true;
+        renderer.shadowMap.needsUpdate = true;
+        setView('hero');
+      });
+
+      window.exportGLB = async () => {
+        if (!window.assetRoot) throw new Error('模型尚未就绪');
+        const result = await new GLTFExporter().parseAsync(window.assetRoot, { binary: true, onlyVisible: true });
+        if (!(result instanceof ArrayBuffer)) throw new Error('GLB 导出未返回二进制数据');
+        const bytes = new Uint8Array(result);
+        const chunks = [];
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
+        return btoa(chunks.join(''));
+      };
+
+      try {
+        let root;
+        if (buildMode) {
+          const { createDrone } = await import('./model.js');
+          root = await createDrone();
+          if (!root?.isObject3D) throw new Error('createDrone() 必须返回 THREE.Object3D');
+        } else {
+          const gltf = await new GLTFLoader().loadAsync('./inspire-3.glb');
+          root = gltf.scene;
+        }
+        root.traverse(object => {
+          if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; }
+        });
+        root.updateMatrixWorld(true);
+        collectFramingPoints(root);
+        const bounds = new THREE.Box3().setFromObject(root);
+        if (bounds.isEmpty()) throw new Error('模型没有可显示的几何体');
+        bounds.getCenter(target);
+        bounds.getSize(modelSize);
+        const span = Math.max(modelSize.x, modelSize.z, modelSize.y);
+        scene.fog.near = span * 4.5;
+        scene.fog.far = span * 14;
+        camera.far = Math.max(12, span * 20);
+        camera.updateProjectionMatrix();
+        floor.scale.setScalar(Math.max(1, span * 3));
+        key.position.copy(target).add(new THREE.Vector3(-1.2, 1.7, 1.5).multiplyScalar(span));
+        fill.position.copy(target).add(new THREE.Vector3(1.2, .5, .7).multiplyScalar(span));
+        rim.position.copy(target).add(new THREE.Vector3(.3, 1.2, -1.8).multiplyScalar(span));
+        undersideFill.position.copy(target).add(new THREE.Vector3(.5, -1.2, .8).multiplyScalar(span));
+        Object.assign(key.shadow.camera, { left: -span * .8, right: span * .8, top: span * .8, bottom: -span * .8, near: span * .1, far: span * 6 });
+        key.shadow.camera.updateProjectionMatrix();
+        key.shadow.normalBias = span * .00018;
+        key.target.position.copy(target);
+        key.target.updateMatrixWorld(true);
+        renderer.shadowMap.needsUpdate = true;
+        floor.position.y = bounds.min.y - .001;
+        contactShadow.position.set(target.x, bounds.min.y - .0008, target.z);
+        shadowExtent = Math.max(modelSize.x, modelSize.z) * 1.32;
+        contactShadow.geometry.dispose();
+        contactShadow.geometry = new THREE.PlaneGeometry(shadowExtent, shadowExtent);
+        const shadowHeight = Math.max(modelSize.y * 1.8, span * .5);
+        Object.assign(shadowCamera, { left: -shadowExtent / 2, right: shadowExtent / 2, top: shadowExtent / 2, bottom: -shadowExtent / 2, near: .001, far: shadowHeight + .001 });
+        shadowCamera.updateProjectionMatrix();
+        shadowCamera.position.set(target.x, bounds.min.y + shadowHeight, target.z);
+        shadowCamera.lookAt(target.x, bounds.min.y, target.z);
+        shadowCamera.updateMatrixWorld(true);
+        rotors = ['Rotor_FL', 'Rotor_FR', 'Rotor_RL', 'Rotor_RR'].map((name, index) => {
+          const node = root.getObjectByName(name);
+          return node && { node, initialQuaternion: node.quaternion.clone(), direction: [1, -1, -1, 1][index] };
+        }).filter(Boolean);
+        propellers = ['Propeller_FL', 'Propeller_FR', 'Propeller_RL', 'Propeller_RR'].map(name => root.getObjectByName(name)).filter(Boolean);
+        propellerButton.disabled = propellers.length !== 4;
+        scene.add(root);
+        window.assetRoot = root;
+        setView('hero');
+        loading.hidden = true;
+        window.modelReady = true;
+      } catch (error) {
+        window.modelError = error?.stack || String(error);
+        loading.classList.add('error');
+        loading.textContent = '模型暂时无法载入\n请通过本地预览服务打开，并检查模型文件是否完整。';
+        console.error(error);
+      }
+
+      const clock = new THREE.Clock();
+      renderer.setAnimationLoop(() => {
+        const delta = Math.min(clock.getDelta(), .05);
+        if (spinEnabled) for (const rotor of rotors) rotor.node.rotateY(delta * 16 * rotor.direction);
+        if (spinEnabled) shadowDirty = true;
+        controls.update();
+        updateGround();
+        if (shadowDirty && (!spinEnabled || ++shadowFrame % 3 === 0)) {
+          renderer.shadowMap.needsUpdate = true;
+          renderContactShadow();
+        }
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>

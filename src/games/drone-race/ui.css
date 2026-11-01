@@ -1,0 +1,159 @@
+button, input, select { font: inherit; }
+button { color: inherit; background: transparent; border: 0; }
+.game-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid transparent; background: var(--primary); color: var(--primary-foreground); white-space: nowrap; }
+.game-button:disabled { opacity: .5; pointer-events: none; }
+.game-button[data-variant="outline"] { border-color: var(--border); background: transparent; color: var(--foreground); }
+.game-button[data-variant="ghost"] { background: transparent; color: var(--foreground); }
+.game-button[data-size="icon"] { width: 40px; padding: 0; }
+.game-input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--input); border-radius: 7px; background: var(--background); color: var(--foreground); }
+[data-slot="progress"] { width: 100%; height: 8px; overflow: hidden; border-radius: 5px; background: var(--secondary); }
+[data-slot="progress-indicator"] { height: 100%; background: var(--primary); }
+.game-dialog { width: min(512px, calc(100% - 32px)); max-height: calc(100vh - 32px);max-height: calc(var(--game-height,100vh) - 32px); margin: auto; padding: 32px 24px 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--foreground); overflow: auto; }
+.game-dialog[open] { display: grid; gap: 16px; }
+.game-dialog::backdrop { background: #000a; backdrop-filter: blur(6px); }
+.game-dialog [data-slot="dialog-title"] { padding-right: 24px; font-size: 24px; }
+.game-dialog [data-slot="dialog-description"] { color: var(--muted-foreground); line-height: 1.7; }
+.game-dialog-close { position: absolute; right: 8px; top: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: var(--foreground); font-size: 26px; }
+.game-home-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: #acbcb3; text-decoration: none; font-size: 13px; }
+.invite-hint { margin: 0 0 20px !important; padding: 14px 18px; border: 1px solid #536a3e; border-radius: 10px; background: #213020; color: #d0ff4b; font-size: 14px; line-height: 1.7; }
+@media (max-width: 760px) { .topbar { flex-wrap: wrap; height: auto !important; min-height: 104px; padding-block: 12px !important; gap: 8px !important; } .header-actions { flex-wrap: wrap; } .game-home-link { font-size: 12px; } }
+@media (max-width: 760px) {
+  .app-shell .model-title { bottom: 106px; left: 20px; right: 20px; }
+  .app-shell .model-title h2 { font-size: 20px; letter-spacing: 1px; }
+  .app-shell .stats { gap: 12px; }
+  .app-shell .stat > div:first-child { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .app-shell .stat > div:first-child > span { white-space: nowrap; }
+  .race-screen .camera-toggle { top: auto; bottom: 226px; left: auto; right: 4%; min-height: 34px; }
+  .race-screen .boost-status { bottom: 276px; }
+}
+.web-game .launch-actions { grid-template-columns: 1fr; }
+.match-count { display: flex; align-items: center; gap: 12px; padding: 18px 0; color: #d0ff4b; }
+.match-count strong { font-size: 28px; }
+.match-count span { font-size: 14px; }
+.ladder-dialog [data-slot="dialog-title"] { display: flex; align-items: center; gap: 10px; }
+.ladder-mine { padding: 12px; border-radius: 8px; background: #233329; font-size: 14px; line-height: 1.7; }
+.ladder-list { padding: 0; margin: 0; list-style: none; }
+.ladder-list li { display: grid; grid-template-columns: 28px 38px minmax(0,1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid #33433b; align-items: center; }
+.ladder-avatar { width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#34443d;overflow:hidden; }
+.ladder-avatar img { width:100%;height:100%;border-radius:50%;object-fit:cover; }
+.ladder-avatar--vip { border:2px solid #f59e0b;padding:2px;box-shadow:0 0 7px #f59e0b66;background:#fff;color:#9b5d08; }
+.ladder-member-name { color:#f59e0b; }
+.ladder-list small { display: block; margin-top: 5px; color: #9cabad; }
+.flight-touch-pad { display: none; position: absolute; bottom: max(14px, env(safe-area-inset-bottom)); left: 4%; right: 4%; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 10; }
+.flight-stick { position: relative; width: 124px; height: 124px; border-radius: 50%; border: 1px solid #b4d4c599; background: #10272dbb; touch-action: none; pointer-events: auto; user-select: none; display: grid; place-items: center; }
+.stick-cross { position: absolute; font-size: 84px; font-weight: 200; opacity: .2; }
+.stick-knob { width: 46px; height: 46px; border: 1px solid #d0ff4b; border-radius: 50%; background: #d0ff4b88; pointer-events: none; }
+.flight-stick small { position: absolute; bottom: 8px; font-size: 10px; color: #d9e9df; }
+.flight-pedals { display: flex; gap: 10px; pointer-events: auto; }
+.flight-pedal { width: 64px; height: 76px; flex-direction: column; touch-action: none; user-select: none; }
+.flight-pedal.brake { background: #16343bcc; border-color: #9fbfb4; color: #effbef; }
+.flight-pedal.boost { background: #d0ff4b; color: #172814; }
+.countdown-touch { display: none; }
+.settlement-note { font-size: 13px; line-height: 1.7; color: #acbcb3; }
+.race-screen .result-overlay { z-index: 20; }
+.race-screen:not(.native-race) .result-overlay { position: fixed; }
+.race-screen:not(.native-race) .race-result > svg { display: block; }
+.native-race .flight-touch-pad { display: flex; }
+@media (pointer: coarse), (max-width: 760px) {
+  .countdown-keyboard, .keyboard-tip { display: none !important; }
+  .countdown-touch { display: block; }
+  .flight-touch-pad { display: flex; }
+  .native-race .race-bottom { bottom: 152px; }
+  .native-race .flight-telemetry { bottom: 158px; }
+  .native-race .camera-toggle { bottom: 275px; }
+  .native-race .boost-status { bottom: 318px; }
+}
+@media (max-width: 350px) { .flight-stick { width: 110px; height: 110px; } .flight-pedal { width: 56px; height: 70px; } .flight-pedals { gap: 8px; } }
+@media (max-height: 500px) and (max-width: 1200px) {
+  .native-race { min-height: 0; height: 100vh;height: var(--game-height,100vh); }
+  .native-race .race-top { top: 10px; gap: 10px; }
+  .native-race .race-top > button { height: 36px; min-height: 36px; }
+  .native-race .track-name { padding: 7px 10px; gap: 2px; }
+  .native-race .track-name strong { font-size: 15px; letter-spacing: 2px; }
+  .native-race .track-name > span { font-size: 8px; letter-spacing: 2px; }
+  .native-race .track-name small { display: none; }
+  .native-race .race-time { font-size: 22px; min-width: 90px; }
+  .native-race .race-progress { top: 64px; }
+  .native-race .flight-guidance { top: 95px; bottom: auto; }
+  .native-race .flight-guidance > span { padding: 6px 10px; font-size: 11px; }
+  .native-race .live-rank { top: 95px; width: 170px; padding: 4px; max-height: 125px; overflow: auto; }
+  .native-race .live-rank > div { font-size: 11px; padding: 5px; }
+  .native-race .race-bottom { left: 160px; right: 185px; bottom: 16px; gap: 15px; padding: 10px; }
+  .native-race .speedometer b { font-size: 32px; }
+  .native-race .speedometer span { font-size: 9px; margin-top: 3px; }
+  .native-race .battery { width: 180px; }
+  .native-race .battery small, .native-race .flight-telemetry, .native-race .keyboard-tip { display: none; }
+  .native-race .battery > div:first-child { font-size: 11px; margin-bottom: 8px; }
+  .native-race .flight-touch-pad { display: flex; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .native-race .flight-stick { width: 110px; height: 110px; }
+  .native-race .flight-pedal { height: 60px; width: 60px; }
+  .native-race .camera-toggle { top: auto; left: auto; right: 4%; bottom: 88px; }
+  .native-race .boost-status { bottom: 85px; }
+  .native-race .countdown strong { font-size: 70px; line-height: 1.1; }
+  .countdown-keyboard { display: none; }
+  .countdown-touch { display: block; }
+}
+
+/* Android race HUD follows the mini-program landscape hierarchy.  These
+   selectors are native-only so the website keeps its existing presentation. */
+@media (orientation: landscape) {
+  .native-race { min-height: 0; height: var(--game-height,100vh); }
+  .native-race .race-top { inset: 0; display: block; pointer-events: none; }
+  .native-race .race-top > button { position: absolute; top: max(10px,env(safe-area-inset-top)); left: max(14px,env(safe-area-inset-left)); height: 38px; min-height: 38px; padding: 6px 12px; border-color: #779486aa!important; border-radius: 11px; background: #0b2026d9!important; box-shadow: 0 5px 18px #00101455; pointer-events: auto; }
+  .native-race .race-top > .sound-controls { position: absolute; top: max(10px,env(safe-area-inset-top)); left: calc(18% - 3px); right: auto; pointer-events: auto; }
+  .native-race .sound-controls > button { border-radius: 11px; background: #0b2026d9; box-shadow: 0 5px 18px #00101455; }
+  .native-race .race-top .track-name { position: absolute; top: max(10px,env(safe-area-inset-top)); right: max(14px,env(safe-area-inset-right)); min-width: 0; width: max-content; height: 38px; padding: 6px 11px; gap: 0; border: 1px solid #78948866; border-radius: 11px; background: #0b2026d9; align-items: center; justify-content: center; }
+  .native-race .track-name > span,.native-race .track-name small { display:none; }.native-race .track-name strong { font-size: 14px; line-height:1; letter-spacing: 2px; white-space:nowrap; }
+  .native-race .race-time { position: absolute; top: max(10px,env(safe-area-inset-top)); left: auto; right: calc(max(14px,env(safe-area-inset-right)) + 104px); transform: none; min-width: 76px; padding: 5px 8px; border: 1px solid #78948855; font-size: 17px; text-align: center; pointer-events: none; }
+  .native-race .race-time small { font-size: 9px; }
+  .native-race .race-progress { top: 66px; left: 28%; right: 25%; }.native-race .race-progress > div:last-child { margin-top: 4px; font-size: 8px; }
+  .native-race .race-bottom { top: max(10px,env(safe-area-inset-top)); bottom: auto; left: 28%; right: auto; width: min(390px,44vw); min-height: 44px; display: grid; grid-template-columns: 44px minmax(105px,1fr) minmax(120px,1.08fr); align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid #6c897a55; border-radius: 9px; background: linear-gradient(90deg,#0b2026dc,#102b30b8); }
+  .native-race .speedometer b { font-size: 22px; }.native-race .speedometer span { margin-top: 1px; font-size: 7px; }
+  .native-race .battery { width: auto; min-width: 0; }.native-race .battery > div:first-child { margin-bottom: 3px; font-size: 8px; }.native-race .battery > div:first-child svg { width: 12px; height: 12px; }.native-race .battery [data-slot=progress] { height: 3px; }.native-race .battery small { display: block; margin-top: 3px; font-size: 7px; white-space: nowrap; }
+  .native-race .flight-telemetry { position: static; display: flex; gap: 7px; padding: 0; background: transparent; }.native-race .flight-telemetry span { gap: 2px; font-size: 7px; }.native-race .flight-telemetry b { font-size: 9px; white-space: nowrap; }
+  .native-race .camera-toggle { top: max(56px,calc(env(safe-area-inset-top) + 52px)); bottom: auto; left: max(14px,env(safe-area-inset-left)); right: auto; min-height: 32px; height: 32px; border-radius: 10px; background: #0b2026d9!important; }
+  .native-race .countdown { inset: auto; top: 98px; left: max(14px,env(safe-area-inset-left)); width: 210px; padding: 10px 13px; display: grid; grid-template-columns: auto 52px; grid-template-rows: auto auto; justify-content: stretch; align-items: center; column-gap: 9px; border: 1px solid #91ad786e; border-left: 3px solid #d0ff4b; border-radius: 0 11px 11px 0; background: #0a1d21e8; box-shadow: 0 8px 24px #00131766; animation: native-notice-in .2s ease-out; }
+  .native-race .countdown > span { font-size: 12px; letter-spacing: 2px; }.native-race .countdown strong { grid-column: 2; grid-row: 1 / 3; font-size: 46px; line-height: 1; text-align: center; }.native-race .countdown p { grid-column: 1; margin-top: 5px; padding: 0; font-size: 9px; text-align: left; }
+  .native-race .flight-guidance { top: 98px; bottom: auto; left: max(14px,env(safe-area-inset-left)); transform: none; align-items: flex-start; gap: 6px; white-space: normal; max-width: 235px; }
+  .native-race .flight-guidance.during-countdown { top: 174px; }
+  .native-race .flight-guidance > span { max-width: 235px; padding: 7px 10px; border-left: 3px solid #d0ff4b; border-radius: 0 9px 9px 0; background: #0a1d21e8; font-size: 10px; text-align: left; box-shadow: 0 7px 20px #00131755; animation: native-notice-in .2s ease-out; }.native-race .flight-guidance small { font-size: 8px; }
+  .native-race .network-warning { top: 105px; left: max(14px,env(safe-area-inset-left)); width: min(260px,38vw); transform: none; padding: 9px 11px; border-left: 3px solid #ff9d68; border-radius: 0 9px 9px 0; font-size: 10px; animation: native-notice-in .2s ease-out; }
+  .native-race .boost-status { top: 210px; bottom: auto; left: max(14px,env(safe-area-inset-left)); transform: none; min-height: 28px; padding: 6px 10px; border-left: 3px solid currentColor; border-radius: 0 8px 8px 0; background: #0a1d21dd; font-size: 12px; letter-spacing: 1px; }
+  .native-race .boost-status:empty { display: none; }
+  .native-race .live-rank { top: 214px; left: auto; right: max(14px,env(safe-area-inset-right)); width: 150px; max-height: 88px; overflow: auto; padding: 4px; background: #0a1d21d9; }.native-race .live-rank > div { padding: 4px; gap: 5px; font-size: 9px; }.native-race .live-rank small { font-size: 8px; }
+  .native-race .flight-touch-pad { left: max(14px,env(safe-area-inset-left)); right: max(14px,env(safe-area-inset-right)); bottom: max(10px,env(safe-area-inset-bottom)); }.native-race .flight-stick { width: 108px; height: 108px; }.native-race .flight-pedal { width: 62px; height: 64px; border-radius: 12px; }.native-race .controls-swap { bottom: 0; border-radius: 10px; background: #0b2026e8; }
+  .native-race .stick-cross { display:none; }.native-race .stick-knob { position:relative; }.native-race .stick-knob:before,.native-race .stick-knob:after { content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:2px;background:#eaff9a99; }.native-race .stick-knob:before { width:62%;height:2px; }.native-race .stick-knob:after { width:2px;height:62%; }
+  .native-race .flight-touch-pad.controls-swapped .flight-pedals { flex-direction:row-reverse; }
+  .native-race .race-result>svg { display:block;margin:0 auto 17px; }
+  .native-race .keyboard-tip { display: none; }
+}
+@media (orientation: landscape) and (max-width: 760px) {
+  .native-race .race-top > .sound-controls { left: calc(19% - 5px); }
+  .native-race .race-top .track-name { min-width:0; }.native-race .track-name strong { font-size: 12px; }
+  .native-race .race-time { left:auto;right:calc(max(14px,env(safe-area-inset-right)) + 94px);min-width:68px;padding-inline:6px;font-size:15px; }
+  .native-race .race-progress { left: 26%; right: 20%; }
+  .native-race .race-bottom { left: 26%; width:250px; grid-template-columns: 36px minmax(80px,1fr) minmax(96px,1.08fr); gap: 4px; padding-inline: 6px; }
+  .native-race .countdown { width: 170px; grid-template-columns: auto 42px; }.native-race .countdown strong { font-size: 40px; }
+  .native-race .flight-guidance,.native-race .flight-guidance > span { max-width: 180px; }
+  .native-race .battery small { white-space: normal; line-height: 1.15; }
+  .native-race .flight-telemetry { gap: 5px; }.native-race .flight-telemetry b { font-size: 10px; }
+}
+@keyframes native-notice-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
+
+.flight-mode-button { display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 10px;border:1px solid #688449;border-radius:9px;background:#20332b;color:#d0ff4b;font-size:12px;white-space:nowrap; }
+.race-mode-controls { position:absolute;z-index:3;left:4%;top:82px;display:flex;align-items:center;gap:6px; }
+.race-mode-controls .camera-toggle { position:static!important;min-height:32px;height:34px; }
+@media (max-width:700px) {
+ .header-actions { gap:6px;flex-wrap:wrap;justify-content:flex-end; }
+ .flight-mode-button { font-size:11px;padding:0 8px;height:30px; }
+ .race-mode-controls { top:66px;left:16px; }
+}
+@media (orientation:portrait) and (max-width:700px) {
+ .race-mode-controls { top:auto;bottom:226px;left:auto;right:4%; }
+ .native-race .race-mode-controls { bottom:275px; }
+}
+@media (orientation:landscape) {
+ .native-race .race-mode-controls { top:max(56px,calc(env(safe-area-inset-top) + 52px));bottom:auto;left:max(14px,env(safe-area-inset-left));right:auto;gap:4px; }
+ .native-race .race-mode-controls button { font-size:10px;padding:0 7px;height:30px;min-height:30px; }
+ .native-race .race-mode-controls kbd { display:none; }
+}

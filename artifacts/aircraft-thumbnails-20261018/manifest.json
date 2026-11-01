@@ -1,0 +1,1411 @@
+{
+  "schemaVersion": 2,
+  "kind": "aircraft-thumbnails",
+  "version": "20261018",
+  "aircraft": [
+    {
+      "name": "DJI Air 2S",
+      "slug": "dji-air-2s",
+      "sourceUrl": "https://www.dji.com/support/product/air-2s",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ef24c60a64def7a99d0aec28625ac5a3.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-air-2s.png",
+      "sha256_128": "05f3b8b37699d135ec990a70c13b86a341ea9e400bc129b8143ca8b21090633b",
+      "thumbnail1024": "1024/dji-air-2s.png",
+      "sha256_1024": "b1f24db87646023114b69c1123ee59b9f53f457e8582013d1814e3f925fe50e9"
+    },
+    {
+      "name": "DJI Air 3",
+      "slug": "dji-air-3",
+      "sourceUrl": "https://www.dji.com/air-3",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/a656cc79725b55d02616072360469ffd@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-air-3.png",
+      "sha256_128": "6ef38a5f16c979005359c275dcba8e5b0ded48453d6905489ffeea823d75191a",
+      "thumbnail1024": "1024/dji-air-3.png",
+      "sha256_1024": "e3cf72723d61b76533df424f2e0ad272ef13a479e4386bba02673ffde1c509ee"
+    },
+    {
+      "name": "DJI Air 3S",
+      "slug": "dji-air-3s",
+      "sourceUrl": "https://www.dji.com/air-3s",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ef97699c719414c2138ae8cca2806760@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-air-3s.png",
+      "sha256_128": "f3733950031831c7019debc1cf2f727952e8cd9f37b2919daf27bd30a3b1249b",
+      "thumbnail1024": "1024/dji-air-3s.png",
+      "sha256_1024": "0193923f5427439dce8020982cc89707d2ee53a4492d6e751c9c6c2c621b4d9c"
+    },
+    {
+      "name": "DJI Avata",
+      "slug": "dji-avata",
+      "sourceUrl": "https://www.dji.com/support/product/avata",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/fba1d039be4ae8142a1937d1885f7c4c.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        672,
+        672
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-avata.png",
+      "sha256_128": "f1278a97d507b8e5b411ff9b05bd53cf64879ce38a1b99054679268aa9011531",
+      "thumbnail1024": "1024/dji-avata.png",
+      "sha256_1024": "808772d5b7d72f52197f21e371dfe906ddcdf4bba32a8cf5b6cf78613a6a3bf3"
+    },
+    {
+      "name": "DJI Avata 2",
+      "slug": "dji-avata-2",
+      "sourceUrl": "https://www.dji.com/avata-2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/626902991232f685963ddf93214a8f53@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-avata-2.png",
+      "sha256_128": "197f2e7d7ac980384834ceae853c0e6dcc52fa96d1a7cdb62255996597f1a484",
+      "thumbnail1024": "1024/dji-avata-2.png",
+      "sha256_1024": "f0afd2f1a9180ae139f629a042681b89d09f9d585f581b16d16c6cee3068b206"
+    },
+    {
+      "name": "DJI Avata 360",
+      "slug": "dji-avata-360",
+      "sourceUrl": "https://www.parkcameras.com/shop/dji-avata-360-rc-2_9703510a",
+      "imageUrl": "https://dtz3um9jw7ngl.cloudfront.net/p/l/9703510A/9703510A_2.jpg",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1000,
+        1000
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-avata-360.png",
+      "sha256_128": "b93eaf21c53ba1c57d941e8760432ab6e96235ed60e80f1624d767101c07c42c",
+      "thumbnail1024": "1024/dji-avata-360.png",
+      "sha256_1024": "427577a8aed45897a693d032811d4d4e0f65147a88634f7220357daa0dc97e4c"
+    },
+    {
+      "name": "DJI Flip",
+      "slug": "dji-flip",
+      "sourceUrl": "https://www.dji.com/flip",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/32a4df4ce9e014fa44a38e24cc7fa97e@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-flip.png",
+      "sha256_128": "0f2b2852e23dbb7334ad2eb9a2f65787f4b292089c1c1dee448cfc5e972b94a1",
+      "thumbnail1024": "1024/dji-flip.png",
+      "sha256_1024": "6044f3a021b5b7fc8bce2cf925550e28bb0c907c93bad8903cc815c42a7c1067"
+    },
+    {
+      "name": "DJI FlyCart 100",
+      "slug": "dji-flycart-100",
+      "sourceUrl": "https://www.dji.com/flycart-100",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/9358904a6d5a4182e2bcd9a0db8be35a@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-flycart-100.png",
+      "sha256_128": "1b136c503d7a4ce4fb3a5c59b925785aea5403ecc76abe6a0a3309c9b0448063",
+      "thumbnail1024": "1024/dji-flycart-100.png",
+      "sha256_1024": "bdde2b301a731bccbaef38e2e9054225928acd2bbf1b1b79d50b168a71080b8f"
+    },
+    {
+      "name": "DJI FlyCart 200",
+      "slug": "dji-flycart-200",
+      "sourceUrl": "https://www.xtuav.cn/fc200.html",
+      "imageUrl": "https://30634770.s21i.faiusr.com/2/ABUIABACGAAgnrGgzwYotJegwwYwoAY4oAY.jpg",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-flycart-200.png",
+      "sha256_128": "695cef617cd31d625c9f47415d08eb58923c1d0b83f9c3d1dab9d67c4bee3aa6",
+      "thumbnail1024": "1024/dji-flycart-200.png",
+      "sha256_1024": "e9e4981c94f99caca20c1f3c7481488442fcbf6ded5aed629e35d8e5f2b31349"
+    },
+    {
+      "name": "DJI FlyCart 30",
+      "slug": "dji-flycart-30",
+      "sourceUrl": "https://www.dji.com/flycart-30",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/6309da752b25bee607f0c785de57085e@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-flycart-30.png",
+      "sha256_128": "7be490a6454868668c7e740368f7f363c8635451d604a7011c79b607c1d94f0d",
+      "thumbnail1024": "1024/dji-flycart-30.png",
+      "sha256_1024": "b2bb6b951f09b3f0d4c4d6e90e06496ab7e8ba8167cb73c8c95054cad2816388"
+    },
+    {
+      "name": "DJI FPV",
+      "slug": "dji-fpv",
+      "sourceUrl": "https://www.dji.com/support/product/dji-fpv",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/0cb5db0ca2ba38c9fd446070616bf420.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-fpv.png",
+      "sha256_128": "b48f7c70e1899246fb205981b6e045b4b91ca6e5db2ea99484f9f69188e7264e",
+      "thumbnail1024": "1024/dji-fpv.png",
+      "sha256_1024": "ffd182d7e2627def9804b5446fe721147941843964540922242192df17c14b7c"
+    },
+    {
+      "name": "DJI Lito 1",
+      "slug": "dji-lito-1",
+      "sourceUrl": "https://store.dji.com/sg/product/dji-lito-x1?from=site-nav&set_region=SG",
+      "imageUrl": "https://se-cdn.djiits.com/stormsend/uploads/0a523a91829ad7352f604835a08fc9b3.png?h=576&w=576",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        576,
+        576
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-lito-1.png",
+      "sha256_128": "7849c594c94f8c960dce4f32e04a72e5779c139563df8a91a68b93fe982bf3e4",
+      "thumbnail1024": "1024/dji-lito-1.png",
+      "sha256_1024": "6c6fc04239af1fdeb8c84b2043ca8c834c4bf4f1908d8d010e0cc86d8adafc69"
+    },
+    {
+      "name": "DJI Lito X1",
+      "slug": "dji-lito-x1",
+      "sourceUrl": "https://store.dji.com/sg/product/dji-lito-x1?from=site-nav&set_region=SG",
+      "imageUrl": "https://se-cdn.djiits.com/tpc/uploads/in_the_box/cover/9cbb1a270de53e714a5247c6a9351fc9%40retina_small.png?format=webp",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "折叠状态产品图。",
+      "sourceDimensions": [
+        640,
+        640
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-lito-x1.png",
+      "sha256_128": "f0c2c84c4bf466342f56f64ea7b679fbe9d5481176c17e277a70b9dc3d639f23",
+      "thumbnail1024": "1024/dji-lito-x1.png",
+      "sha256_1024": "e854da63b66e26c34a3de6f803fb99d67a2fd3e538fcad65baf78238b3c175b6"
+    },
+    {
+      "name": "DJI Matrice 3D/3TD",
+      "slug": "dji-matrice-3d-3td",
+      "sourceUrl": "https://www.syd.com.tr/urun/dji-matrice-3d",
+      "imageUrl": "https://www.syd.com.tr/shop/ae/82/myassets/products/074/dji-matrice-3d.png?revision=1744010505",
+      "sourceType": "第三方产品页面",
+      "representation": "Matrice 3D/3TD series",
+      "note": "组合机型条目，使用 Matrice 3D 代表图。",
+      "sourceDimensions": [
+        1920,
+        1920
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-matrice-3d-3td.png",
+      "sha256_128": "52b1cb1d44bf56a800b136ebe55107b3af10abdb0e643447187953b2a86597a4",
+      "thumbnail1024": "1024/dji-matrice-3d-3td.png",
+      "sha256_1024": "54f628c602ce760b78916f1e85aed6351614c1cd05f7a32fb11c916a764c1629"
+    },
+    {
+      "name": "DJI Matrice 4D/4TD",
+      "slug": "dji-matrice-4d-4td",
+      "sourceUrl": "https://dji-retail.co.uk/products/dji-matrice-4d-drone-for-dock-3-drone-only",
+      "imageUrl": "https://dji-retail.co.uk/cdn/shop/files/DJI-Matrice-4D-aircraft-for-DJI-Dock-3_1000x_100e06d7-94b1-43b8-9e50-8e985c7d097c.webp?v=1740756028",
+      "sourceType": "第三方产品页面",
+      "representation": "Matrice 4D/4TD series",
+      "note": "组合机型条目，使用 Matrice 4D 代表图。",
+      "sourceDimensions": [
+        1000,
+        1000
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-matrice-4d-4td.png",
+      "sha256_128": "efb35bf62ba01b20529f68169a270cf597fdb3093775d5eda07110a0dddc169f",
+      "thumbnail1024": "1024/dji-matrice-4d-4td.png",
+      "sha256_1024": "a47cc98af1c150aacf7d42543850d79435808d8c18d1c111db37bbd302a6b85a"
+    },
+    {
+      "name": "DJI Matrice 4T/4E",
+      "slug": "dji-matrice-4t-4e",
+      "sourceUrl": "https://enterprise.dji.com/matrice-4-series",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/5a6ef3ed6f35e3719453a78ff0e67af4@374*374.png",
+      "sourceType": "官方",
+      "representation": "Matrice 4 series",
+      "note": "组合机型条目，使用 Matrice 4 系列代表图。",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-matrice-4t-4e.png",
+      "sha256_128": "90029465659f20a91e9f2a804c800ab0943759be3a3a8f5da46ae23626e58a33",
+      "thumbnail1024": "1024/dji-matrice-4t-4e.png",
+      "sha256_1024": "5f961850d66667d217567a8b152444ca0143914806c9f75c6a61eca911900f79"
+    },
+    {
+      "name": "DJI Matrice 5TD",
+      "slug": "dji-matrice-5td",
+      "sourceUrl": "https://www.dji.com/products/comparison-small-ent-drones",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/b097bfe5016cb10feae4fb647b0d16e3.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        436,
+        436
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-matrice-5td.png",
+      "sha256_128": "393a5725627b5545442bc3bc843dfeb318fa5e079694caa8c7e4806649bb535c",
+      "thumbnail1024": "1024/dji-matrice-5td.png",
+      "sha256_1024": "a105230b99335f2c40b605b946405787dd544b52887e4d3b01e2110e4a8d7296"
+    },
+    {
+      "name": "DJI Mavic 3",
+      "slug": "dji-mavic-3",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-3",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/5f1fa599d2aa8f0ad8b3b69f9e4c7925.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mavic-3.png",
+      "sha256_128": "69d8b18c9401eb68ff3b8bbac7af7dbb3051f5074900b4c66dc673e88ae59917",
+      "thumbnail1024": "1024/dji-mavic-3.png",
+      "sha256_1024": "eecb18d25bd88a406ed6f7e8aeef3b91f8b7fb909b2fbee0712b2b897a86827a"
+    },
+    {
+      "name": "DJI Mavic 3 Classic",
+      "slug": "dji-mavic-3-classic",
+      "sourceUrl": "https://www.dji.com/mavic-3-classic",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/71e0d1acdf0f4ab35bf7de4eed250633@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mavic-3-classic.png",
+      "sha256_128": "b4092f74051d0987e5be961fb1bb7c860f417c004eb279610b5f0c9915d150cf",
+      "thumbnail1024": "1024/dji-mavic-3-classic.png",
+      "sha256_1024": "496072094e214e70009c8cd9b4f1849c48dc910f3cce5e6da81a38d04589b041"
+    },
+    {
+      "name": "DJI Mavic 3 Pro",
+      "slug": "dji-mavic-3-pro",
+      "sourceUrl": "https://www.dji.com/mavic-3-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ae5d8b9987be8d5ecdeb5d502a1e887c@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mavic-3-pro.png",
+      "sha256_128": "45589e6d7e7f6cdf307e5b50193455c1e8eba2214d2ebe8ac0a2006259bf191f",
+      "thumbnail1024": "1024/dji-mavic-3-pro.png",
+      "sha256_1024": "3dd98c73305383c8380f61079732a31f4d703e4a9891f686811dd54c1ae8ffee"
+    },
+    {
+      "name": "DJI Mavic 4 Pro",
+      "slug": "dji-mavic-4-pro",
+      "sourceUrl": "https://www.actiontech.co.nz/products/dji-mavic-4-pro",
+      "imageUrl": "https://www.actiontech.co.nz/cdn/shop/files/MAV4PSINGLE7.webp?v=1747173432",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        720,
+        480
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-mavic-4-pro.png",
+      "sha256_128": "6463d0e7d8c6dc47e8225d84e7c6ba112356d9b66798c99c4724d19efe507938",
+      "thumbnail1024": "1024/dji-mavic-4-pro.png",
+      "sha256_1024": "ecda55de7246976a5ed0392fea3a15afc081c1cf9105dbf787e1fcfc83cad815"
+    },
+    {
+      "name": "DJI Mini 2/DJI Mini 2 SE",
+      "slug": "dji-mini-2",
+      "sourceUrl": "https://www.dji.com/support/product/mini-2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/b42222a4d8a74021232be931ae2bb536.png",
+      "sourceType": "官方",
+      "representation": "DJI Mini 2 (series representative)",
+      "note": "组合机型条目，使用 DJI Mini 2 代表图。",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-2.png",
+      "sha256_128": "f08110c6c145fbb3e3c450fce06bd283d64e6f725b00a631e2c42582e71e9fcf",
+      "thumbnail1024": "1024/dji-mini-2.png",
+      "sha256_1024": "0cd4524c79736a44e2675e7411c0819ea099b2be2664e60f64c1c0121cb038c0"
+    },
+    {
+      "name": "DJI Mini 3",
+      "slug": "dji-mini-3",
+      "sourceUrl": "https://www.dji.com/mini-3",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/0e65b98eaee5cad6f74196e9594b99cd@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-3.png",
+      "sha256_128": "4dbad1ee0737835b1fb5f22d1a431d5834b6058a42053bdbbe52a7ce1c3281cc",
+      "thumbnail1024": "1024/dji-mini-3.png",
+      "sha256_1024": "7ebee8bddf7b2bf7bce4db615a23deb3181b6411daebf4f99f3885478e0989a0"
+    },
+    {
+      "name": "DJI Mini 3 Pro",
+      "slug": "dji-mini-3-pro",
+      "sourceUrl": "https://www.dji.com/support/product/mini-3-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/04ca2f7feb8446c0c96c9ef68d3f35e9.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        700,
+        700
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-3-pro.png",
+      "sha256_128": "98aa56e684e1a8f8381a0999bcbe8105f120290cd55616b16aba4ac1891b7241",
+      "thumbnail1024": "1024/dji-mini-3-pro.png",
+      "sha256_1024": "bab5b5d1b7ac3c91ddc7c7ce8d6e6d38917be00db92439588b3ed3a6c17e8ba2"
+    },
+    {
+      "name": "DJI Mini 4 Pro",
+      "slug": "dji-mini-4-pro",
+      "sourceUrl": "https://www.dji.com/mini-4-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/892e39b4b76dc5a83b267ed12ce69b97@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-4-pro.png",
+      "sha256_128": "36448b57f71956db776a88d3f58ea3af25d68aa1a82b90401c8b3c0fa42f5d8d",
+      "thumbnail1024": "1024/dji-mini-4-pro.png",
+      "sha256_1024": "0ccde08fec395811588e7a78fb9d038f82774fd7bf0e75ff9c4d74e2c861a9f8"
+    },
+    {
+      "name": "DJI Mini 4K",
+      "slug": "dji-mini-4k",
+      "sourceUrl": "https://www.fotoaparatas.eu/en/dji-mini-4k",
+      "imageUrl": "https://www.fotoaparatas.eu/data/upload/images/DJI%20Mini%204K%203.jpg",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1200,
+        852
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-mini-4k.png",
+      "sha256_128": "1bc8c90b92ff7a86d0699dcf504f3497022cef1caab6a7153ef507af39da5b44",
+      "thumbnail1024": "1024/dji-mini-4k.png",
+      "sha256_1024": "63f1f49f502a77b9a8699dec197407b0b15d0845a76a5520f8a1c50e35815ab3"
+    },
+    {
+      "name": "DJI Mini 5 pro",
+      "slug": "dji-mini-5-pro",
+      "sourceUrl": "https://www.istorm.gr/products/dji-mini-5-pro",
+      "imageUrl": "https://www.istorm.gr/cdn/shop/files/DJIMini5PRO-unfolded_frontview_22_low-angle_22_1.png?v=1758110749&width=1445",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1445,
+        1445
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-5-pro.png",
+      "sha256_128": "21b400c4678ce6e6a152d528e3699382f89c9ab83421faa058e0d8e3962b3ef8",
+      "thumbnail1024": "1024/dji-mini-5-pro.png",
+      "sha256_1024": "1d46c3462cf3a17612f4e07906c822878235e94bba04c3312e38f72f40a64afb"
+    },
+    {
+      "name": "DJI Mini SE",
+      "slug": "dji-mini-se",
+      "sourceUrl": "https://www.dji.com/support/product/mini-se",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/d901c023125d76df1eb612c4b3742819.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-mini-se.png",
+      "sha256_128": "c0606208c75030a0c07299250f1fd951ecb566a7e99bfa1ff11121dd4472842b",
+      "thumbnail1024": "1024/dji-mini-se.png",
+      "sha256_1024": "7f68822614c656cd1929f1801e9cd678d3dbbe031211565e2270f2ee63d59d32"
+    },
+    {
+      "name": "DJI Neo",
+      "slug": "dji-neo",
+      "sourceUrl": "https://www.dji.com/neo",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/a2d5733d4fe4b62050a3a1ea1109612d@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/dji-neo.png",
+      "sha256_128": "9a4d40aeb40f22497ee47f33bd9a6b2acb10651eacdd30506681ec690cb6f8d3",
+      "thumbnail1024": "1024/dji-neo.png",
+      "sha256_1024": "94fad761c69aec9e907cddd407aff78ac66e810f8717477217622554d484c2e2"
+    },
+    {
+      "name": "DJI Neo 2",
+      "slug": "dji-neo-2",
+      "sourceUrl": "https://www.bigcamera.co.th/dji-neo-2",
+      "imageUrl": "https://www.bigcamera.co.th/media/catalog/product/cache/6cfb1b58b487867e47102a5ca923201b/d/j/dji_neo_2_1.png",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "产品图带来源页面原有品牌文字。",
+      "sourceDimensions": [
+        1000,
+        1000
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/dji-neo-2.png",
+      "sha256_128": "fbf5b5421820e8b0962ad829701ca8d79120c043283708aa9dee07319bcd0421",
+      "thumbnail1024": "1024/dji-neo-2.png",
+      "sha256_1024": "1536d5bb366f9eaf6816893a4e17409bf0ac1046981aed3bdda72e5de7a32983"
+    },
+    {
+      "name": "DJI Mavic 3E/3T/3M/3TA",
+      "slug": "industry-260",
+      "sourceUrl": "https://enterprise.dji.com/mavic-3-enterprise",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/4cfc74354616f6a37ed4f011007bb6d0@374*374.png",
+      "sourceType": "官方",
+      "representation": "Mavic 3 Enterprise series",
+      "note": "组合机型条目，使用 Mavic 3 Enterprise 系列代表图。",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/industry-260.png",
+      "sha256_128": "7eb334bee7c4303030f659075be561b8abc09641fd6b0972e7ffddc4bf7fadc6",
+      "thumbnail1024": "1024/industry-260.png",
+      "sha256_1024": "7340af9bb137077e4da74f3828773a88046f4c28048b904ddf3fabeeed47a4e8"
+    },
+    {
+      "name": "Inspire 1 Series",
+      "slug": "inspire-1-series",
+      "sourceUrl": "https://www.dji.com/support/product/inspire-1",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/83c40c5f1bb1d47a8a83800c5ab97e55.png",
+      "sourceType": "官方",
+      "representation": "Inspire 1",
+      "note": "系列条目，使用 Inspire 1 代表图。",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/inspire-1-series.png",
+      "sha256_128": "0062973b9ffb22582749621806d036a4a489790e2ddc846210c6168849621632",
+      "thumbnail1024": "1024/inspire-1-series.png",
+      "sha256_1024": "06eb02a939ae4c2d2314809bc8ad04e948541db45110f4a77fbddea5fe8abd6c"
+    },
+    {
+      "name": "Inspire 2",
+      "slug": "inspire-2",
+      "sourceUrl": "https://www.dji.com/support/product/inspire-2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/4c69ac4a430b6100d93635d7114634f9.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/inspire-2.png",
+      "sha256_128": "22be3e575891774a53adcca8dbc3957c1e563e68a45942abc9cb7749a8c65788",
+      "thumbnail1024": "1024/inspire-2.png",
+      "sha256_1024": "d66ef4d78cc228438a0c7ca3f9b078e183eed2be0fc1530e0d375989d3fb0af2"
+    },
+    {
+      "name": "Inspire 3",
+      "slug": "inspire-3",
+      "sourceUrl": "https://www.dji.com/inspire-3",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/133dbcbded142391e8ed57d0fcd57ac8@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/inspire-3.png",
+      "sha256_128": "9887fe33a6b00cd08cd0906acb7a9e1a806b8e82432b2bbf2671fbbfbb1c4198",
+      "thumbnail1024": "1024/inspire-3.png",
+      "sha256_1024": "eb22074a8b825a9780f1c9266d28679aa3531fdd50a38aee7b78266c5793c57a"
+    },
+    {
+      "name": "DJI Matrice 400",
+      "slug": "m-400",
+      "sourceUrl": "https://enterprise.dji.com/matrice-400",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/3c9712c308bac3e36007c3a9ded88d9d@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m-400.png",
+      "sha256_128": "6cd2d1d16edd4cd2105959f4910b7f60d3dfe5b359deb9c43b1d0755a74b3429",
+      "thumbnail1024": "1024/m-400.png",
+      "sha256_1024": "33a058b4a208cf1db94ca18fe8ab28add4d562d872f3b85e88868c28ea20caa6"
+    },
+    {
+      "name": "M100",
+      "slug": "m100",
+      "sourceUrl": "https://www.dji.com/support/product/matrice100",
+      "imageUrl": "https://www1.djicdn.com/cms/uploads/2e3ead786f2dbdd20eaa5c7b639c052b.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m100.png",
+      "sha256_128": "ad8612ff48e98f247e5a47fee1e5b1275b1496b6b8fd6cd1a21ebb5356f0c26f",
+      "thumbnail1024": "1024/m100.png",
+      "sha256_1024": "a90f4d534d6632fbcdff6739647236f75742673eaabdfbd5927732ba176da972"
+    },
+    {
+      "name": "M200 Series",
+      "slug": "m200-series",
+      "sourceUrl": "https://www.dji.com/support/product/matrice-200-series",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/de09b4d004c7d7638f4697e286defe8c.png",
+      "sourceType": "官方",
+      "representation": "Matrice 200 series",
+      "note": "系列条目，使用 Matrice 200 系列代表图。",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m200-series.png",
+      "sha256_128": "f486cad27c13e00d07e9bd1d22d63e9db3b09630169534d7e0de66e2a1866521",
+      "thumbnail1024": "1024/m200-series.png",
+      "sha256_1024": "440c908d171d68082216585f4d21db4fbf11001d33f5824bf806d99d3f92fe03"
+    },
+    {
+      "name": "M30 Series",
+      "slug": "m30-series",
+      "sourceUrl": "https://enterprise.dji.com/matrice-30",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/a39d9ada3c5c88ab54082e100284f642@374*374.png",
+      "sourceType": "官方",
+      "representation": "Matrice 30 series",
+      "note": "系列条目，使用 Matrice 30 系列代表图。",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m30-series.png",
+      "sha256_128": "2e007489c64f3f8ce3cb1372ae0b9f440fb9a2925dc574bac3ce0226b139ac34",
+      "thumbnail1024": "1024/m30-series.png",
+      "sha256_1024": "456ab067e067feb5265cb6c8c7bc0a6aaa6cc57dcb154a92104e69945eb4e4b5"
+    },
+    {
+      "name": "M300 Series",
+      "slug": "m300-series",
+      "sourceUrl": "https://www.dji.com/downloads/products/matrice-300",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ce99f35351080727ba6a52514b5007fb.png",
+      "sourceType": "官方",
+      "representation": "Matrice 300 RTK",
+      "note": "系列条目，使用 Matrice 300 RTK 代表图。",
+      "sourceDimensions": [
+        1080,
+        1080
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m300-series.png",
+      "sha256_128": "fe29e77740bbdccfcf38b9abffc4befeeae814299e8aa086d3c2bedc6a20a71e",
+      "thumbnail1024": "1024/m300-series.png",
+      "sha256_1024": "94e45c25924cd34ebbabce243e33232aa9b5ffdd96a03ef19c390e363bdb283a"
+    },
+    {
+      "name": "M350 RTK",
+      "slug": "m350-rtk",
+      "sourceUrl": "https://enterprise.dji.com/matrice-350-rtk",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/3f33b79fc054eaf64bd357bf287069f9@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m350-rtk.png",
+      "sha256_128": "772b45f69db41aeb4485b606980b897d386ab4093a686036597ada14b687de86",
+      "thumbnail1024": "1024/m350-rtk.png",
+      "sha256_1024": "4bc702a104dfc31b3ddd94e5138c7352b56707652b741a5188f29870baf3ef74"
+    },
+    {
+      "name": "M600 Series",
+      "slug": "m600-series",
+      "sourceUrl": "https://www.dji.com/support/product/matrice600-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ff39cc335fa4a087c6bbe0ad6ceb8924.png",
+      "sourceType": "官方",
+      "representation": "Matrice 600 Pro",
+      "note": "系列条目，使用 Matrice 600 Pro 代表图。",
+      "sourceDimensions": [
+        1600,
+        1600
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/m600-series.png",
+      "sha256_128": "2d846e92239022e2d8de820b7294517cf52ae1f647447b3df38a9af7bda13212",
+      "thumbnail1024": "1024/m600-series.png",
+      "sha256_1024": "be963dd2483aa9872b85c74b2f09112fed26cbdbee8cd7315d2dbc452708e216"
+    },
+    {
+      "name": "Mavic 2",
+      "slug": "mavic-2",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/bb29aa1a3391d355ae8e9fdd1da89bbd.png",
+      "sourceType": "官方",
+      "representation": "Mavic 2 series",
+      "note": "组合机型条目，使用 Mavic 2 系列代表图。",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-2.png",
+      "sha256_128": "8fc970a7ac7f18f5aae062f9832fca1a8b4c6063a226b6370b165efa9e2ed17d",
+      "thumbnail1024": "1024/mavic-2.png",
+      "sha256_1024": "1610911a8bf1f620be0a171a898e5a424d422c0add91903db668e9b401782377"
+    },
+    {
+      "name": "Mavic 2 Enterprise",
+      "slug": "mavic-2-enterprise",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-2-enterprise",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/10e8848523cf636ee531006c53aa334a.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-2-enterprise.png",
+      "sha256_128": "a55ce7ee037f1f36f012ff8bf71f98fe908e4ebb595226b2c5821f586065501b",
+      "thumbnail1024": "1024/mavic-2-enterprise.png",
+      "sha256_1024": "3c1efd05981031fcf0beeb4f53ea5963a9e9f501b5b41e7ecb10b82f04dee89f"
+    },
+    {
+      "name": "Mavic Air",
+      "slug": "mavic-air",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-air",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/a50e0c594d250a993b451f742d4f18c6.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-air.png",
+      "sha256_128": "b011be5b5b56f8d255c49357611ce6d2376b0daeabb4d48eb1b4ba8bd497926b",
+      "thumbnail1024": "1024/mavic-air.png",
+      "sha256_1024": "6532b9008dd4075fae0c40281ef3794de2bd7af48780690bdad38a8d4cdd7217"
+    },
+    {
+      "name": "Mavic Air 2",
+      "slug": "mavic-air-2",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-air-2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/d777733b92483ace26da02b1ad30c759.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-air-2.png",
+      "sha256_128": "a9da214908ceda9d16d75770104880f7ccb0d007fe17473f2b956c75bf63038a",
+      "thumbnail1024": "1024/mavic-air-2.png",
+      "sha256_1024": "34e02c5e0bff809dcf71947ba89aeaa61ba3f6e354f3486fa8b2efa5166db4cb"
+    },
+    {
+      "name": "Mavic Mini",
+      "slug": "mavic-mini",
+      "sourceUrl": "https://www.dji.com/support/product/mavic-mini",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/35e78b88cc43444baea0dbfda8469cda.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-mini.png",
+      "sha256_128": "0a02ef8c2bdedd50964ba2b28b0a74b60e77d98d9f3f50d2bc6261deaa05a229",
+      "thumbnail1024": "1024/mavic-mini.png",
+      "sha256_1024": "c86b1c25aaf6eba47342d96ee872ea2bc5a7397326f310cfa665e03292ea6c47"
+    },
+    {
+      "name": "Mavic Pro",
+      "slug": "mavic-pro",
+      "sourceUrl": "https://www.dji.com/support/product/mavic",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/bde9054e052865e30e833b16cd7205e3.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        448,
+        448
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mavic-pro.png",
+      "sha256_128": "dd1a727c9f66318790b6d48389fde53c7f45b5300238bd31bdd1d2f69f9222dc",
+      "thumbnail1024": "1024/mavic-pro.png",
+      "sha256_1024": "e5b1d74db0b68af6aa5a102b0f7a82f0de9fc03ce06aab8e159c2c9ec1e476ad"
+    },
+    {
+      "name": "T20P",
+      "slug": "mg-new",
+      "sourceUrl": "https://ag.dji.com/t20p",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/a18b1f9256db59459f02e19997321441@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new.png",
+      "sha256_128": "46e3249584ee226b552742262a6974af2c94fa812a7a27ccd9a49ba3bb9e7fa6",
+      "thumbnail1024": "1024/mg-new.png",
+      "sha256_1024": "5c2881f55756103e1b9f8ae05cca88d8cf168876a929673ea66520cb03047243"
+    },
+    {
+      "name": "T10",
+      "slug": "mg-new-t10",
+      "sourceUrl": "https://ag.dji.com/t10",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/123952f1d77284c4d7800ef06c4329be@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t10.png",
+      "sha256_128": "1b2f77aa017656bf2e6d51bf12c2401e89b1f940b1a0b11b30f132089699b083",
+      "thumbnail1024": "1024/mg-new-t10.png",
+      "sha256_1024": "f2299c53df23379c8536cc7839e0c54e932fcf3f770231b68950a294e4b8ef97"
+    },
+    {
+      "name": "T100",
+      "slug": "mg-new-t100",
+      "sourceUrl": "https://ag.dji.com/t100",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/5729359464f3579031b1a5dee918f42a@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t100.png",
+      "sha256_128": "9694d1c7201defb132abaff4a89b5bf433025c2d6d10195908875b40ddd357d5",
+      "thumbnail1024": "1024/mg-new-t100.png",
+      "sha256_1024": "5d6e6e44271c6bd65abe7acb10d8608725f4a2262f8711ede2dbc8e15db86873"
+    },
+    {
+      "name": "T100S",
+      "slug": "mg-new-t100-s",
+      "sourceUrl": "https://x-droners.com/uav/productInfo/26040027",
+      "imageUrl": "https://x-droners.com/upload/img/260410/da-jiang-t100s-t70s-nong-ye-wu-ren-fei-ji.png",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "场景图。",
+      "sourceDimensions": [
+        1752,
+        985
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/mg-new-t100-s.png",
+      "sha256_128": "2b9b1a3c6ed432b11cd8622ba24a08fc3b2608943ba7ce3543641d02c39460fc",
+      "thumbnail1024": "1024/mg-new-t100-s.png",
+      "sha256_1024": "338a7f9e435c4e6cee9b72ad35193d4c88dfe5247904d28b11a4fbbb7c8a8133"
+    },
+    {
+      "name": "T200",
+      "slug": "mg-new-t200",
+      "sourceUrl": "https://x-droners.com/uav/productInfo/26040044",
+      "imageUrl": "https://x-droners.com/upload/img/260421/da-jiang-t200-nong-ye-wu-ren-fei-ji.png",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "场景图。",
+      "sourceDimensions": [
+        1445,
+        813
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/mg-new-t200.png",
+      "sha256_128": "03d53a3fa95bcfbb6fff3505ccf09e23d105b2e49926b86d0131b16c71117699",
+      "thumbnail1024": "1024/mg-new-t200.png",
+      "sha256_1024": "e928592652ab10ee172556dfe860a84b13845c0e5873b0c1e22255a7862896af"
+    },
+    {
+      "name": "T25",
+      "slug": "mg-new-t25",
+      "sourceUrl": "https://ag.dji.com/t25",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/7899c3e40d0dc71c2054390a0f183123@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t25.png",
+      "sha256_128": "40160f342a4aa7b9d53a7f0a5f004d5e1c240b7c51dc02bda9f66daa74896575",
+      "thumbnail1024": "1024/mg-new-t25.png",
+      "sha256_1024": "05c233002277e17980bf76f686253d4dac5cf1ed60af69d7f1c773c6fa295919"
+    },
+    {
+      "name": "T25P",
+      "slug": "mg-new-t25p",
+      "sourceUrl": "https://ag.dji.com/t25p",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/e867e101bc458855de6356c4e16159fd@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t25p.png",
+      "sha256_128": "499631fdad3b9585ab13555c6569abbc68423984ce228d4e5752d33a9abe45a1",
+      "thumbnail1024": "1024/mg-new-t25p.png",
+      "sha256_1024": "ddf86b03f6e49dc8d1dc1ca4528d214edf1e4be654c6afe163d1c5ca90811b6d"
+    },
+    {
+      "name": "T30",
+      "slug": "mg-new-t30",
+      "sourceUrl": "https://ag.dji.com/t30",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/4099c9d68530f5a34f5c6d70fede31cc@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t30.png",
+      "sha256_128": "0b754d56f2bf863bebaa29ee6e7d5b5000507f124ea427dd67598ec2c823458a",
+      "thumbnail1024": "1024/mg-new-t30.png",
+      "sha256_1024": "ff84a81bd32934b4b670d3d1ab0fa2b804df485f5b063a86f74319586f3778dd"
+    },
+    {
+      "name": "T40",
+      "slug": "mg-new-t40",
+      "sourceUrl": "https://www.dji.com/t40",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/2e44c66f6191d8fea81eb40022f7f98b@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t40.png",
+      "sha256_128": "d9ff560df6ed322c7f82d940d10caa9bfc13d5956a1ab3f12760297c62776755",
+      "thumbnail1024": "1024/mg-new-t40.png",
+      "sha256_1024": "4960d29dfa034056e564b6e1d4044a7c565bd965daf02bff90966e0e212d4689"
+    },
+    {
+      "name": "T50",
+      "slug": "mg-new-t50",
+      "sourceUrl": "https://ag.dji.com/t50",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/01a263d016fe2160032808e7d5fbbf0d@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t50.png",
+      "sha256_128": "b45e9196bb45f3f398f1c5653601eeb474c97265b3d4b15626bcdc6a16d25965",
+      "thumbnail1024": "1024/mg-new-t50.png",
+      "sha256_1024": "d7c8a43838dfeeb39dcd2e4a13ed82a47f1109949fa8761501932657fb3459f8"
+    },
+    {
+      "name": "T55",
+      "slug": "mg-new-t55",
+      "sourceUrl": "https://ag.dji.com/t55",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/b8463d071f64cc1da37a20a4359a9c39@374*374.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t55.png",
+      "sha256_128": "11aaa7aca687842fb8a8f69b7af8814296975743d2d9038f53e7d8d839bc0441",
+      "thumbnail1024": "1024/mg-new-t55.png",
+      "sha256_1024": "f6adb4670de91d56c6a836425f6dd426f447376b8da116a11a2f97f0b3f79983"
+    },
+    {
+      "name": "T60",
+      "slug": "mg-new-t60",
+      "sourceUrl": "https://x-droners.com/uav/productInfo/26040034",
+      "imageUrl": "https://x-droners.com/upload/img/260410/da-jiang-t60-nong-ye-wu-ren-fei-ji-2.jpg",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "场景图。",
+      "sourceDimensions": [
+        1000,
+        750
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/mg-new-t60.png",
+      "sha256_128": "2cd931259c4c4a27073087fb68ff0d33bd80cb3a13561082f7f1bf2ec3fb605a",
+      "thumbnail1024": "1024/mg-new-t60.png",
+      "sha256_1024": "db5991cf624d6929137ca670ff98ced2bbbdaf76f204462a449f7ded3fd93342"
+    },
+    {
+      "name": "T70/T70P",
+      "slug": "mg-new-t70",
+      "sourceUrl": "https://ag.dji.com/t70p",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/7e56f41f7b05f039d860f5079b8c0213@374*374.png",
+      "sourceType": "官方",
+      "representation": "T70P (series representative)",
+      "note": "组合机型条目，使用 T70P 代表图。",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg-new-t70.png",
+      "sha256_128": "39a30b2698d60e1f4b7524660f7a4eaf7904fdde7fbde7725c23828c34f35c90",
+      "thumbnail1024": "1024/mg-new-t70.png",
+      "sha256_1024": "ff517b0c59a8852760ad5aa058336da6d53ab0e69ef2f8bcfdbe21844497dbff"
+    },
+    {
+      "name": "T70S",
+      "slug": "mg-new-t70-s",
+      "sourceUrl": "https://x-droners.com/uav/productInfo/26040040",
+      "imageUrl": "https://x-droners.com/upload/img/260412/da-jiang-t70s-nong-ye-zhi-bao-wu-ren-fei-ji.jpg",
+      "sourceType": "第三方产品页面",
+      "representation": "",
+      "note": "包含飞行器与配件的套装图。",
+      "sourceDimensions": [
+        1184,
+        666
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/mg-new-t70-s.png",
+      "sha256_128": "d0eb8d3578651b237ed5ef22f13403a870e398d7fab27c978171b3486f668bf8",
+      "thumbnail1024": "1024/mg-new-t70-s.png",
+      "sha256_1024": "a2be973ab3ea9a4e41a258fa58dfec6ee5f3700cce3194db95a89ed8f09d73b9"
+    },
+    {
+      "name": "MG 1S/1A/1P/1P RTK/T16/T20",
+      "slug": "mg1p",
+      "sourceUrl": "https://www.dji.com/mg-1p",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/81fa55ba5455a68b19c120c4b8d4adaa@374*374.png",
+      "sourceType": "官方",
+      "representation": "AGRAS MG-1P (series representative)",
+      "note": "组合机型条目，使用 AGRAS MG-1P 代表图。",
+      "sourceDimensions": [
+        374,
+        374
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/mg1p.png",
+      "sha256_128": "13781e53c7d1edd9b2a64c775af45288467a1eafb4b3cfce0ce7a73bcf0383a3",
+      "thumbnail1024": "1024/mg1p.png",
+      "sha256_1024": "ec15b3e883a619f25e63f65a31919406502c934e5c0c8de3a895a55f64857a50"
+    },
+    {
+      "name": "Phantom 3 4K",
+      "slug": "phantom-3-4K",
+      "sourceUrl": "https://www.dji.com/downloads/products/phantom3-4k",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/ae48c5d452a03517205445e2c098f7d3.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        640,
+        640
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-3-4K.png",
+      "sha256_128": "d30597c4e368ab55be3bb89704f41a127adeea7d56e697c7b3d7386d308a1140",
+      "thumbnail1024": "1024/phantom-3-4K.png",
+      "sha256_1024": "d7f0dcb1189703f90464788c61e0035f48d06d114491e65043de02c3619ffb65"
+    },
+    {
+      "name": "Phantom 3 Advanced",
+      "slug": "phantom-3-advanced",
+      "sourceUrl": "https://www.dji.com/downloads/products/phantom-3-adv",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/64f463a5b60cc684f3d0d6ac8df2a591.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        320,
+        320
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-3-advanced.png",
+      "sha256_128": "7559f507f331301ff53550d43e8cd028f3ecb8dba725e352058447485ae1547b",
+      "thumbnail1024": "1024/phantom-3-advanced.png",
+      "sha256_1024": "be988a0cb5e7df2d728601b8d6bce4181f31b9d0973db70f86840557050c9769"
+    },
+    {
+      "name": "Phantom 3 Pro",
+      "slug": "phantom-3-pro",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-3-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/2a805ed38e24512b380e9827803b14b1.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-3-pro.png",
+      "sha256_128": "ebe75daf86fbdaf4ad2177026b6868b9bec641243dab67de0331840678fdde89",
+      "thumbnail1024": "1024/phantom-3-pro.png",
+      "sha256_1024": "0f6727b0e86d74f4d3ae574c7e129540ae977e6dc8ddc23070b75d97bceeb2d6"
+    },
+    {
+      "name": "Phantom 3 SE",
+      "slug": "phantom-3-se",
+      "sourceUrl": "https://www.dji.com/downloads/products/phantom-3-se",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/558f81edfc6da7791db12c30f63938ff.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        640,
+        640
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-3-se.png",
+      "sha256_128": "10060ea64097e049840b07026a3470d56c0a4f1922e4d3f2d43ac8595e17b1aa",
+      "thumbnail1024": "1024/phantom-3-se.png",
+      "sha256_1024": "d1e3352d99d1bfabaa6196d3a78c5162c7207b7e1c8dc7b42e7011e208671b56"
+    },
+    {
+      "name": "Phantom 3 Standard",
+      "slug": "phantom-3-standard",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-3-standard",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/289925bc9272fab0bf30cb2f34e80bc3.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-3-standard.png",
+      "sha256_128": "6a88b4801f3db205d21d58f45080d2634511dfe3355dbadf9b43f99a4d0f834e",
+      "thumbnail1024": "1024/phantom-3-standard.png",
+      "sha256_1024": "a118658c32e12f6cceb755029723bc605649ac6ee2fea40f278e31d842837225"
+    },
+    {
+      "name": "Phantom 4",
+      "slug": "phantom-4",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-4",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/1176f8fa6c0f02857a8d9c167ade0b46.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4.png",
+      "sha256_128": "ca7820c18902311ad7dbe7bb6dfb1cd4f4fe79d3e7266009ad775655b3e0f71c",
+      "thumbnail1024": "1024/phantom-4.png",
+      "sha256_1024": "b1319bd38c285ca5127f3f3db48b3cc69c605859e4a1187f509e1b5d2c652d7f"
+    },
+    {
+      "name": "Phantom 4 Advanced",
+      "slug": "phantom-4-advanced",
+      "sourceUrl": "https://www.dji.com/downloads/products/phantom-4-adv",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/4be0e7a6e3c2e07fd0f5bfb2ab1c6e3f.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        640,
+        640
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4-advanced.png",
+      "sha256_128": "a7cae7a292cb201d4227bce29578b93dc5f29a9d53554a8f67f3852ac07f1124",
+      "thumbnail1024": "1024/phantom-4-advanced.png",
+      "sha256_1024": "71611ca738a208b787d09b2c66e2edaf27c0515b65e5a992eba63ef0c141cb36"
+    },
+    {
+      "name": "Phantom 4 Multispectral",
+      "slug": "phantom-4-multispectral",
+      "sourceUrl": "https://www.dji.com/support/product/p4-multispectral",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/78a1f702b99af414528615d8bb54e0b1.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4-multispectral.png",
+      "sha256_128": "9a3c952a30bbf2e69347c31c1d2399280770f47bd7e34fcb1aed5c85ec5870b9",
+      "thumbnail1024": "1024/phantom-4-multispectral.png",
+      "sha256_1024": "c9eea7ce6068ff3588bc08e719fcb0bc89b3c60a29d9be3bae69c630b5ff37e6"
+    },
+    {
+      "name": "Phantom 4 Pro",
+      "slug": "phantom-4-pro",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-4-pro",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/670a933d59d49122b51363cdf6f5845b.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4-pro.png",
+      "sha256_128": "6de310974da597b2982b285d4598bf15971d4d1893cf653f74b8160ab03fa57c",
+      "thumbnail1024": "1024/phantom-4-pro.png",
+      "sha256_1024": "3454b2aae86054a70cd392b37ff93f18328bdde3fc7e3b296f6023489f803cd2"
+    },
+    {
+      "name": "Phantom 4 Pro V2/V2+",
+      "slug": "phantom-4-pro-v2",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-4-pro-v2",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/2a60be74b04ce645ffe64dd34132f3f7.png",
+      "sourceType": "官方",
+      "representation": "Phantom 4 Pro V2.0",
+      "note": "组合机型条目，使用 Phantom 4 Pro V2.0 代表图。",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4-pro-v2.png",
+      "sha256_128": "d347ff6132066282982d2781077b4a452810e4653960ef698368bfcfe2fd92a5",
+      "thumbnail1024": "1024/phantom-4-pro-v2.png",
+      "sha256_1024": "d63b08a7abeea5932a32f10dde91a86fe90086433a5dd79cb5ec7d1f970a792d"
+    },
+    {
+      "name": "Phantom 4 RTK",
+      "slug": "phantom-4-rtk",
+      "sourceUrl": "https://www.dji.com/support/product/phantom-4-rtk",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/221f0cd1ce7392455f08a1ea93ce8479.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/phantom-4-rtk.png",
+      "sha256_128": "7ff219526922b660cbb2bc3afa534949dcd2cb2a7cdd6812b2fd1c47034d4432",
+      "thumbnail1024": "1024/phantom-4-rtk.png",
+      "sha256_1024": "4eb3f5531d8c78059822fef99d2dde02487c2ff2ee7c6e0a45f7e9ff96a18b16"
+    },
+    {
+      "name": "ATOM 2",
+      "slug": "potensic-atom-2",
+      "sourceUrl": "https://cn.potensic.com/atom-2.html",
+      "imageUrl": "https://omo-oss-image.thefastimg.com/portal-saas/pg2024050909140579882/cms/image/7df0c579-0037-40c9-adc9-e81776f28c95.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1080,
+        1080
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/potensic-atom-2.png",
+      "sha256_128": "3e478af10c0bb2cfaf24c68350c73990b43f462291763f1f66ea8fb824f13858",
+      "thumbnail1024": "1024/potensic-atom-2.png",
+      "sha256_1024": "a318f3fc4b3eec5e837c43892f1f1f0bc3802d46d2bd4553a634198ce4851a90"
+    },
+    {
+      "name": "ATOM 2S",
+      "slug": "potensic-atom-2s",
+      "sourceUrl": "https://cn.potensic.com/atom-2.html",
+      "imageUrl": "https://omo-oss-image.thefastimg.com/portal-saas/pg2024050909140579882/cms/image/7734c0d9-85f6-4246-9c7b-b0aa58592dd7.jpeg",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1080,
+        1080
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/potensic-atom-2s.png",
+      "sha256_128": "3826107b88ec60d5f51f7182d52455e34dab2bceb12aea9e15eb365599004033",
+      "thumbnail1024": "1024/potensic-atom-2s.png",
+      "sha256_1024": "14afebba0ad75620582166b7f8a639ebb38316f59f2a091ecfce901abda7f404"
+    },
+    {
+      "name": "ATOM 3",
+      "slug": "potensic-atom-3",
+      "sourceUrl": "https://cn.potensic.com/atom-2.html",
+      "imageUrl": "https://omo-oss-image.thefastimg.com/portal-saas/pg2024050909140579882/cms/image/cca7712d-7683-4646-b7f1-af505cf3f356.jpg",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        1080,
+        1080
+      ],
+      "backgroundProcessing": "AI-assisted cutout, visually reviewed",
+      "thumbnail128": "128/potensic-atom-3.png",
+      "sha256_128": "8a47507b4409e9a2f6ff7a770c9f4cbc8e9ccddaac5e3b49ea1c0404762de22c",
+      "thumbnail1024": "1024/potensic-atom-3.png",
+      "sha256_1024": "55e39abbce9cf61052d66845d80f1d4c9725ee1b691afccc00c383d9ab671e89"
+    },
+    {
+      "name": "ATOM SE",
+      "slug": "potensic-atom-se",
+      "sourceUrl": "https://cn.potensic.com/atom-2.html",
+      "imageUrl": "https://omo-oss-image.thefastimg.com/portal-saas/pg2024050909140579882/cms/image/9727e18d-be2f-4214-b3cf-7a19903f258d.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        324,
+        324
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/potensic-atom-se.png",
+      "sha256_128": "09e15150ef6b35543cfa8b3bcf3f3ea12f0bf9ccf89f65e93736dc5a45d172a1",
+      "thumbnail1024": "1024/potensic-atom-se.png",
+      "sha256_1024": "180de456cf7e80b186abe195c5da9657d9ce0d96de88041302813e1342c325aa"
+    },
+    {
+      "name": "Spark",
+      "slug": "spark",
+      "sourceUrl": "https://www.dji.com/support/product/spark",
+      "imageUrl": "https://www-cdn.djiits.com/cms/uploads/4e4f3253a6de880801422f1a976a8ed9.png",
+      "sourceType": "官方",
+      "representation": "",
+      "note": "",
+      "sourceDimensions": [
+        800,
+        800
+      ],
+      "backgroundProcessing": "Original transparent alpha preserved",
+      "thumbnail128": "128/spark.png",
+      "sha256_128": "e4e36f5dc80f36bd49ad04bf6302f868c8b8d304e701195c3a9bb66f2be7b033",
+      "thumbnail1024": "1024/spark.png",
+      "sha256_1024": "f0e473866f10843473908e7fb468c464a41f9fe16de5809433f851923b596cac"
+    }
+  ]
+}

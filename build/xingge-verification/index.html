@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111413"><meta name="description" content="低空星球：探索适飞区、结识飞行同好、分享航拍。Android App 公测中，下载体验；也可微信扫码进入小程序。">
+<title>低空星球 — 让飞行，连接更多可能。</title>
+<link rel="icon" href="/assets/logo-C2MSDqd2.png" type="image/png">
+  <script type="module" crossorigin src="/assets/home-DlGYUsn1.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-CW7EvELY.css">
+</head>
+<body>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="icon-android" viewBox="0 0 24 24"><path d="m6 3 2 3m10-3-2 3M4 12a8 8 0 0 1 16 0Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8.5" cy="9" r="1" fill="currentColor"/><circle cx="15.5" cy="9" r="1" fill="currentColor"/><path d="M4 15h16v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" fill="currentColor"/></symbol>
+</defs></svg>
+<header class="header wrap">
+<a class="brand" href="#top" aria-label="低空星球首页"><span class="brand-mark"><img src="/assets/logo-C2MSDqd2.png" alt="低空星球 Logo" width="1232" height="1232"></span><span>低空星球</span></a>
+<nav aria-label="主导航"><a class="api-entry" href="/docs/api/">API接入文档 <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a></nav>
+</header>
+<main id="top">
+<section class="hero wrap" aria-labelledby="hero-title">
+<div class="hero-copy"><h1 id="hero-title">让飞行，<br><span>连接更多可能。</span></h1><p>让热爱找到伙伴，<br>让专业遇见需求。</p></div>
+<div class="space-scene" id="space-scene" aria-label="自动循环：旋转的低空星球、独立环绕飞行的无人机，接近后融入真实横向地图">
+<img class="flight-fallback" src="/assets/orbit-and-map-fallback-v4-amjEajXR.webp" alt="无人机环绕旋转星球，再进入铺满画面的真实地图" width="720" height="540" fetchpriority="high">
+<video class="flight-video" id="flight-video" autoplay loop muted playsinline webkit-playsinline preload="auto" disablepictureinpicture aria-label="星球自转、无人机环绕与地图实录，自动静音循环播放" width="1080" height="810">
+<source src="/assets/orbit-and-map-v4-CSjcpiIo.mp4" type="video/mp4">
+</video>
+</div>
+</section>
+<section class="products wrap" aria-label="体验低空星球">
+<article class="product-card mini-card" id="mini"><div class="mini-copy"><h2>微信小程序</h2><p>探索适飞区，约上同好，分享航拍。<br>不用安装，微信扫码即刻体验。</p><span class="scan-hint">微信扫一扫 <svg><use href="#icon-arrow"/></svg></span></div><button class="qr-button" id="show-code" aria-label="放大低空星球小程序码"><img src="/assets/miniprogram-code-BAxrARQf.jpg" alt="低空星球微信小程序码，可用微信扫一扫识别" width="430" height="430"><span>点击放大</span></button></article>
+<article class="product-card app-card" aria-label="低空星球 App">
+  <div class="app-tabs" role="tablist" aria-label="选择 App 平台">
+    <button class="app-tab" type="button" role="tab" id="tab-android" aria-controls="panel-android" aria-selected="true">Android</button>
+    <button class="app-tab" type="button" role="tab" id="tab-harmony" aria-controls="panel-harmony" aria-selected="false" tabindex="-1">鸿蒙</button>
+    <button class="app-tab" type="button" role="tab" id="tab-ios" aria-controls="panel-ios" aria-selected="false" tabindex="-1">iOS</button>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-android" aria-labelledby="tab-android">
+    <div class="product-heading"><h2><svg aria-hidden="true"><use href="#icon-android"/></svg>Android App</h2><span class="badge beta-badge"><span aria-hidden="true"></span>公测中</span></div>
+    <p>地图探索、同好连接与飞行分享。<br>原生飞行体验，邀你先行。</p>
+    <a class="button black" id="download-app" tabindex="0" download aria-busy="true"><span id="download-label">获取安装包…</span><svg aria-hidden="true"><use href="#icon-download"/></svg></a>
+    <div id="android-version" class="app-version" role="status">仅支持 Android · 正在获取版本信息</div>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-harmony" aria-labelledby="tab-harmony" hidden>
+    <div class="product-heading"><h2>鸿蒙 App</h2><span class="badge beta-badge" id="harmony-release-badge"><span aria-hidden="true"></span>公测中</span></div>
+    <p>HarmonyOS 5.0 及以上手机、平板。<br>HAP 测试包，需符合签名和设备授权。</p>
+    <a class="button black" id="download-harmony" tabindex="0" aria-busy="true"><span id="harmony-download-label">获取安装包…</span><svg aria-hidden="true"><use href="#icon-download"/></svg></a>
+    <div id="harmony-version" class="app-version" role="status">正在获取鸿蒙版本信息</div>
+  </div>
+  <div class="app-panel" role="tabpanel" id="panel-ios" aria-labelledby="tab-ios" hidden>
+    <div class="product-heading"><h2>iOS App</h2><span class="badge">筹备中</span></div>
+    <p>在 iPhone 上，发现更多飞行乐趣。<br>iOS 体验正在筹备，敬请期待。</p>
+    <button class="button black" data-app="iOS App">下载 App <svg aria-hidden="true"><use href="#icon-download"/></svg></button>
+  </div>
+</article>
+</section>
+<section class="game-section wrap" aria-labelledby="drone-game-title">
+  <div class="game-preview" aria-hidden="true">
+    <svg viewBox="0 0 280 160" fill="none">
+      <path d="M12 124C54 124 56 38 109 38S172 125 266 66" stroke="currentColor" stroke-opacity=".3" stroke-width="2" stroke-dasharray="5 7"/>
+      <ellipse cx="213" cy="74" rx="20" ry="40" transform="rotate(20 213 74)" stroke="currentColor" stroke-width="3"/>
+      <g transform="translate(38 37) rotate(-12 70 44)" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M45 30L91 58M91 30L45 58M55 34L80 34L85 52L60 58Z" fill="#192818"/>
+        <ellipse cx="37" cy="24" rx="22" ry="9"/><ellipse cx="100" cy="24" rx="22" ry="9"/>
+        <ellipse cx="37" cy="63" rx="22" ry="9"/><ellipse cx="100" cy="63" rx="22" ry="9"/>
+        <path d="M28 24H46M91 24H109M28 63H46M91 63H109"/>
+      </g>
+      <path d="M23 23h16M31 15v16M251 129h12M257 123v12" stroke="currentColor" stroke-opacity=".5" stroke-width="2"/>
+    </svg>
+    <span>画出来，飞起来。</span>
+  </div>
+  <div class="game-copy">
+    <span class="game-eyebrow">低空星球 · 飞行小游戏</span>
+    <h2 id="drone-game-title">涂鸦飞行</h2>
+    <p>画一架自己的无人机，穿越六条赛道。<br>选择喜欢的机型，开始你的飞行。</p>
+    <div class="game-features"><span>自由绘制</span><span>277 款机型</span><span>手机也能玩</span></div>
+  </div>
+  <a class="button primary game-play" href="/games/drone-race/">开始飞行 <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+</section>
+</main>
+<footer class="footer wrap"><span>© <span id="year">2026</span> 低空星球</span><a class="icp-link" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">苏ICP备2025183953号-2</a><div class="footer-end"><a class="admin-entry" id="admin-entry" href="/admin/">管理端登录 <svg aria-hidden="true"><use href="#icon-arrow"/></svg></a><span>让每一次起飞，都有所相遇。</span></div></footer>
+<dialog id="download-dialog" aria-labelledby="download-title"><button class="dialog-close" aria-label="关闭提示">×</button><h2 id="download-title">即将起飞</h2><p>app正在紧锣密鼓的筹备中。</p><button class="button primary dialog-dismiss">好的，期待</button></dialog>
+<dialog id="android-download-dialog" aria-labelledby="android-download-title"><button class="dialog-close" aria-label="关闭提示">×</button><h2 id="android-download-title">在浏览器中下载</h2><p id="android-download-tip">点击微信右上角“···”，选择“在浏览器打开”，即可下载 Android 安装包。</p><button class="button primary" id="copy-android-link">复制下载地址</button><button class="dialog-dismiss dialog-secondary">知道了</button></dialog>
+<dialog id="harmony-download-dialog" aria-labelledby="harmony-download-title"><button class="dialog-close" aria-label="关闭提示">×</button><h2 id="harmony-download-title">在浏览器中下载</h2><p id="harmony-download-tip">点击微信右上角“···”，选择“在浏览器打开”，即可下载鸿蒙 HAP 测试包。</p><button class="button primary" id="copy-harmony-link">复制下载地址</button><button class="dialog-dismiss dialog-secondary">知道了</button></dialog>
+<dialog id="code-dialog" class="code-dialog" aria-labelledby="code-title"><button class="dialog-close" aria-label="关闭小程序码">×</button><h2 id="code-title">微信扫一扫，进入低空星球</h2><img src="/assets/miniprogram-code-BAxrARQf.jpg" alt="低空星球微信小程序码" width="430" height="430"><a class="button primary" id="download-code" href="#code-dialog" download="低空星球-小程序码.jpg">保存小程序码 <svg><use href="#icon-download"/></svg></a></dialog>
+</body>
+</html>

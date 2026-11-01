@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-30",
+  "kind": "sunrise",
+  "model": "ecmwf",
+  "status": "stale",
+  "reason": "BULK_PREPARING",
+  "snapshotMode": "global-once-v3",
+  "imageVersion": "v3-1793207015119",
+  "dataResolutionDegrees": null,
+  "resolutionDegrees": 6.0,
+  "renderStyle": "cloud-bands-v3",
+  "upgrading": true
+}

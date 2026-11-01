@@ -1,0 +1,50 @@
+const fs=require('fs'),assert=require('node:assert/strict');
+const {fixture,server}=require('D:/Workspace/LowLatitudePlanet/scripts/check-mini-flows.cjs');
+const {chromium}=require('../node_modules/playwright');
+const path=require('path');
+const product={id:7,revision:1,newsVersion:7,title:'飞行便携收纳包',brand:'星球好物',category:'飞行配件',description:'轻巧收纳，随行出发。',imageUrl:'data:image/png;base64,'+fs.readFileSync('E:/source_code/wechat/DiKongKong-wechat-mini/miniprogram/packages/market/assets/logo.png').toString('base64'),originalPrice:10,cashPrice:8,maxFlp:2,presale:true,stock:10};
+const setup=`
+const marketProduct=${JSON.stringify(product)};
+let marketOrders=[];
+const original=AndroidMini.call;
+AndroidMini.call=(id,method,payload)=>{const args=JSON.parse(payload);if(method==='request'&&args.url.includes('/api/market/')){platformCalls.push({method,args});const p=new URL(args.url).pathname;let data;
+ if(p==='/api/market/latest')data={version:7};
+ else if(p==='/api/market/categories')data=['飞行配件','户外装备'];
+ else if(p==='/api/market/products')data={content:[marketProduct],last:true,totalElements:1};
+ else if(p==='/api/market/products/7')data=marketProduct;
+ else if(p==='/api/market/orders'&&args.method==='POST'){data={id:'order1',...marketProduct,...args.data,cash:8,flp:2,status:'WAITING_PAYMENT'};marketOrders=[data];}
+ else if(p==='/api/market/orders')data={content:marketOrders,last:true,totalElements:marketOrders.length};
+ else if(p.endsWith('/payment-status'))data=marketOrders[0];
+ else if(p.endsWith('/pay')){data={orderId:'market:order1',appId:'fixture',timeStamp:'123',nonceStr:'nonce',packageValue:'Sign=WXPay',paySign:'sig',partnerId:'merchant',prepayId:'prepay'};marketOrders[0].status='PAID';}
+ else throw Error('unhandled market fixture '+p);
+ setTimeout(()=>miniReply(id,true,{statusCode:200,data:{success:true,data}}),0);return;}return original(id,method,payload);};`;
+server.listen(0,'127.0.0.1',async()=>{let browser;try{browser=await chromium.launch({headless:true});for(const width of [393,1200]){
+ const page=await browser.newPage({viewport:{width,height:900}});
+ await page.route('**/runtime.js',r=>r.fulfill({contentType:'text/javascript',body:setup+fs.readFileSync('D:/Workspace/LowLatitudePlanet/app/src/main/assets/mini-parity/runtime.js','utf8')}));
+ await fixture(page,'pages/discover/index');
+ const entries=await page.locator('.discover-entry-title').allTextContents();assert.deepEqual(entries.slice(0,5),['消息','星球广播 · 贴图','低空有圈','星球有市','接单大厅']);
+ await page.getByText('星球有市',{exact:true}).click();await page.locator('.product-card').waitFor();await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+ assert.equal(await page.locator('.product-card .price').textContent(),'仅需 ¥8.00');assert.equal(await page.locator('.presale').textContent(),'预售');
+ assert.equal(await page.evaluate(()=>wx.getStorageSync('marketSeen')),7);
+ await page.waitForFunction(()=>document.querySelector('.catalog-brand img')?.naturalWidth===128);
+ assert.equal(await page.locator('.product-brand').textContent(),'星球好物 ');
+ await page.getByText('飞行配件',{exact:true}).click();await page.locator('.product-card').waitFor();
+ assert(await page.evaluate(()=>platformCalls.some(c=>c.method==='request'&&c.args.url.includes('category='+encodeURIComponent('飞行配件')))));
+ await page.getByText('全部',{exact:true}).click();await page.locator('.product-card').waitFor();
+ await page.getByText('客服',{exact:true}).click();
+ const cs=await page.evaluate(()=>platformCalls.find(c=>c.method==='customerService').args);assert.equal(cs.corpId,'ww9917b55fd95de95e');assert.equal(cs.extInfo.url,'https://work.weixin.qq.com/kfid/kfc8511906a7513bff4');
+ const photo=await page.locator('.product-card .photo').boundingBox(),info=await page.locator('.product-info').boundingBox();assert(photo.x+photo.width<=info.x);assert(Math.abs(photo.y-info.y)<2);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ fs.mkdirSync('build/checks',{recursive:true});await page.screenshot({path:'build/checks/market-home-'+width+'.png'});
+ await page.locator('.product-card').click();await page.locator('.detail-title').waitFor();
+ await page.getByPlaceholder('收货人姓名').fill('测试飞友');await page.getByPlaceholder('联系电话').fill('13800138000');await page.getByPlaceholder('省 / 市 / 区、街道、门牌号').fill('测试市测试区测试路1号');
+ await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.screenshot({path:'build/checks/market-detail-'+width+'.png',fullPage:true});
+ await page.getByText('提交订单并支付',{exact:true}).click();await page.getByText('待发货',{exact:true}).waitFor();await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+ const checkout=await page.evaluate(()=>platformCalls.find(c=>c.method==='request'&&c.args.url.endsWith('/api/market/orders')&&c.args.method==='POST').args.data);
+ assert(!('cash' in checkout));assert(checkout.requestKey);assert.equal(checkout.quantity,1);
+ const pay=await page.evaluate(()=>platformCalls.find(c=>c.method==='payment').args);assert.equal(pay.package,'Sign=WXPay');assert.equal(pay.partnerId,'merchant');
+ await page.screenshot({path:'build/checks/market-orders-'+width+'.png'});assert.deepEqual(await page.evaluate(()=>errors),[]);await page.close();
+ const flp=await browser.newPage({viewport:{width,height:900}});await fixture(flp,'pages/profile/flp/index');await flp.getByText('兑换商品',{exact:true}).waitFor();assert.equal(await flp.locator('.flp-right-item').count(),4);assert.equal(await flp.getByText('低空展示位',{exact:true}).count(),0);await flp.getByText('兑换商品',{exact:true}).click();await flp.getByPlaceholder('搜索品牌或商品').waitFor();await flp.close();
+ }console.log('PASS: design entry order, four FLP benefits, original PNG decoded, horizontal rows, categories, enterprise customer service, product pricing/presale, read acknowledgement, address checkout, native payment payload, server-paid order display, 393/1200px layout.');
+ }catch(e){console.error(e);process.exitCode=1;}finally{await browser?.close();server.close();}});

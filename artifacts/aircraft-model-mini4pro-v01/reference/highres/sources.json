@@ -1,0 +1,16 @@
+{
+  "sourcePages": [
+    "https://www.dji.com/mini-4-pro",
+    "https://store.dji.com/product/dji-mini-4-pro"
+  ],
+  "note": "URLs extracted from the official cached product HTML and current store page state. The image named side.jpg is the folded 3/4 view; front.jpg is a low front 3/4 view, not an orthographic diagram. Reference photos remain DJI property.",
+  "images": {
+    "product-original.png": "https://www-cdn.djiits.com/cms/uploads/892e39b4b76dc5a83b267ed12ce69b97.png",
+    "sensors.jpg": "https://www-cdn.djiits.com/dps/218adf14dde60efdc2563419fa26103d@origin.jpg",
+    "top.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/e8923caaaaedf808853c33394ff27f46@origin.jpg",
+    "front.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/1ff6aa2ee049560aded2a7431e66a67e@origin.jpg",
+    "perspective.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/f96def8770cb7529d7a98731fa2117dd@origin.jpg",
+    "bottom.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/7c5487b14f2d66c33d36c7c211dbd3b9@origin.jpg",
+    "side.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/e193c7273a533721bfc9a79a68335595@origin.jpg"
+  }
+}

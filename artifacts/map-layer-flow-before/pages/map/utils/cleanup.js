@@ -1,0 +1,116 @@
+const { setSubscribeWaitOverlay } = require("../../../utils/subscribe-wait");
+
+function onHide(page) {
+  page._nearbyRequestsHidden = true;
+  require("../../../utils/latest-map-request").cancel(page, "_pendingPinsFetch");
+  require("../../../utils/latest-map-request").cancel(page, "_pendingMarkersFetch");
+  if (page._pinsFetchTimer) clearTimeout(page._pinsFetchTimer);
+  if (page._markersFetchTimer) clearTimeout(page._markersFetchTimer);
+  page.stopMyLocationDirectionTracking();
+  page.pauseCenterPinLocationFollow();
+  page.clearPinPreview();
+  page.hideMarkerCertificationSheet(true);
+  if (page._checkinEntryStyleTimer) {
+    clearTimeout(page._checkinEntryStyleTimer);
+    page._checkinEntryStyleTimer = null;
+  }
+  if (page._mapGraphicsSyncTimer) {
+    clearTimeout(page._mapGraphicsSyncTimer);
+    page._mapGraphicsSyncTimer = null;
+  }
+  if (page._weatherFetchTimer) {
+    clearTimeout(page._weatherFetchTimer);
+    page._weatherFetchTimer = null;
+  }
+  if (page._elevationFetchTimer) {
+    clearTimeout(page._elevationFetchTimer);
+    page._elevationFetchTimer = null;
+  }
+  if (page._compassResetFinalizeTimer) {
+    clearTimeout(page._compassResetFinalizeTimer);
+    page._compassResetFinalizeTimer = null;
+  }
+  page._compassResetUntil = 0;
+  page._pendingMapGraphicsSync = null;
+}
+
+function onUnload(page) {
+  page._nearbyRequestsHidden = true;
+  require("../../../utils/latest-map-request").cancel(page, "_pendingPinsFetch");
+  require("../../../utils/latest-map-request").cancel(page, "_pendingMarkersFetch");
+  if (page._pinsFetchTimer) clearTimeout(page._pinsFetchTimer);
+  if (page._markersFetchTimer) clearTimeout(page._markersFetchTimer);
+  require("./map-viewport").cancelProgrammaticViewportRefresh(page);
+  page.stopMyLocationDirectionTracking();
+  page.stopCenterPinLocationFollow({ toast: false });
+  page.unregisterWindowResizeListener();
+  if (page._mapGraphicsSyncTimer) clearTimeout(page._mapGraphicsSyncTimer);
+  page._mapGraphicsSyncTimer = null;
+  page._pendingMapGraphicsSync = null;
+  if (page._markersFetchTimer) clearTimeout(page._markersFetchTimer);
+  if (page._pinsFetchTimer) clearTimeout(page._pinsFetchTimer);
+  if (page._weatherFetchTimer) clearTimeout(page._weatherFetchTimer);
+  if (page._elevationFetchTimer) clearTimeout(page._elevationFetchTimer);
+  if (page._compassResetFinalizeTimer) clearTimeout(page._compassResetFinalizeTimer);
+  if (page._pendingCenterActionShareTimer) clearTimeout(page._pendingCenterActionShareTimer);
+  if (page._centerShareLaunchLockTimer) clearTimeout(page._centerShareLaunchLockTimer);
+  if (page._subscribeWaitTimer) clearTimeout(page._subscribeWaitTimer);
+  setSubscribeWaitOverlay(false);
+  if (page._markerDetailCloseTimer) clearTimeout(page._markerDetailCloseTimer);
+  if (page._markerPageCloseTimer) clearTimeout(page._markerPageCloseTimer);
+  if (page._markerDetailExpandTimer) clearTimeout(page._markerDetailExpandTimer);
+  if (page._markerCertificationSheetCloseTimer) clearTimeout(page._markerCertificationSheetCloseTimer);
+  if (page._restoreMarkerDetailTimer) clearTimeout(page._restoreMarkerDetailTimer);
+  if (page._layerPanelCloseTimer) clearTimeout(page._layerPanelCloseTimer);
+  if (page._layerPanelMeasureTimer) clearTimeout(page._layerPanelMeasureTimer);
+  if (page._addMiniAppPopupCheckTimer) clearTimeout(page._addMiniAppPopupCheckTimer);
+  if (page._checkinEntryStyleTimer) clearTimeout(page._checkinEntryStyleTimer);
+  if (page._nativeInitialLocationBootstrapTimer) clearTimeout(page._nativeInitialLocationBootstrapTimer);
+  if (page._subscriptionBannerLayoutTimer) clearTimeout(page._subscriptionBannerLayoutTimer);
+  if (page._uomPluginInitTimer) clearTimeout(page._uomPluginInitTimer);
+  if (page._djiLayerInitTimer) clearTimeout(page._djiLayerInitTimer);
+  if (page._temporaryNoFlyLayerInitTimer) clearTimeout(page._temporaryNoFlyLayerInitTimer);
+  if (page._tiandituSatelliteLayerInitTimer) clearTimeout(page._tiandituSatelliteLayerInitTimer);
+  page._compassResetFinalizeTimer = null;
+  page._compassResetUntil = 0;
+  page._activeMarkersRequest = null;
+  page._activePinsRequest = null;
+  page._activeWeatherRequest = null;
+  page._activeElevationRequest = null;
+  page._centerPinLinkElevationState = null;
+  page._centerPinLinkElevationRequestKey = "";
+  page._pointElevationCache = null;
+  const uomPlugins = page._uomPluginRefs && typeof page._uomPluginRefs === "object"
+    ? Object.values(page._uomPluginRefs)
+    : (page._uomPlugin ? [page._uomPlugin] : []);
+  const visitedUomPlugins = new Set();
+  uomPlugins.forEach((plugin) => {
+    if (!plugin || visitedUomPlugins.has(plugin)) return;
+    visitedUomPlugins.add(plugin);
+    if (typeof plugin.destroy === "function") {
+      plugin.destroy();
+    }
+  });
+  page._uomPluginRefs = Object.create(null);
+  page._uomPluginInitState = Object.create(null);
+  page._activeUomPluginSource = "";
+  if (page._uomPlugin) {
+    page._uomPlugin = null;
+  }
+  if (page._djiLayer && typeof page._djiLayer.destroy === "function") {
+    page._djiLayer.destroy();
+  }
+  if (page._temporaryNoFlyLayer && typeof page._temporaryNoFlyLayer.destroy === "function") {
+    page._temporaryNoFlyLayer.destroy();
+  }
+  if (page._tiandituSatelliteLayer && typeof page._tiandituSatelliteLayer.destroy === "function") {
+    page._tiandituSatelliteLayer.destroy();
+  }
+  page._pendingTiandituSatelliteLayerEnabled = null;
+  page._pendingTiandituSatelliteLayerViewport = null;
+}
+
+module.exports = {
+  onHide,
+  onUnload
+};

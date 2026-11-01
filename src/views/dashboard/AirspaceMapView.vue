@@ -144,6 +144,9 @@ const pinRewardForm = reactive({
 
 const ORDER_STATUS_COLORS = {
   WAITING_PAYMENT: 'gold',
+  CANCELLED: 'default',
+  REFUND_PENDING: 'orange',
+  REFUND_REVIEW: 'red',
   PAID: 'green',
   REFUNDED: 'blue',
 }
@@ -1185,6 +1188,12 @@ const formatOrderStatus = (status) => {
   switch (status) {
     case 'WAITING_PAYMENT':
       return t('orders.status.waitingPayment')
+    case 'CANCELLED':
+      return t('orders.status.cancelled')
+    case 'REFUND_PENDING':
+      return t('orders.status.refundPending')
+    case 'REFUND_REVIEW':
+      return t('orders.status.refundReview')
     case 'PAID':
       return t('orders.status.paid')
     case 'REFUNDED':
@@ -1202,6 +1211,8 @@ const formatOrderPaymentType = (type) => {
       return t('orders.paymentType.flp')
     case 'WECHAT':
       return t('orders.paymentType.wechat')
+    case 'VIRTUAL':
+      return '微信虚拟支付'
     default:
       return t('orders.paymentType.unknown')
   }
@@ -1372,7 +1383,7 @@ const syncDetailRecord = () => {
   }
 }
 
-const canRepairOrder = (order) => order?.status === 'WAITING_PAYMENT' && order?.paymentType === 'WECHAT' && !!order?.id
+const canRepairOrder = (order) => order?.status === 'WAITING_PAYMENT' && ['WECHAT', 'VIRTUAL'].includes(order?.paymentType) && !!order?.id
 
 const fetchAllMarkersByStatus = async (status) => {
   const pageSize = 100
@@ -3240,9 +3251,9 @@ watch(
 }
 
 .content-card {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 18px #00000014;
   padding: 24px;
 }
 
@@ -3263,12 +3274,12 @@ watch(
   margin: 0;
   font-size: 1.4rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .card-subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.95rem;
 }
 
@@ -3313,7 +3324,7 @@ watch(
 }
 
 .circle-audit-subtitle {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.95rem;
 }
 
@@ -3333,7 +3344,7 @@ watch(
 .circle-selection-summary {
   display: block;
   margin-top: 3px;
-  color: #94a3b8;
+  color: var(--admin-muted);
   font-size: 12px;
 }
 
@@ -3344,7 +3355,7 @@ watch(
 }
 
 .circle-batch-stats {
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -3368,14 +3379,14 @@ watch(
 
 .pin-reward-form {
   padding: 14px 12px 6px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--admin-line);
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--admin-raised);
 }
 
 .reward-form-title {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--admin-text);
   margin-bottom: 8px;
 }
 
@@ -3398,7 +3409,7 @@ watch(
 }
 
 .reward-updated {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -3408,7 +3419,7 @@ watch(
 
 .pin-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .pin-group-tags {
@@ -3418,7 +3429,7 @@ watch(
 }
 
 .pin-meta {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
 }
 
@@ -3437,14 +3448,14 @@ watch(
   gap: 6px;
   background: none;
   border: none;
-  color: #111827;
+  color: var(--admin-text);
   font-weight: 600;
   cursor: pointer;
   padding: 0;
 }
 
 .sort-toggle:hover {
-  color: #1d4ed8;
+  color: var(--admin-lime);
 }
 
 .sort-toggle:focus-visible {
@@ -3456,7 +3467,7 @@ watch(
 .sort-indicator {
   font-size: 0.9rem;
   line-height: 1;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .sr-only {
@@ -3484,19 +3495,19 @@ watch(
 
 .marker-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .feature-code {
   font-size: 0.75rem;
-  color: #6366f1;
+  color: var(--admin-lime);
   background: rgba(99, 102, 241, 0.1);
   padding: 2px 6px;
   border-radius: 12px;
 }
 
 .secondary-line {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
 }
 
@@ -3508,7 +3519,7 @@ watch(
 
 .circle-summary-cell {
   max-width: 520px;
-  color: #475569;
+  color: var(--admin-muted);
   line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -3571,12 +3582,12 @@ watch(
 .detail-section h3 {
   margin: 0 0 12px;
   font-size: 1.05rem;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .description-text {
   margin: 0;
-  color: #1f2937;
+  color: var(--admin-text);
   line-height: 1.6;
 }
 
@@ -3631,10 +3642,10 @@ watch(
   place-items: center;
   width: 112px;
   height: 112px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--admin-line);
   border-radius: 6px;
-  color: #94a3b8;
-  background: #f8fafc;
+  color: var(--admin-muted);
+  background: var(--admin-raised);
 }
 
 .circle-image-placeholder--cover {
@@ -3688,12 +3699,12 @@ watch(
 }
 
 .circle-receipt-heading strong {
-  color: #111827;
+  color: var(--admin-text);
   font-size: 16px;
 }
 
 .circle-receipt-heading span {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 13px;
 }
 
@@ -3708,7 +3719,7 @@ watch(
 }
 
 .circle-receipt-payer small {
-  color: #94a3b8;
+  color: var(--admin-muted);
 }
 
 .link-list {

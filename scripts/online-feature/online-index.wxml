@@ -1,0 +1,18 @@
+<view class="yf-page" style="padding-top:{{navHeight}}px;">
+  <view class="yf-nav" style="padding-top:{{navTop}}px;height:{{navHeight}}px;padding-right:{{navRight}}px;">
+    <view class="yf-back" bindtap="onBack" aria-label="返回"><image class="yf-icon" src="/packages/flight-meetups/assets/back.png" mode="aspectFit"/></view>
+    <image class="yf-nav-logo" src="/packages/flight-meetups/assets/planet.png" mode="aspectFit"/><text>当前在线</text>
+  </view>
+  <scroll-view class="yf-scroll" scroll-y="{{true}}" bindscrolltolower="onMore" lower-threshold="120" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="refresh">
+    <view class="yf-section online-roster">
+      <view wx:for="{{items}}" wx:key="featureCode" class="online-person" data-code="{{item.featureCode}}" bindtap="onUserHomepageTap">
+        <image class="online-avatar {{item.member ? 'online-avatar--member' : ''}}" src="{{item.avatarUrl}}" mode="aspectFill" binderror="onAvatarError" data-image-path="items[{{index}}].avatarUrl" data-source="{{item.avatarUrl}}" data-avatar="{{true}}"/>
+        <view class="online-profile"><text class="online-code">低空号 {{item.featureCode}}</text><text wx:if="{{item.signature}}" class="online-signature">{{item.signature}}</text><text wx:if="{{item.aircraftName}}" class="online-aircraft">{{item.aircraftName}}</text></view>
+        <text class="online-distance" style="color:{{item.distanceColor}};">{{item.distanceText}}</text>
+      </view>
+      <view wx:if="{{error}}" class="yf-error" bindtap="onRetry">{{error}} · 重试</view>
+      <view wx:elif="{{loading}}" class="yf-empty">加载中…</view>
+      <view wx:elif="{{!items.length}}" class="yf-empty">暂无在线飞友</view>
+    </view>
+  </scroll-view>
+</view>

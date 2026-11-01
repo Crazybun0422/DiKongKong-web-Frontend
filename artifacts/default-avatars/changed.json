@@ -1,0 +1,6 @@
+[
+  "packages/flight-meetups/online-people.js",
+  "utils/flight-meetups.js",
+  "packages/social/blacklist/index.js",
+  "packages/location-sharing/utils/sharing.js"
+]

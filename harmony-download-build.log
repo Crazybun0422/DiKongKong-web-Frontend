@@ -1,0 +1,110 @@
+vite v7.1.12 building for production...
+transforming...
+node_modules/sonner/dist/index.mjs (1:0): Module level directives cause errors when bundled, "use client" in "node_modules/sonner/dist/index.mjs" was ignored.
+✓ 5052 modules transformed.
+rendering chunks...
+computing gzip size...
+.harmony-download-build-check/assets/favicon-wz5Pwcuk.svg                         0.40 kB │ gzip:   0.23 kB
+.harmony-download-build-check/admin/index.html                                    0.94 kB │ gzip:   0.60 kB
+.harmony-download-build-check/games/drone-race/index.html                         1.00 kB │ gzip:   0.62 kB
+.harmony-download-build-check/assets/black-hole-worker-WtwzrLjJ.js                2.62 kB
+.harmony-download-build-check/assets/position-BYzcKXC4.png                        4.44 kB
+.harmony-download-build-check/assets/search-DXgLpf1T.png                          4.64 kB
+.harmony-download-build-check/assets/detail-NL7lstjx.png                          5.06 kB
+.harmony-download-build-check/assets/countdown-C2B7Wqjd.mp3                       5.27 kB
+.harmony-download-build-check/assets/location-37l6tSL7.png                        5.55 kB
+.harmony-download-build-check/assets/layer-De-SzLxM.png                           6.45 kB
+.harmony-download-build-check/assets/gate-pass-Db_kOdsY.mp3                       8.40 kB
+.harmony-download-build-check/docs/api/suitable-fly-zone.md                       9.42 kB
+.harmony-download-build-check/index.html                                          9.87 kB │ gzip:   3.60 kB
+.harmony-download-build-check/assets/map-standard-B5wOOi0P.png                   11.67 kB
+.harmony-download-build-check/assets/elevation-BD38pNIG.png                      12.33 kB
+.harmony-download-build-check/assets/map-satellite-WPjOgaO3.png                  12.51 kB
+.harmony-download-build-check/assets/launch-CDbRCs7E.mp3                         12.58 kB
+.harmony-download-build-check/assets/crash-DuC-o6aG.mp3                          13.11 kB
+.harmony-download-build-check/assets/drone-DKVUcvAA.png                          13.57 kB
+.harmony-download-build-check/docs/api/index.html                                15.42 kB │ gzip:   5.15 kB
+.harmony-download-build-check/assets/dock-CMpcOveH.png                           17.07 kB
+.harmony-download-build-check/assets/aerial-Q8lCmOZj.png                         21.03 kB
+.harmony-download-build-check/assets/default-Cgk_G-on.png                        22.49 kB
+.harmony-download-build-check/assets/finish-D1jG2FPL.mp3                         25.12 kB
+.harmony-download-build-check/assets/drone-warning-Cn6tadYh.png                  26.26 kB
+.harmony-download-build-check/assets/impact-obstacle-DEimQXG9.mp3                40.94 kB
+.harmony-download-build-check/assets/impact-ground-B616N3No.mp3                  42.09 kB
+.harmony-download-build-check/assets/impact-gate-Difxn0X2.mp3                    46.13 kB
+.harmony-download-build-check/assets/miniprogram-code-BAxrARQf.jpg              106.84 kB
+.harmony-download-build-check/assets/logo-C2MSDqd2.png                          235.22 kB
+.harmony-download-build-check/assets/trees-sooAFQTt.webp                        413.31 kB
+.harmony-download-build-check/assets/obstacle-materials-Bu8OMIQ9.webp           467.26 kB
+.harmony-download-build-check/assets/music-canyon-DPdO2Kjw.mp3                  557.81 kB
+.harmony-download-build-check/assets/music-alien-DVxPdyXB.mp3                   565.97 kB
+.harmony-download-build-check/assets/music-valley-DZizkSIZ.mp3                  583.25 kB
+.harmony-download-build-check/assets/music-coast-DeoVmxTB.mp3                   601.01 kB
+.harmony-download-build-check/assets/music-snow-Duw4Ucjv.mp3                    620.69 kB
+.harmony-download-build-check/assets/music-city-C_VE-Ucp.mp3                    686.93 kB
+.harmony-download-build-check/assets/music-race-FBgdy-LX.mp3                  1,130.62 kB
+.harmony-download-build-check/assets/orbit-and-map-fallback-v4-amjEajXR.webp  7,085.38 kB
+.harmony-download-build-check/assets/orbit-and-map-v4-CSjcpiIo.mp4            8,098.97 kB
+.harmony-download-build-check/assets/DroneLeaderboardView-B7crunAO.css            0.52 kB │ gzip:   0.29 kB
+.harmony-download-build-check/assets/WorkGroupManagementView-BUKkzddn.css         0.80 kB │ gzip:   0.33 kB
+.harmony-download-build-check/assets/FlightMeetupView-l8jpkj4q.css                1.57 kB │ gzip:   0.52 kB
+.harmony-download-build-check/assets/OnlineUsersView-Cs18Lu4P.css                 2.10 kB │ gzip:   0.69 kB
+.harmony-download-build-check/assets/ApiAccessManagementView-BiJoPcWZ.css         2.24 kB │ gzip:   0.74 kB
+.harmony-download-build-check/assets/PlanetMarketView-CrWgLRmv.css                2.55 kB │ gzip:   0.73 kB
+.harmony-download-build-check/assets/OpenPlatformEditor-Cj3C_yC6.css              2.63 kB │ gzip:   0.74 kB
+.harmony-download-build-check/assets/DiscoveryPromotionView-Cwsarpyy.css          2.75 kB │ gzip:   0.84 kB
+.harmony-download-build-check/assets/apiDocs-D3LgR4AN.css                         3.00 kB │ gzip:   1.01 kB
+.harmony-download-build-check/assets/SubscriptionPushView-Bp1mu9A5.css            3.29 kB │ gzip:   0.86 kB
+.harmony-download-build-check/assets/UserManagementView-BCNR2Ome.css              3.82 kB │ gzip:   1.11 kB
+.harmony-download-build-check/assets/FlpPoolView-Cs5YyTSn.css                     5.23 kB │ gzip:   1.29 kB
+.harmony-download-build-check/assets/LoginView-sa1KbNvk.css                       8.06 kB │ gzip:   2.01 kB
+.harmony-download-build-check/assets/MainLayout-CmEIhnzf.css                     11.07 kB │ gzip:   2.57 kB
+.harmony-download-build-check/assets/style-CW7EvELY.css                          11.30 kB │ gzip:   3.25 kB
+.harmony-download-build-check/assets/admin-CCO3vGLp.css                          12.84 kB │ gzip:   3.79 kB
+.harmony-download-build-check/assets/HomeView-D_nxoQNz.css                       15.95 kB │ gzip:   3.56 kB
+.harmony-download-build-check/assets/AirspaceMapView-C2eO6F7Q.css                20.06 kB │ gzip:   4.06 kB
+.harmony-download-build-check/assets/SettingsView--RPionUc.css                   43.94 kB │ gzip:   6.79 kB
+.harmony-download-build-check/assets/droneRace-DYTSv8fw.css                      66.49 kB │ gzip:  13.88 kB
+.harmony-download-build-check/assets/logo-B08eQlC0.js                             0.05 kB │ gzip:   0.07 kB
+.harmony-download-build-check/assets/detail-Csv8qwGC.js                           0.05 kB │ gzip:   0.07 kB
+.harmony-download-build-check/assets/_plugin-vue_export-helper-DlAUqK2U.js        0.09 kB │ gzip:   0.10 kB
+.harmony-download-build-check/assets/_commonjsHelpers-Cpj98o6Y.js                 0.24 kB │ gzip:   0.18 kB
+.harmony-download-build-check/assets/droneGame-Dbc1XxAy.js                        0.43 kB │ gzip:   0.30 kB
+.harmony-download-build-check/assets/flp-ByajHRwy.js                              0.64 kB │ gzip:   0.36 kB
+.harmony-download-build-check/assets/modulepreload-polyfill-B5Qt9EMX.js           0.71 kB │ gzip:   0.40 kB
+.harmony-download-build-check/assets/apiAccessServices-DID6Gmky.js                0.87 kB │ gzip:   0.46 kB
+.harmony-download-build-check/assets/profile-DH1p2-Zr.js                          0.99 kB │ gzip:   0.52 kB
+.harmony-download-build-check/assets/UploadOutlined-Cz6EstmL.js                   1.08 kB │ gzip:   0.66 kB
+.harmony-download-build-check/assets/weappSubscriptions-WVifD0Lb.js               1.11 kB │ gzip:   0.45 kB
+.harmony-download-build-check/assets/SaveOutlined-Xzci4hJt.js                     1.21 kB │ gzip:   0.72 kB
+.harmony-download-build-check/assets/files-oMf95lMM.js                            1.62 kB │ gzip:   0.79 kB
+.harmony-download-build-check/assets/EnvironmentOutlined-DSJiAd2u.js              1.74 kB │ gzip:   1.01 kB
+.harmony-download-build-check/assets/adminUsers-D_ES4iCR.js                       1.94 kB │ gzip:   0.78 kB
+.harmony-download-build-check/assets/DroneLeaderboardView-DomXvWUv.js             3.20 kB │ gzip:   1.72 kB
+.harmony-download-build-check/assets/WorkGroupManagementView-DkZqvhvp.js          5.17 kB │ gzip:   2.14 kB
+.harmony-download-build-check/assets/OnlineUsersView-CQ4poxyf.js                  7.30 kB │ gzip:   3.01 kB
+.harmony-download-build-check/assets/home-CDr2ypyX.js                             7.45 kB │ gzip:   2.68 kB
+.harmony-download-build-check/assets/ApiAccessManagementView-D3E65YXj.js          8.92 kB │ gzip:   3.77 kB
+.harmony-download-build-check/assets/FlightMeetupView-D0INpypo.js                 9.21 kB │ gzip:   3.97 kB
+.harmony-download-build-check/assets/DiscoveryPromotionView-8LTAbBUQ.js          11.34 kB │ gzip:   4.47 kB
+.harmony-download-build-check/assets/LoginView-b-1v9CNs.js                       11.87 kB │ gzip:   5.06 kB
+.harmony-download-build-check/assets/wechatPayments-BaWQ-MIE.js                  12.04 kB │ gzip:   4.63 kB
+.harmony-download-build-check/assets/UserManagementView-DxStktwi.js              17.58 kB │ gzip:   6.30 kB
+.harmony-download-build-check/assets/PlanetMarketView-BO-mDGeK.js                19.05 kB │ gzip:   6.69 kB
+.harmony-download-build-check/assets/SubscriptionPushView-Bu2JLN2f.js            21.64 kB │ gzip:   6.50 kB
+.harmony-download-build-check/assets/FlpPoolView-CKAwAtLn.js                     23.55 kB │ gzip:   8.80 kB
+.harmony-download-build-check/assets/OpenPlatformEditor-DSAVtDAE.js              34.64 kB │ gzip:   9.55 kB
+.harmony-download-build-check/assets/MainLayout-BaZ3crVW.js                      35.82 kB │ gzip:  11.51 kB
+.harmony-download-build-check/assets/jszip.min-6ElcsTIH.js                       97.26 kB │ gzip:  30.20 kB
+.harmony-download-build-check/assets/townRegions-B3kBitG5.js                    169.26 kB │ gzip:  49.63 kB
+.harmony-download-build-check/assets/AirspaceMapView-DIasz7bT.js                208.50 kB │ gzip:  61.74 kB
+.harmony-download-build-check/assets/droneRace-COMHUyMC.js                      494.02 kB │ gzip: 156.17 kB
+.harmony-download-build-check/assets/SettingsView-ItUmFeFb.js                   494.84 kB │ gzip: 126.64 kB
+.harmony-download-build-check/assets/HomeView-CabKi1CX.js                       657.18 kB │ gzip: 224.80 kB
+.harmony-download-build-check/assets/admin-B3HsEgsK.js                        1,767.93 kB │ gzip: 551.58 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 18.43s

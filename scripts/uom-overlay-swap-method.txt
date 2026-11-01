@@ -1,0 +1,105 @@
+    applyWmsOverlays(tiles, options = {}) {
+      if (!this.mapCtx || this._destroyed || this.data.uomDivisionEnabled === false) return;
+      if (this._wmsOverlayRetryTimer) clearTimeout(this._wmsOverlayRetryTimer);
+      this._wmsOverlayRetryTimer = null;
+      this.processWmsOverlayRemovalQueue();
+      this.cancelPendingWmsBatch();
+      const ctx = this.mapCtx;
+      const epoch = Number.isFinite(options.epoch) ? options.epoch : this._wmsOverlayEpoch;
+      const overlayKey = typeof options.overlayKey === "string" ? options.overlayKey : buildWmsTileListKey(tiles);
+      if (this._wmsOverlayRetryKey !== overlayKey) {
+        this._wmsOverlayRetryKey = overlayKey;
+        this._wmsOverlayRetryCount = 0;
+      }
+      this._wmsOverlayMap = this._wmsOverlayMap || new Map();
+      this._wmsOverlaySeed = this._wmsOverlaySeed || 0;
+      const currentHandles = this._wmsOverlayMap;
+      const nextHandles = new Map();
+      const obsoleteHandles = new Map(currentHandles);
+      const additions = [];
+      const batch = { id: `${Date.now()}-${this._wmsBatchSeq++}`, createdHandles: new Map(), requestedSrcs: new Set(), timeout: null };
+      this._wmsPendingBatch = batch;
+      const active = () => this._wmsPendingBatch === batch && epoch === this._wmsOverlayEpoch && !this._destroyed && this.data.uomDivisionEnabled !== false;
+      let pending = 0, failed = false, finished = false;
+      const finish = () => {
+        if (finished || !active()) return;
+        finished = true;
+        clearTimeout(batch.timeout);
+        batch.timeout = null;
+        this._wmsPendingBatch = null;
+        if (failed) {
+          // Never discard a visible viewport because its replacement failed or timed out.
+          for (const handle of batch.createdHandles.values()) this.queueWmsOverlayRemoval(handle.overlayId);
+          this._uomOverlayFailed = true;
+          this.updateUomTileWarning();
+          const attempt = this._wmsOverlayRetryCount || 0;
+          if (attempt < 3) {
+            this._wmsOverlayRetryCount = attempt + 1;
+            this._wmsOverlayRetryTimer = setTimeout(() => {
+              this._wmsOverlayRetryTimer = null;
+              if (!this._destroyed && this.data.uomDivisionEnabled !== false && epoch === this._wmsOverlayEpoch &&
+                  (!this._currentWmsTileKey || this._currentWmsTileKey === overlayKey)) this.refreshWmsOverlay();
+            }, 1000 * (attempt + 1));
+          }
+        } else {
+          for (const handle of obsoleteHandles.values()) {
+            this.clearWmsOverlayHandleTimer(handle);
+            this.queueWmsOverlayRemoval(handle.overlayId);
+          }
+          this._wmsOverlayMap = nextHandles;
+          this._currentWmsTileKeyApplied = overlayKey;
+          this._wmsOverlayRetryCount = 0;
+          this._uomOverlayFailed = false;
+          this.updateUomTileWarning();
+        }
+        batch.requestedSrcs.forEach(src => this.releaseWmsTileResource(src, batch.id));
+        this.processWmsOverlayRemovalQueue();
+        this.syncUomLoadingState();
+      };
+      (tiles || []).forEach(tile => {
+        if (!tile || !tile.id || !tile.bounds) return;
+        const signature = this.tileSignature(tile), existing = currentHandles.get(tile.id);
+        if (existing && existing.signature === signature) {
+          this.clearWmsOverlayHandleTimer(existing);
+          nextHandles.set(tile.id, existing);
+          obsoleteHandles.delete(tile.id);
+        } else additions.push({ tile, signature });
+      });
+      if (!additions.length) { finish(); return; }
+      batch.timeout = setTimeout(() => { failed = true; finish(); }, 20000);
+      this.syncUomLoadingState();
+      Promise.all(additions.map(async item => {
+        if (item.tile.src) batch.requestedSrcs.add(item.tile.src);
+        try { item.src = await this.ensureWmsTileResource(item.tile.src, batch.id); }
+        catch (_) { item.src = item.tile.src; }
+      })).then(() => {
+        if (!active()) return;
+        // Set the count before calling the native API; callbacks may be synchronous.
+        pending = additions.length;
+        additions.forEach(({ tile, signature, src }) => {
+          if (!active()) return;
+          const overlayId = ++this._wmsOverlaySeed;
+          const handle = { overlayId, signature, epoch, stale: false, staleTimer: null };
+          batch.createdHandles.set(tile.id, handle);
+          this._wmsKnownOverlayIds?.add(overlayId);
+          let settled = false;
+          const settle = success => {
+            if (settled) return;
+            settled = true;
+            if (!active()) {
+              if (success) { this.queueWmsOverlayRemoval(overlayId); this.processWmsOverlayRemovalQueue(); }
+              return;
+            }
+            if (success) nextHandles.set(tile.id, handle);
+            else { failed = true; this._wmsKnownOverlayIds?.delete(overlayId); }
+            if (--pending === 0) finish();
+          };
+          try {
+            ctx.addGroundOverlay({ id: overlayId, src: src || tile.src, bounds: tile.bounds,
+              zIndex: Number.isFinite(Number(tile.zIndex)) ? Number(tile.zIndex) : 10,
+              alpha: tile.alpha != null ? tile.alpha : (tile.opacity != null ? tile.opacity : 0.65),
+              success: () => settle(true), fail: () => settle(false) });
+          } catch (_) { settle(false); }
+        });
+      }).catch(() => { failed = true; finish(); });
+    },

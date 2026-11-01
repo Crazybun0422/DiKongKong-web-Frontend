@@ -1,8 +1,18 @@
 <script setup>
+import AdminAppearanceSettings from '../../components/AdminAppearanceSettings.vue'
+import TownKmlUpload from '../../components/TownKmlUpload.vue'
 import { extractGuideMedia, isGuideVideo } from '../../utils/guideMedia'
+import HarmonyMapConfig from '../../components/HarmonyMapConfig.vue'
+import HarmonyServerConfig from '../../components/HarmonyServerConfig.vue'
+import HarmonyHapManager from '../../components/HarmonyHapManager.vue'
 import AndroidMapConfig from '../../components/AndroidMapConfig.vue'
+import ExternalMapConfig from '../../components/ExternalMapConfig.vue'
 import AndroidServerConfig from '../../components/AndroidServerConfig.vue'
 import AndroidWechatConfig from '../../components/AndroidWechatConfig.vue'
+import VirtualPaymentConfig from '../../components/VirtualPaymentConfig.vue'
+import AndroidApkManager from '../../components/AndroidApkManager.vue'
+import DroneFlightResources from '../../components/DroneFlightResources.vue'
+import AircraftThumbnails from '../../components/AircraftThumbnails.vue'
 import AndroidPushConfig from '../../components/AndroidPushConfig.vue'
 import SocialSettingsConfig from '../../components/SocialSettingsConfig.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -122,6 +132,7 @@ import {
   downloadPrivacyPolicyPdf,
 } from '../../services/policy'
 import { fetchLadderGameAdminLeaderboard } from '../../services/ladderGame'
+import { fetchDroneGameAdminLeaderboard } from '../../services/droneGame'
 import reportEntryRegions from '../../data/reportEntryRegions'
 import detailIcon from '../../assets/img/detail.png'
 
@@ -198,7 +209,7 @@ const translateNewbieTaskReset = (path, params = {}) => {
   return key
 }
 
-const activeTab = ref('invite')
+const activeTab = ref('appearance')
 const areaSettingsTab = ref('suitable-fly-zone')
 const guideSettingsTab = ref('gif')
 const systemSettingsTab = ref('uom-layer')
@@ -325,6 +336,13 @@ const memberNoAdsRules = computed(() => ({
 const memberNoAdsLoading = ref(false)
 const memberNoAdsSaving = ref(false)
 const adSyncing = ref(false)
+let adSyncPollTimer = null
+let adSyncPollFailures = 0
+let adSyncDisposed = false
+onBeforeUnmount(() => {
+  adSyncDisposed = true
+  clearTimeout(adSyncPollTimer)
+})
 const adLastCrowdLoading = ref(false)
 const adLastCrowdRecord = ref(null)
 
@@ -777,6 +795,14 @@ const ladderLeaderboardPagination = reactive({
   pageSize: 10,
   total: 0,
 })
+const droneGameLeaderboard = ref([])
+const droneGameLeaderboardLoading = ref(false)
+const droneGameSeason = ref('')
+const droneGameLeaderboardPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+})
 
 const reportEntryList = ref([])
 const reportEntryLoading = ref(false)
@@ -798,6 +824,7 @@ const reportEntryForm = reactive({
   cityDescription: '',
   doubleReported: false,
   miniProgramAppId: '',
+  miniProgramOriginalId: '',
   miniProgramPath: '',
   guideType: 'publicAccount',
   publicAccountLink: '',
@@ -1048,6 +1075,8 @@ const adLastRecordStatusKey = computed(() => {
   const status = String(adLastCrowdRecord.value?.status || '').toUpperCase()
   if (status === 'SUCCESS') return 'success'
   if (status === 'FAILED') return 'failed'
+  if (status === 'RUNNING') return 'running'
+  if (status === 'SKIPPED_DEV') return 'skippedDev'
   if (status === 'SKIPPED_EMPTY') return 'skippedEmpty'
   return 'unknown'
 })
@@ -1057,6 +1086,7 @@ const adLastRecordStatusText = computed(() => t(`settings.adSettings.status.${ad
 const adLastRecordStatusColor = computed(() => {
   if (adLastRecordStatusKey.value === 'success') return 'green'
   if (adLastRecordStatusKey.value === 'failed') return 'red'
+  if (adLastRecordStatusKey.value === 'running') return 'blue'
   if (adLastRecordStatusKey.value === 'skippedEmpty') return 'gold'
   return 'default'
 })
@@ -1332,6 +1362,18 @@ const ladderLeaderboardColumns = computed(() => [
   },
 ])
 
+const droneGameLeaderboardColumns = computed(() => [
+  { title: t('settings.system.droneGameLeaderboard.columns.rank'), dataIndex: 'rank', key: 'rank', width: 80 },
+  { title: t('settings.system.droneGameLeaderboard.columns.avatar'), dataIndex: 'avatarUrl', key: 'avatar', width: 80 },
+  { title: t('settings.system.droneGameLeaderboard.columns.username'), dataIndex: 'name', key: 'name', width: 150 },
+  { title: t('settings.system.droneGameLeaderboard.columns.featureCode'), dataIndex: 'featureCode', key: 'featureCode', width: 110 },
+  { title: t('settings.system.droneGameLeaderboard.columns.rating'), dataIndex: 'rating', key: 'rating', width: 100 },
+  { title: t('settings.system.droneGameLeaderboard.columns.completions'), dataIndex: 'completions', key: 'completions', width: 100 },
+  { title: t('settings.system.droneGameLeaderboard.columns.races'), dataIndex: 'races', key: 'races', width: 100 },
+  { title: t('settings.system.droneGameLeaderboard.columns.bestFinish'), dataIndex: 'bestFinishMs', key: 'bestFinish', width: 130 },
+  { title: t('settings.system.droneGameLeaderboard.columns.lastFlight'), dataIndex: 'lastFlightAt', key: 'lastFlight', width: 190 },
+])
+
 const memberAircraftModelPalette = ['#2563eb', '#0f766e', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#65a30d', '#ea580c']
 
 const formatMemberAircraftModelPercent = (ratio) => {
@@ -1445,6 +1487,7 @@ const reportEntryRules = computed(() => ({
     },
   ],
   miniProgramAppId: [{ required: true, message: t('settings.reportEntry.validation.appId') }],
+  miniProgramOriginalId: [{ pattern: /^\s*(gh_[A-Za-z0-9_-]+)?\s*$/, message: t('settings.reportEntry.validation.originalId') }],
   miniProgramPath: [{ required: false, message: t('settings.reportEntry.validation.path') }],
 }))
 
@@ -1882,18 +1925,34 @@ const loadMemberNoAdsConfig = async () => {
   }
 }
 
-const loadAdLastCrowdRecord = async () => {
+const scheduleAdSyncPoll = () => {
+  clearTimeout(adSyncPollTimer)
+  if (!adSyncDisposed && adSyncing.value) {
+    adSyncPollTimer = setTimeout(() => loadAdLastCrowdRecord(true), 2000)
+  }
+}
+
+const loadAdLastCrowdRecord = async (polling = false) => {
   adLastCrowdLoading.value = true
   try {
     const data = await fetchMemberNoAdsLastCrowd()
     adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
+    adSyncPollFailures = 0
+    adSyncing.value = data?.status === 'RUNNING'
+    scheduleAdSyncPoll()
   } catch (error) {
     if (error?.response?.status === 404) {
       adLastCrowdRecord.value = null
       return
     }
     console.error('Failed to load no-ads last crowd record', error)
-    message.error(t('settings.adSettings.messages.loadRecordFailed'))
+    // A failed status request does not mean the background sync failed.
+    if (polling && ++adSyncPollFailures < 3) {
+      scheduleAdSyncPoll()
+    } else {
+      adSyncing.value = false
+      message.error(t('settings.adSettings.messages.loadRecordFailed'))
+    }
   } finally {
     adLastCrowdLoading.value = false
   }
@@ -1926,12 +1985,16 @@ const handleAdSyncNow = async () => {
   try {
     const data = await syncMemberNoAdsCrowdNow()
     adLastCrowdRecord.value = normalizeAdCrowdRecord(data)
+    adSyncing.value = data?.status === 'RUNNING'
+    adSyncPollFailures = 0
+    scheduleAdSyncPoll()
     message.success(t('settings.adSettings.messages.syncSuccess'))
   } catch (error) {
     console.error('Failed to run no-ads crowd sync', error)
-    message.error(t('settings.adSettings.messages.syncFailed'))
-  } finally {
+    message.warning(t('settings.adSettings.messages.syncUnconfirmed'))
     adSyncing.value = false
+    // The submission may have reached the server even if the response was lost.
+    await loadAdLastCrowdRecord()
   }
 }
 
@@ -3451,6 +3514,29 @@ const loadLadderLeaderboard = async () => {
   }
 }
 
+const loadDroneGameLeaderboard = async () => {
+  droneGameLeaderboardLoading.value = true
+  try {
+    const { season, content, totalElements, page, size } = await fetchDroneGameAdminLeaderboard({
+      page: droneGameLeaderboardPagination.current,
+      size: droneGameLeaderboardPagination.pageSize,
+    })
+    droneGameSeason.value = season
+    droneGameLeaderboard.value = (content || []).map((item) => ({
+      ...item,
+      avatarUrl: resolveProfileAsset(item?.avatarUrl),
+    }))
+    droneGameLeaderboardPagination.total = totalElements
+    droneGameLeaderboardPagination.current = page
+    droneGameLeaderboardPagination.pageSize = size
+  } catch (error) {
+    console.error('Failed to load drone game leaderboard', error)
+    message.error(t('settings.system.droneGameLeaderboard.messages.loadFailed'))
+  } finally {
+    droneGameLeaderboardLoading.value = false
+  }
+}
+
 const loadMemberAircraftModelStats = async () => {
   memberAircraftModelStatsLoading.value = true
   try {
@@ -3486,6 +3572,12 @@ const handleLadderLeaderboardTableChange = (pager) => {
   ladderLeaderboardPagination.current = pager?.current ?? 1
   ladderLeaderboardPagination.pageSize = pager?.pageSize ?? ladderLeaderboardPagination.pageSize
   loadLadderLeaderboard()
+}
+
+const handleDroneGameLeaderboardTableChange = (pager) => {
+  droneGameLeaderboardPagination.current = pager?.current ?? 1
+  droneGameLeaderboardPagination.pageSize = pager?.pageSize ?? droneGameLeaderboardPagination.pageSize
+  loadDroneGameLeaderboard()
 }
 
 const formatReportEntryArea = (entry) => {
@@ -3553,6 +3645,7 @@ const resetReportEntryForm = () => {
   reportEntryForm.cityDescription = ''
   reportEntryForm.doubleReported = false
   reportEntryForm.miniProgramAppId = ''
+  reportEntryForm.miniProgramOriginalId = ''
   reportEntryForm.miniProgramPath = ''
   reportEntryForm.guideType = 'publicAccount'
   reportEntryForm.publicAccountLink = ''
@@ -3570,6 +3663,7 @@ const openReportEntryDrawer = (entry) => {
     reportEntryForm.cityDescription = entry?.cityDescription || ''
     reportEntryForm.doubleReported = Boolean(entry?.doubleReported)
     reportEntryForm.miniProgramAppId = entry?.miniProgram?.appId || ''
+    reportEntryForm.miniProgramOriginalId = entry?.miniProgram?.originalId || ''
     reportEntryForm.miniProgramPath = entry?.miniProgram?.path || ''
     reportEntryForm.publicAccountLink = entry?.guide?.publicAccountLink || ''
     reportEntryForm.videoAccountId = entry?.guide?.videoAccountId || ''
@@ -3619,6 +3713,7 @@ const submitReportEntryForm = async () => {
       doubleReported: Boolean(reportEntryForm.doubleReported),
       miniProgram: {
         appId: reportEntryForm.miniProgramAppId.trim(),
+        originalId: reportEntryForm.miniProgramOriginalId.trim(),
         path: reportEntryForm.miniProgramPath.trim(),
       },
       guide: {
@@ -3782,6 +3877,20 @@ const ladderLeaderboardPaginationConfig = computed(() => ({
     }),
 }))
 
+const droneGameLeaderboardPaginationConfig = computed(() => ({
+  current: droneGameLeaderboardPagination.current,
+  pageSize: droneGameLeaderboardPagination.pageSize,
+  total: droneGameLeaderboardPagination.total,
+  showSizeChanger: true,
+  pageSizeOptions: ['10', '20', '50'],
+  showTotal: (total, range) =>
+    t('settings.system.droneGameLeaderboard.pagination.total', {
+      total,
+      start: range?.[0] ?? 0,
+      end: range?.[1] ?? 0,
+    }),
+}))
+
 const newbieTaskStatsPaginationConfig = computed(() => ({
   current: newbieTaskStatsPagination.current,
   pageSize: newbieTaskStatsPagination.pageSize,
@@ -3879,6 +3988,7 @@ onMounted(() => {
   loadKmlDecryptAesKeyConfig()
   loadMemberAircraftModelStats()
   loadLadderLeaderboard()
+  loadDroneGameLeaderboard()
   loadLotteryConfig()
   loadLotteryLogs()
   loadCheckinLogs()
@@ -3896,6 +4006,7 @@ onBeforeUnmount(() => {
   <div class="settings-wrapper">
     <a-card :bordered="false" class="settings-card">
       <a-tabs v-model:activeKey="activeTab">
+        <a-tab-pane key="appearance" tab="外观与皮肤"><AdminAppearanceSettings /></a-tab-pane>
         <a-tab-pane key="invite" :tab="t('settings.tabs.invite')">
           <div class="tab-section">
                 <section class="invite-table">
@@ -4431,6 +4542,7 @@ onBeforeUnmount(() => {
 
         <a-tab-pane key="payment" :tab="t('settings.tabs.payment')">
           <div class="tab-section">
+            <VirtualPaymentConfig />
             <p class="tab-description">{{ t('settings.payment.description') }}</p>
             <a-spin :spinning="paymentLoading">
               <a-form :model="paymentForm" :rules="paymentRules" layout="vertical" @finish="submitPaymentForm">
@@ -4480,14 +4592,20 @@ onBeforeUnmount(() => {
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="external-map" :tab="t('externalMapTab')">
+          <div class="tab-section"><ExternalMapConfig /></div>
+        </a-tab-pane>
+
         <a-tab-pane key="android" :tab="t('settings.tabs.android')">
           <div class="tab-section">
+            <AndroidApkManager />
             <AndroidMapConfig />
             <AndroidServerConfig />
             <AndroidWechatConfig />
           </div>
         </a-tab-pane>
 
+        <a-tab-pane key="harmony" :tab="t('settings.tabs.harmony')"><div class="tab-section"><HarmonyHapManager /><HarmonyMapConfig /><HarmonyServerConfig /></div></a-tab-pane>
         <a-tab-pane key="androidPush" :tab="t('androidPushTab')"><AndroidPushConfig /></a-tab-pane>
         <a-tab-pane key="weapp" :tab="t('settings.tabs.weapp')">
           <div class="tab-section">
@@ -5222,6 +5340,9 @@ onBeforeUnmount(() => {
                     <a-input v-model:value="reportEntryForm.miniProgramAppId"
                       :placeholder="t('settings.reportEntry.placeholders.appId')" />
                   </a-form-item>
+                  <a-form-item name="miniProgramOriginalId" :label="t('settings.reportEntry.form.originalId')" :extra="t('settings.reportEntry.placeholders.originalId')">
+                    <a-input v-model:value="reportEntryForm.miniProgramOriginalId" placeholder="gh_…" />
+                  </a-form-item>
                   <a-form-item name="miniProgramPath" :label="t('settings.reportEntry.form.path')">
                     <a-input v-model:value="reportEntryForm.miniProgramPath"
                       :placeholder="t('settings.reportEntry.placeholders.path')" />
@@ -5787,6 +5908,8 @@ onBeforeUnmount(() => {
                 </section>
               </a-tab-pane>
 
+              <a-tab-pane key="drone-flight-resource" tab="涂鸦飞行资源"><DroneFlightResources /></a-tab-pane>
+              <a-tab-pane key="aircraft-thumbnails" tab="机型缩略图"><AircraftThumbnails /></a-tab-pane>
               <a-tab-pane key="easter-egg-resource" :tab="t('settings.system.tabs.easterEggResource')">
                 <section class="system-settings">
                   <header class="section-header">
@@ -5929,6 +6052,7 @@ onBeforeUnmount(() => {
                 </section>
               </a-tab-pane>
 
+              <a-tab-pane key="town-kml" tab="镇级 KML 范围"><TownKmlUpload /></a-tab-pane>
               <a-tab-pane key="county-kml-zip" :tab="t('settings.system.tabs.countyKmlZip')">
                 <section class="system-settings">
                   <header class="section-header">
@@ -6087,6 +6211,48 @@ onBeforeUnmount(() => {
                   </a-table>
                 </section>
               </a-tab-pane>
+
+              <a-tab-pane key="drone-game-leaderboard" :tab="t('settings.system.tabs.droneGameLeaderboard')">
+                <section class="system-settings">
+                  <header class="section-header">
+                    <div>
+                      <h3>{{ t('settings.system.droneGameLeaderboard.title') }}</h3>
+                      <p>{{ t('settings.system.droneGameLeaderboard.subtitle', { season: droneGameSeason || '-' }) }}</p>
+                    </div>
+                    <div class="actions">
+                      <a-button type="default" @click="loadDroneGameLeaderboard" :loading="droneGameLeaderboardLoading">
+                        {{ t('settings.system.droneGameLeaderboard.actions.reload') }}
+                      </a-button>
+                    </div>
+                  </header>
+                  <a-table
+                    :columns="droneGameLeaderboardColumns"
+                    :data-source="droneGameLeaderboard"
+                    :loading="droneGameLeaderboardLoading"
+                    :pagination="droneGameLeaderboardPaginationConfig"
+                    row-key="playerId"
+                    size="small"
+                    bordered
+                    :scroll="{ x: 1240 }"
+                    @change="handleDroneGameLeaderboardTableChange"
+                  >
+                    <template #bodyCell="{ column, record }">
+                      <template v-if="column.key === 'avatar'">
+                        <a-avatar :src="record?.avatarUrl" :alt="record?.name" />
+                      </template>
+                      <template v-else-if="column.key === 'rating'">
+                        <strong>{{ Number(record?.rating ?? 0) }}</strong>
+                      </template>
+                      <template v-else-if="column.key === 'bestFinish'">
+                        {{ record?.bestFinishMs ? `${(record.bestFinishMs / 1000).toFixed(2)} 秒` : '-' }}
+                      </template>
+                      <template v-else-if="column.key === 'lastFlight'">
+                        {{ record?.lastFlightAt ? new Date(record.lastFlightAt).toLocaleString() : '-' }}
+                      </template>
+                    </template>
+                  </a-table>
+                </section>
+              </a-tab-pane>
             </a-tabs>
           </div>
         </a-tab-pane>
@@ -6103,9 +6269,9 @@ onBeforeUnmount(() => {
 }
 
 .settings-card {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 18px #00000014;
   padding: 24px;
 }
 
@@ -6117,9 +6283,9 @@ onBeforeUnmount(() => {
 
 .copy-type-group {
   padding: 12px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
-  background: #f9fafb;
+  background: var(--admin-raised);
 }
 
 .copy-type-group + .copy-type-group {
@@ -6130,7 +6296,7 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .copy-type-group__options {
@@ -6141,33 +6307,33 @@ onBeforeUnmount(() => {
 
 .tab-description {
   margin: 0;
-  color: #4b5563;
+  color: var(--admin-muted);
   font-size: 0.95rem;
   line-height: 1.6;
 }
 
 .invite-table {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .invite-form {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 24px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .ad-settings {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -6179,8 +6345,8 @@ onBeforeUnmount(() => {
   gap: 16px;
   align-items: stretch;
   padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
 }
 
@@ -6195,7 +6361,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   padding: 12px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--admin-raised);
 }
 
 .ad-settings__form-item {
@@ -6210,18 +6376,18 @@ onBeforeUnmount(() => {
 .ad-settings__helper {
   max-width: 640px;
   margin: 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
   line-height: 1.6;
 }
 
 .ad-settings__side-label {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
 }
 
 .ad-settings__config-side strong {
-  color: #111827;
+  color: var(--admin-text);
   font-size: 1.4rem;
 }
 
@@ -6236,8 +6402,8 @@ onBeforeUnmount(() => {
 }
 
 .ad-stat-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
   padding: 14px;
   display: flex;
@@ -6246,12 +6412,12 @@ onBeforeUnmount(() => {
 }
 
 .ad-stat-card__label {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
 }
 
 .ad-stat-card__value {
-  color: #111827;
+  color: var(--admin-text);
   font-size: 1.25rem;
   font-weight: 700;
 }
@@ -6264,8 +6430,8 @@ onBeforeUnmount(() => {
 
 .ad-settings__record,
 .ad-settings__members {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
   padding: 14px;
   display: flex;
@@ -6283,7 +6449,7 @@ onBeforeUnmount(() => {
 .ad-settings__record-header h4,
 .ad-settings__members h4 {
   margin: 0;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .ad-settings__error {
@@ -6300,12 +6466,12 @@ onBeforeUnmount(() => {
 .section-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .section-header p {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -6361,16 +6527,16 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   padding: 24px 0 16px;
-  background: #f3f4f6;
+  background: var(--admin-raised);
 }
 
 .open-platform-preview__device {
   width: 360px;
   max-width: 100%;
-  background: #111827;
+  background: var(--admin-bg);
   border-radius: 32px;
   padding: 12px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -6380,12 +6546,12 @@ onBeforeUnmount(() => {
   align-self: center;
   width: 108px;
   height: 18px;
-  background: #0f172a;
+  background: var(--admin-bg);
   border-radius: 0 0 12px 12px;
 }
 
 .open-platform-preview__screen {
-  background: #f8fafc;
+  background: var(--admin-raised);
   border-radius: 24px;
   flex: 1;
   min-height: 600px;
@@ -6405,10 +6571,10 @@ onBeforeUnmount(() => {
 .open-platform-preview__content {
   width: 100%;
   padding: 18px;
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 16px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
-  color: #1f2937;
+  box-shadow: 0 4px 18px #00000014;
+  color: var(--admin-text);
   line-height: 1.7;
 }
 
@@ -6430,10 +6596,10 @@ onBeforeUnmount(() => {
 
 .template-settings,
 .template-bulk {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -6446,14 +6612,14 @@ onBeforeUnmount(() => {
 }
 
 .empty-hint {
-  color: #9ca3af;
+  color: var(--admin-muted);
 }
 
 .template-settings__meta {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .template-settings__updated {
@@ -6462,12 +6628,12 @@ onBeforeUnmount(() => {
 
 .template-bulk__helper {
   margin-top: 6px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .template-bulk__helper--count {
-  color: #111827;
+  color: var(--admin-text);
   font-weight: 600;
 }
 
@@ -6476,10 +6642,10 @@ onBeforeUnmount(() => {
 }
 
 .newbie-task-config {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -6493,27 +6659,27 @@ onBeforeUnmount(() => {
 }
 
 .report-entry-settings {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .report-entry-table {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 12px;
   padding: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .report-entry-table-subtext {
   margin-top: 4px;
   font-size: 12px;
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .report-entry-action-button {
@@ -6531,7 +6697,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.report-entry-row--active) {
-  background: #eef2ff;
+  background: var(--admin-raised);
 }
 
 .report-entry-dialog {
@@ -6553,7 +6719,7 @@ onBeforeUnmount(() => {
 
 .report-entry-form-title {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .report-entry-tree {
@@ -6561,8 +6727,8 @@ onBeforeUnmount(() => {
   overflow: auto;
   padding: 8px;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-surface);
 }
 
 .report-entry-search {
@@ -6570,7 +6736,7 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 1;
   padding-bottom: 8px;
-  background: #ffffff;
+  background: var(--admin-surface);
 }
 
 .report-entry-mini-program,
@@ -6587,10 +6753,10 @@ onBeforeUnmount(() => {
 }
 
 .system-settings {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -6614,9 +6780,9 @@ onBeforeUnmount(() => {
   gap: 14px;
   padding: 20px 18px;
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: linear-gradient(180deg, var(--admin-surface) 0%, var(--admin-raised) 100%);
   border: 1px solid rgba(37, 99, 235, 0.08);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .member-aircraft-models__chart {
@@ -6632,7 +6798,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 26px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(26, 33, 28, 0.96);
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
 }
 
@@ -6650,17 +6816,17 @@ onBeforeUnmount(() => {
 .member-aircraft-models__chart-center strong {
   font-size: 2.2rem;
   line-height: 1;
-  color: #0f172a;
+  color: var(--admin-text);
 }
 
 .member-aircraft-models__chart-center span {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.92rem;
 }
 
 .member-aircraft-models__chart-helper {
   margin: 0;
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.9rem;
   text-align: center;
 }
@@ -6677,8 +6843,8 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
 }
 
 .member-aircraft-models__legend-dot {
@@ -6706,19 +6872,19 @@ onBeforeUnmount(() => {
 }
 
 .member-aircraft-models__legend-name {
-  color: #0f172a;
+  color: var(--admin-text);
   font-weight: 600;
   word-break: break-word;
 }
 
 .member-aircraft-models__legend-percent {
-  color: #2563eb;
+  color: var(--admin-lime);
   font-size: 1rem;
   white-space: nowrap;
 }
 
 .member-aircraft-models__legend-meta {
-  color: #64748b;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -6729,7 +6895,7 @@ onBeforeUnmount(() => {
 }
 
 .system-toggle-field__label {
-  color: #111827;
+  color: var(--admin-text);
   font-weight: 600;
 }
 
@@ -6758,7 +6924,7 @@ onBeforeUnmount(() => {
 }
 
 .guide-upload__hint {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -6769,18 +6935,18 @@ onBeforeUnmount(() => {
 }
 
 .guide-card {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .guide-card__preview {
-  background: #f3f4f6;
+  background: var(--admin-raised);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -6803,7 +6969,7 @@ onBeforeUnmount(() => {
 }
 
 .guide-card__label {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.78rem;
 }
 
@@ -6815,7 +6981,7 @@ onBeforeUnmount(() => {
 }
 
 .guide-card__name {
-  color: #374151;
+  color: var(--admin-text);
   font-size: 0.85rem;
   max-width: 160px;
   overflow: hidden;
@@ -6830,20 +6996,20 @@ onBeforeUnmount(() => {
 }
 
 .policy-content-text {
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .system-settings__meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .system-settings__meta-value {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .cos-test-progress {
@@ -6861,12 +7027,12 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  color: #374151;
+  color: var(--admin-text);
 }
 
 .system-font-current__label {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .system-font-upload {
@@ -6890,7 +7056,7 @@ onBeforeUnmount(() => {
 }
 
 .system-font-upload__name {
-  color: #374151;
+  color: var(--admin-text);
   font-size: 0.9rem;
   max-width: 220px;
   overflow: hidden;
@@ -6900,12 +7066,12 @@ onBeforeUnmount(() => {
 
 .system-font-helper {
   margin-top: 6px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .newbie-task-meta {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -6913,9 +7079,9 @@ onBeforeUnmount(() => {
   margin-top: 12px;
   margin-bottom: 16px;
   padding: 14px 16px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
-  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+  background: linear-gradient(135deg, var(--admin-raised) 0%, var(--admin-raised) 100%);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -6932,12 +7098,12 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #111827;
+  color: var(--admin-text);
   flex-wrap: wrap;
 }
 
 .newbie-task-reset-progress__time {
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
   text-align: right;
 }
@@ -6946,13 +7112,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #475569;
+  color: var(--admin-muted);
   font-size: 0.9rem;
   flex-wrap: wrap;
 }
 
 .newbie-task-reset-progress__message {
-  color: #1f2937;
+  color: var(--admin-text);
   font-size: 0.9rem;
   line-height: 1.5;
   word-break: break-word;
@@ -6993,7 +7159,7 @@ onBeforeUnmount(() => {
 }
 
 .newbie-task-upload__name {
-  color: #374151;
+  color: var(--admin-text);
   font-size: 0.9rem;
   max-width: 160px;
   overflow: hidden;
@@ -7003,13 +7169,13 @@ onBeforeUnmount(() => {
 
 .newbie-task-upload__time {
   width: 100%;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.85rem;
 }
 
 .newbie-task-qrcode {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 10px;
   padding: 12px;
   display: flex;
@@ -7019,7 +7185,7 @@ onBeforeUnmount(() => {
 
 .newbie-task-qrcode__label {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .newbie-task-qr-preview {
@@ -7033,7 +7199,7 @@ onBeforeUnmount(() => {
   max-height: 120px;
   object-fit: cover;
   border-radius: 8px;
-  background: #f3f4f6;
+  background: var(--admin-raised);
   padding: 4px;
 }
 
@@ -7044,19 +7210,19 @@ onBeforeUnmount(() => {
   gap: 16px;
   padding: 20px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #fef3c7 0%, #e0f2fe 100%);
-  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #fef3c7 0%, var(--admin-raised) 100%);
+  border: 1px solid var(--admin-line);
 }
 
 .lottery-hero h3 {
   margin: 0;
-  color: #111827;
+  color: var(--admin-text);
   font-size: 1.2rem;
 }
 
 .lottery-hero p {
   margin: 6px 0 0;
-  color: #6b7280;
+  color: var(--admin-muted);
 }
 
 .lottery-hero__meta {
@@ -7064,21 +7230,21 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
 .lottery-hero__updated {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--admin-text);
 }
 
 .lottery-prize-config,
 .lottery-logs {
-  background: #f9fafb;
+  background: var(--admin-raised);
   padding: 20px;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 18px #00000014;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -7090,10 +7256,10 @@ onBeforeUnmount(() => {
 }
 
 .lottery-probability {
-  background: #ffffff;
+  background: var(--admin-surface);
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--admin-line);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -7103,7 +7269,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #374151;
+  color: var(--admin-text);
   font-weight: 600;
 }
 
@@ -7112,16 +7278,16 @@ onBeforeUnmount(() => {
 }
 
 .lottery-probability__value.is-valid {
-  color: #059669;
+  color: #75d6a0;
 }
 
 .lottery-probability__value.is-invalid {
-  color: #dc2626;
+  color: #ff8585;
 }
 
 .lottery-probability__hint {
   margin: 0;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 
@@ -7132,14 +7298,14 @@ onBeforeUnmount(() => {
 }
 
 .lottery-prize-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 14px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 18px #00000014;
 }
 
 .lottery-prize-card__header {
@@ -7150,11 +7316,11 @@ onBeforeUnmount(() => {
 
 .lottery-prize-level {
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .lottery-prize-preview {
-  background: #f3f4f6;
+  background: var(--admin-raised);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -7190,7 +7356,7 @@ onBeforeUnmount(() => {
 }
 
 .lottery-upload__name {
-  color: #374151;
+  color: var(--admin-text);
   font-size: 0.9rem;
   max-width: 160px;
   overflow: hidden;
@@ -7205,8 +7371,8 @@ onBeforeUnmount(() => {
 }
 
 .template-bulk__preview {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
   padding: 12px;
   min-height: 100%;
@@ -7217,11 +7383,11 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   font-weight: 600;
-  color: #111827;
+  color: var(--admin-text);
 }
 
 .preview-id {
-  color: #2563eb;
+  color: var(--admin-lime);
 }
 
 .preview-details {
@@ -7257,7 +7423,7 @@ onBeforeUnmount(() => {
 
 .auto-task-hint {
   margin-top: 6px;
-  color: #6b7280;
+  color: var(--admin-muted);
   font-size: 0.9rem;
 }
 

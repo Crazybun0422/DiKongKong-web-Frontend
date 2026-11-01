@@ -1,0 +1,178 @@
+{
+  "name": "dji-mini-4-pro-visual-sample",
+  "version": "0.2.0",
+  "createdDate": "2026-10-18",
+  "canonicalModel": "mini-4-pro.glb",
+  "construction": "Local photograph-derived parametric mesh reconstruction, embedded procedural PBR textures; not manufacturer CAD or photogrammetry",
+  "unit": "metre",
+  "upAxis": "+Y",
+  "frontAxis": "+Z",
+  "paidGeneration": false,
+  "referenceSources": {
+    "sourcePages": [
+      "https://www.dji.com/mini-4-pro",
+      "https://store.dji.com/product/dji-mini-4-pro"
+    ],
+    "note": "URLs extracted from the official cached product HTML and current store page state. The image named side.jpg is the folded 3/4 view; front.jpg is a low front 3/4 view, not an orthographic diagram. Reference photos remain DJI property.",
+    "images": {
+      "product-original.png": "https://www-cdn.djiits.com/cms/uploads/892e39b4b76dc5a83b267ed12ce69b97.png",
+      "sensors.jpg": "https://www-cdn.djiits.com/dps/218adf14dde60efdc2563419fa26103d@origin.jpg",
+      "top.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/e8923caaaaedf808853c33394ff27f46@origin.jpg",
+      "front.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/1ff6aa2ee049560aded2a7431e66a67e@origin.jpg",
+      "perspective.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/f96def8770cb7529d7a98731fa2117dd@origin.jpg",
+      "bottom.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/7c5487b14f2d66c33d36c7c211dbd3b9@origin.jpg",
+      "side.jpg": "https://se-cdn.djiits.com/tpc/uploads/carousel/image/e193c7273a533721bfc9a79a68335595@origin.jpg"
+    }
+  },
+  "rights": "Custom mesh and source created for this user project. Reference photographs and brand rights retained by DJI. Three.js is MIT licensed. No additional brand or reference photo license granted.",
+  "verification": {
+    "meshes": 518,
+    "triangles": 246532,
+    "vertices": 242314,
+    "rotors": [
+      "Rotor_FL",
+      "Rotor_FR",
+      "Rotor_RL",
+      "Rotor_RR"
+    ],
+    "bytes": 8912528,
+    "validationErrors": 0,
+    "validationWarnings": 0,
+    "glbRoundTrip": "PASS",
+    "previewViews": 6
+  },
+  "files": {
+    "index.html": {
+      "bytes": 24737,
+      "sha256": "a65c636b598619335171d6b02c843240bf29843f868cf23695f638cbec47cd90"
+    },
+    "model.js": {
+      "bytes": 21747,
+      "sha256": "1e85447a301bfe8e850e025fd084fbee0541861a7e9998608ef4a992abe99b3e"
+    },
+    "gimbal.js": {
+      "bytes": 17226,
+      "sha256": "f2c9d306651340df7bb2a320898c67bef1c991bb809fe9ef436d81abd87b3087"
+    },
+    "mini-4-pro.glb": {
+      "bytes": 8912528,
+      "sha256": "acfb2b546dc8d29254297af42d49500bd2609d3d93c321cba17cf6949e05152f"
+    },
+    "serve-preview.cmd": {
+      "bytes": 141,
+      "sha256": "0992e8a8b062790049d81e5b69214a7c68961b9a0d101ec6b167034b2795606f"
+    },
+    "README.txt": {
+      "bytes": 2298,
+      "sha256": "e0de48bbbeb6b38d9392e079246ece985018a1a68d8a390ef93d74ba8fda3827"
+    },
+    "verification.json": {
+      "bytes": 265,
+      "sha256": "ad9c2cc84914dc65494820691570d12085be4e80a5d59d0acd533e3c0ae0499f"
+    },
+    "gltf-validation.json": {
+      "bytes": 5406,
+      "sha256": "7cfaf7871841046556134a439b887a01fb6523a40f0f03fd6bcc664950cfac03"
+    },
+    "vendor/build/three.core.js": {
+      "bytes": 1403455,
+      "sha256": "eb077d2417f61d3e6d9264c317cabc4ea35769ed6b0ab533067292a550784c20"
+    },
+    "vendor/build/three.module.js": {
+      "bytes": 603113,
+      "sha256": "c8211c69345d2e9949dc7a8ac969380497aa0600a5a8ac6a459c8cd02dd9cb8a"
+    },
+    "vendor/controls/OrbitControls.js": {
+      "bytes": 38703,
+      "sha256": "b97879c748170baadeb3fb84cea1ffdf4674e283dc06042f34e2acb95a76042c"
+    },
+    "vendor/environments/RoomEnvironment.js": {
+      "bytes": 4899,
+      "sha256": "c20f0b4677f6128a138d7152b85cbef9091f4f45cdfa05adca04d40c1697c7ae"
+    },
+    "vendor/exporters/GLTFExporter.js": {
+      "bytes": 86392,
+      "sha256": "e7c29444454eb321b39e4c8b3062944f4fd5299a0e7483e9cb8c0594cdec829f"
+    },
+    "vendor/loaders/GLTFLoader.js": {
+      "bytes": 114739,
+      "sha256": "67ac5551fdafa6e349bd80c8f8e5e39c136d6b2fb1ad647db9abb21dc86f9e4a"
+    },
+    "vendor/RoundedBoxGeometry.js": {
+      "bytes": 6476,
+      "sha256": "c1b7c9bd2cddff2e3f3a0723f618a3d364a47450e3d25771d21faed88410bec8"
+    },
+    "vendor/THREE-LICENSE.txt": {
+      "bytes": 1081,
+      "sha256": "bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601"
+    },
+    "vendor/utils/BufferGeometryUtils.js": {
+      "bytes": 35539,
+      "sha256": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
+    },
+    "preview/bottom.png": {
+      "bytes": 417093,
+      "sha256": "1fd31e7283e1e3538897145c5c28303771ccf5c31942b6accd8f5c0c3a56e1ca"
+    },
+    "preview/detail.png": {
+      "bytes": 737061,
+      "sha256": "7b95fb052461dae017a2812ae98793e1129c9755a5ff448bebbb4c83a4286a37"
+    },
+    "preview/front.png": {
+      "bytes": 235257,
+      "sha256": "e0795558c8a8f22ce671180f4177f09c3dfb8151e7e4fdb3a0d2550134c06084"
+    },
+    "preview/hero.png": {
+      "bytes": 468850,
+      "sha256": "14d1480b8936f3b63fc9af8557d892e70d4a3127b40e5ccfc294bf6519abbc3d"
+    },
+    "preview/side.png": {
+      "bytes": 381951,
+      "sha256": "632cdaf605f0e8ce0dc383ef1cb1431057a72f87c46950cce4e5df93233f727e"
+    },
+    "preview/top.png": {
+      "bytes": 546764,
+      "sha256": "2542b2fff96bc9c09d69d3c4e5a23511d8e95592954f5bac073ed54fde05766c"
+    },
+    "reference/highres/product-original.png": {
+      "bytes": 51907,
+      "sha256": "28ef9abb527903aa96ca4b113795790de3087e1807f6127b0ba24cc899d7f9a0"
+    },
+    "reference/highres/sensors.jpg": {
+      "bytes": 383937,
+      "sha256": "4e1ef58d8720cc3f2818e037cbbd03b8f49364803d55e866a957d1ee57f6fcf6"
+    },
+    "reference/highres/top.jpg": {
+      "bytes": 493923,
+      "sha256": "5637d74187f8a9386a5a8581b21a5010b39276ea27544c5b9fef803730f18fc0"
+    },
+    "reference/highres/front.jpg": {
+      "bytes": 309496,
+      "sha256": "02ed83348a5e2176575297ff8241c62e031220e1771c7c21672e2e0cc9f6ce76"
+    },
+    "reference/highres/perspective.jpg": {
+      "bytes": 386337,
+      "sha256": "77c249f31432b483c1699cc2fd898491084d73399ad3d3dbda68c0b7bfb43f52"
+    },
+    "reference/highres/bottom.jpg": {
+      "bytes": 406147,
+      "sha256": "c9b835fd3c3b0f70971576421db3d3a3e0973156320346263d2ac952be14fb20"
+    },
+    "reference/highres/side.jpg": {
+      "bytes": 413428,
+      "sha256": "a1e40b5690131f720087253730563da15ad9663ccfe7f00373d20fd42daffa46"
+    },
+    "reference/highres/sources.json": {
+      "bytes": 1188,
+      "sha256": "83aa231696e790e189b3885c966cc6827706119318624d32efbc9b7c850e732a"
+    }
+  },
+  "updatedDate": "2026-10-18",
+  "changes": [
+    "Smooth fuselage and tapered arms",
+    "Detailed three-axis gimbal and square filter frame",
+    "Layered coated optics and fine grooves",
+    "Embedded polymer normal/roughness textures and lettering",
+    "Studio PMREM environment, soft self and contact shadows"
+  ]
+}

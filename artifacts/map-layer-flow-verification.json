@@ -1,0 +1,99 @@
+{
+  "checkedAt": "2026-10-10T03:28:21.545Z",
+  "scope": "WeChat mini-program layer request and rendering flow",
+  "deviceValidation": false,
+  "checks": [
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\scripts\\check-map-layer-flow.cjs",
+      "exitCode": 0,
+      "output": "PASS uom: 100 pending refreshes -> 1 download / 1 native add; first draw, late callbacks, retained old layer, diagnostics.\nPASS uom5: 100 pending refreshes -> 1 download / 1 native add; first draw, late callbacks, retained old layer, diagnostics.\nPASS: cached viewport return, coalesced view update, independent layers, handoff only after apply, stale handoff, valid empty KML, KML request reuse.\nPASS DJI: identical requests merged; return to cached viewport cancels stale request; disabled layer cannot reappear.\nPASS: overlapping downloads reused, serial view commits, reverse/cancelled handoff, invalid DJI response retains data semantics.\nPASS KML: in-flight and decoded resource reuse; obsolete resources aborted; URL versions isolated; disable cancels remaining resources.\n"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-web-Frontend\\scripts\\check-uom-overlay-swap.cjs",
+      "exitCode": 0,
+      "output": "PASS uom: partial failure, idle retry, atomic success, synchronous and late callbacks, timeout.\nPASS uom5: partial failure, idle retry, atomic success, synchronous and late callbacks, timeout.\n"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-web-Frontend\\scripts\\check-uom-idle-guards.cjs",
+      "exitCode": 0,
+      "output": "PASS: failed KML handover preserves old layer; valid empty data can clear; malformed responses cannot become empty maps; GPS recenter retains geometry while refreshing.\n"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\scripts\\check-layer-setting-independence.cjs",
+      "exitCode": 0,
+      "output": "PASS: independent temporary layer, legacy fallback, serial writes, stale GET protection.\n"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\scripts\\check-pixel-layout.cjs",
+      "exitCode": 0,
+      "output": "PASS: 587 source files checked; no responsive pixel units, valid JS, stable map sizes and scale bar at six viewport widths, gift above meetup.\n"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\scripts\\check-desktop-map.cjs",
+      "exitCode": 0,
+      "output": "Desktop map checks passed: desktop/phone insets, resize, unread size, thumbnail hit bounds, duplicate events and navigation retry.\n"
+    }
+  ],
+  "sources": [
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\components\\dji-no-fly-layer\\index.js",
+      "sha256": "175d42e57200ab4b32dcda5cfacac129a8834d530df4b82ac634e3a28f044d0e"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\dji\\utils\\dji.js",
+      "sha256": "ba724feebf13bbc1d93346dd25a5185c6a63f3f836329db21d0dc8eb68d54ad2"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom\\components\\uom-plugin\\index.js",
+      "sha256": "1a875bd0f60b84964c51839c71bcc7676e2e9615580e07d40ffab0f8bfb38c9c"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom4\\components\\uom-plugin\\index.js",
+      "sha256": "6e3fe4f79b590cd1637187e16d9481dbe9ec060606ec409794785965dac8b74f"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\packages\\uom5\\components\\uom-plugin\\index.js",
+      "sha256": "0d9123201c685d25a360c46bb2f3a9dab8735bf7bdaad59c449e3a3a19428f66"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\cleanup.js",
+      "sha256": "dd3ebd0323520cca1b4521f569f9810f1db7fa70f73815392a1a6e2f33f68990"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\layer-panel.js",
+      "sha256": "5b584a9953fc23f3ca53cdae1d70766ae987dbb6a95fafc7c822576a0b02f2ee"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-graphics.js",
+      "sha256": "a8ae3eeac2daf2e323db2ad6146d6c7234fbe442b048131b3a055d6954625c5b"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\map-plugins.js",
+      "sha256": "2af2fdf65d9d25323a78d5177f4ad815d3fbde2fbae238238fbe95d9b562d4b7"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\map\\utils\\misc-actions.js",
+      "sha256": "a405684594c11d0860829d9f1454c58f84ba6bc8ef3d84b734ccdd5fd222ef87"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\location-picker\\index.js",
+      "sha256": "ff8b7d5986bca422e5085f998417fea8392e95e261353439629593fe9f893792"
+    },
+    {
+      "file": "E:\\source_code\\wechat\\DiKongKong-wechat-mini\\miniprogram\\pages\\markers\\pin-picker\\index.js",
+      "sha256": "5a26ffdac505ba533e87915df3528c1df88b91ced4ec511c5100de9c18a66637"
+    }
+  ],
+  "passed": true,
+  "diagnostics": {
+    "consolePrefixes": [
+      "[uom-overlay]",
+      "[uom5-overlay]",
+      "[uom-handoff]",
+      "[uom-graphics-clear]"
+    ],
+    "nativeTrace": "UOM component instance._overlayTrace (last 80 events; clear reason, native failures, batch IDs and overlay IDs)",
+    "pageTrace": "Map page instance._mapGraphicsTrace (last 40 view submissions; counts separated by owner)",
+    "noCoordinatesOrTokensInTrace": true
+  }
+}
